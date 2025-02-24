@@ -3,25 +3,25 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 pub struct Member {
     #[serde(alias = "Nom d'usage")]
-    name: String,
+    pub name: String,
     #[serde(alias = "Prénom")]
-    firstname: String,
+    pub firstname: String,
     #[serde(alias = "Sexe")]
-    gender: String,
+    pub gender: String,
     #[serde(alias = "Date de Naissance")]
-    birthdate: String,
+    pub birthdate: String,
     #[serde(alias = "Age")]
-    age: String,
+    pub age: String,
     #[serde(alias = "Email")]
-    email_address: String,
+    pub email_address: String,
     #[serde(alias = "Réglé")]
-    payed: String,
+    pub payed: String,
     #[serde(alias = "Date Fin d'adhésion")]
-    end_date: String,
+    pub end_date: String,
     #[serde(alias = "Adherent expiré")]
-    expired: String,
+    pub expired: String,
     #[serde(alias = "Nom de structure")]
-    club: String,
+    pub club: String,
     #[serde(alias = "Code de structure")]
-    membership_number: String
+    pub membership_number: String
 }
