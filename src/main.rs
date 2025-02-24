@@ -10,6 +10,8 @@ use crate::server::start_server;
 
 #[launch]
 fn rocket() -> _ {
+    env_logger::init();
+
     let members_state = load_members_file_details();
     start_server(members_state)
 }
@@ -22,7 +24,7 @@ fn load_members_file_details() -> MembersState {
         Err(member::error::Error::NoFileFound) => { MembersState::default() }
         Err(e) => {
             error!("Can't read members file, aborting...\n{e:#?}");
-            panic!("Can't read members file, aborting...");
+            panic!();
         }
     }
 }
