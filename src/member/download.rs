@@ -1,12 +1,13 @@
 use std::env;
+use std::ffi::OsStr;
+use std::ffi::OsString;
 use std::fs::File;
 use std::io::Write;
-use std::time::SystemTime;
-use chrono::Local;
+use chrono::{DateTime, Local, NaiveDate};
 use encoding::all::ISO_8859_1;
 use encoding::{DecoderTrap, Encoding};
-use log::{debug, error, info, warn};
-use reqwest::blocking::Client;
+use log::{debug, error, warn};
+use reqwest::Client;
 use regex::Regex;
 
 const URL_DOMAIN: &str = "https://www.leolagrange-fileo.org";
@@ -22,8 +23,15 @@ impl Credentials {
     }
 }
 
+pub async fn download_members_list() -> Result<(NaiveDate, OsString), ()> {
+    let client = build_client();
+    connect(&client).await;
+    load_list_into_server_session(&client).await;
+    export_list(&client).await
+}
+
 fn build_client() -> Client {
-    reqwest::blocking::ClientBuilder::new()
+    reqwest::ClientBuilder::new()
         .cookie_store(true)
         .build()
         .unwrap()
@@ -56,14 +64,13 @@ fn retrieve_credentials() -> Option<Credentials> {
     }
 }
 
-pub fn connect() -> Result<Client, ()> {
+async fn connect(client: &Client) -> Result<(), ()> {
     let credentials = match retrieve_credentials() {
         None => { return Err(()); }
         Some(credentials) => { credentials }
     };
 
     let url = format!("{URL_DOMAIN}/page.php");
-    let client = build_client();
     let arguments = [
         ("Action", "connect_user"),
         ("requestForm", "formConnecter"),
@@ -75,12 +82,13 @@ pub fn connect() -> Result<Client, ()> {
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(body);
     match query
-        .send() {
+        .send()
+        .await {
         Ok(response) => {
             let status = response.status();
             if status.is_success() || status.is_redirection() {
                 debug!("Connected!");
-                return Ok(client);
+                return Ok(());
             } else {
                 error!("Connection failed...");
                 panic!("Connection failed, aborting process.")
@@ -94,7 +102,7 @@ pub fn connect() -> Result<Client, ()> {
     }
 }
 
-pub fn get_list(client: &Client) -> Result<(), ()> {
+async fn load_list_into_server_session(client: &Client) -> Result<(), ()> {
     let url = format!("{URL_DOMAIN}/page.php?P=bo/extranet/adhesion/annuaire/index");
     let arguments = [
         ("Action", "adherent_filtrer"),
@@ -128,7 +136,8 @@ pub fn get_list(client: &Client) -> Result<(), ()> {
     match client.post(url)
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(body)
-        .send() {
+        .send()
+        .await {
         Ok(_) => {
             debug!("Retrieved list!");
         }
@@ -142,7 +151,7 @@ pub fn get_list(client: &Client) -> Result<(), ()> {
     Ok(())
 }
 
-pub fn export_list(client: &Client) -> Result<String, ()> {
+async fn export_list(client: &Client) -> Result<(NaiveDate, OsString), ()> {
     let url = format!("{URL_DOMAIN}/includer.php?inc=ajax/adherent/adherent_export");
     let arguments = [
         ("requestForm", "formExport"),
@@ -165,7 +174,8 @@ pub fn export_list(client: &Client) -> Result<String, ()> {
     let response = match client.post(url)
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(body)
-        .send() {
+        .send()
+        .await {
         Ok(response) => {
             debug!("Export is ready!");
             response
@@ -177,17 +187,18 @@ pub fn export_list(client: &Client) -> Result<String, ()> {
         }
     };
 
-    let page_content = response.text().unwrap();
+    let page_content = response.text().await.unwrap();
     let regex = Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv").unwrap();
     let file_url = regex.find(&page_content).unwrap().as_str();
-    match client.get(file_url).send() {
+    match client.get(file_url).send().await {
         Ok(response) => {
-            let filename = format!("members-{}.csv", Local::now().format("%Y-%m-%d"));
+            let date_time = Local::now().date_naive();
+            let filename = format!("members-{}.csv", date_time.format("%Y-%m-%d"));
             dbg!(&filename);
             let mut file = File::create(&filename).unwrap();
-            let bytes = ISO_8859_1.decode(response.bytes().unwrap().as_ref(), DecoderTrap::Strict).unwrap();
-            file.write(bytes.as_bytes());
-            return Ok(filename);
+            let bytes = ISO_8859_1.decode(response.bytes().await.unwrap().as_ref(), DecoderTrap::Strict).unwrap();
+            file.write(bytes.as_bytes()).unwrap();
+            return Ok((date_time, OsString::from(filename)));
         }
         Err(error) => {
             dbg!(&error);
@@ -202,7 +213,7 @@ fn format_arguments_into_body(args: &[(&str, &str)]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::download::format_arguments_into_body;
+    use crate::member::download::format_arguments_into_body;
 
     #[test]
     fn should_format_arguments_into_body() {
