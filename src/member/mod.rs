@@ -11,7 +11,7 @@ use chrono::NaiveDate;
 use derive_getters::Getters;
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize, Getters, PartialEq, Eq, Hash, PartialOrd, Clone)]
+#[derive(Debug, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
 pub struct Member {
     #[serde(alias = "Nom d'usage")]
     name: String,
@@ -39,7 +39,13 @@ pub struct Member {
     structure_code: String,
 }
 
-impl Ord for crate::member::Member {
+impl PartialOrd for Member {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Member {
     fn cmp(&self, other: &Self) -> Ordering {
         self.end_date.cmp(&other.end_date)
     }

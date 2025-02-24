@@ -9,10 +9,10 @@ use crate::member::Member;
 use crate::member::Result;
 
 pub fn import_from_file(filename: &OsStr) -> Result<HashMap<String, BTreeSet<Member>>> {
-    let file = File::open(filename).or_else(|e| {
+    let file = File::open(filename).map_err(|e| {
         error!("Can't open members file `{:?}`.", filename.to_str());
         error!("{e}");
-        Err(CantOpenMembersFile)
+        CantOpenMembersFile
     })?;
     let mut reader = csv::ReaderBuilder::new()
         .delimiter(b';')

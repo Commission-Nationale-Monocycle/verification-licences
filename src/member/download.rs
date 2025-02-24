@@ -57,11 +57,11 @@ fn retrieve_credentials() -> Result<Credentials> {
             }
         }
 
-        if login.is_some() && password.is_some() {
-            Ok(Credentials::new(login.unwrap(), password.unwrap()))
-        } else {
+        if login.is_none() || password.is_none() {
             warn!("Args don't contain login or password. It won't be possible to retrieve the members list.");
             Err(NoCredentials)
+        } else {
+            Ok(Credentials::new(login.unwrap(), password.unwrap()))
         }
     }
 }
