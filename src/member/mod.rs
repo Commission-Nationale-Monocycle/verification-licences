@@ -155,4 +155,27 @@ mod tests {
         let member2 = Member::new_test(NaiveDate::from_ymd_opt(y2, m2, d2).unwrap());
         assert_eq!(Some(expected_result), member1.partial_cmp(&member2));
     }
+
+    #[test]
+    fn should_deserialize_member() {
+        let member = Member {
+            name: "Doe".to_owned(),
+            firstname: "John".to_owned(),
+            gender: "M".to_string(),
+            birthdate: NaiveDate::from_ymd_opt(2000, 10, 11),
+            age: Some(24_u8),
+            membership_number: "42".to_string(),
+            email_address: "john.doe@yopmail.com".to_owned(),
+            payed: true,
+            end_date: NaiveDate::from_ymd_opt(2025, 10, 11).unwrap(),
+            expired: false,
+            club: "Best Club".to_owned(),
+            structure_code: "A12345".to_owned()
+        };
+        let json = r#"{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"11-10-2000","Age":24,"Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"Oui","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}"#;
+        let result = serde_json::from_str(&json);
+
+        assert!(result.is_ok());
+        assert_eq!(member, result.unwrap())
+    }
 }
