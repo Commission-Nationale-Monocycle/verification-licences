@@ -15,8 +15,9 @@ jobs:
     runs-on: ubuntu-24-04
 
     steps:
-    - uses: docker://rust:1.85.0-alpine3.21
     - uses: actions/checkout@v4
+    - name: Update Cargo
+      run: rustup update
     - name: Build
       run: cargo build --verbose
     - name: Run tests
