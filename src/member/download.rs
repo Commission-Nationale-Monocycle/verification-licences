@@ -8,6 +8,8 @@ use encoding::{DecoderTrap, Encoding};
 use log::{debug, error, warn};
 use reqwest::Client;
 use regex::Regex;
+use crate::member::error::Error::{CantExportList, CantLoadListOnServer, CantPrepareListForExport, ConnectionFailed, ConnectionFailedBecauseOfServer, NoCredentials};
+use crate::member::Result;
 
 const URL_DOMAIN: &str = "https://www.leolagrange-fileo.org";
 
@@ -22,11 +24,12 @@ impl Credentials {
     }
 }
 
-pub async fn download_members_list() -> Result<(NaiveDate, OsString), ()> {
+pub async fn download_members_list() -> Result<(NaiveDate, OsString)> {
     let client = build_client();
-    connect(&client).await;
-    load_list_into_server_session(&client).await;
-    export_list(&client).await
+    connect(&client).await?;
+    load_list_into_server_session(&client).await?;
+    let download_url = prepare_list_for_export(&client).await?;
+    export_list(&client, &download_url).await
 }
 
 fn build_client() -> Client {
@@ -36,12 +39,12 @@ fn build_client() -> Client {
         .unwrap()
 }
 
-fn retrieve_credentials() -> Option<Credentials> {
+fn retrieve_credentials() -> Result<Credentials> {
     let args: Vec<String> = env::args().collect();
     dbg!(&args);
     if args.len() < 3 {
         warn!("Args don't contain login or password. It won't be possible to retrieve the members list.");
-        None
+        Err(NoCredentials)
     } else {
         let mut login = None;
         let mut password = None;
@@ -55,19 +58,16 @@ fn retrieve_credentials() -> Option<Credentials> {
         }
 
         if login.is_some() && password.is_some() {
-            Some(Credentials::new(login.unwrap(), password.unwrap()))
+            Ok(Credentials::new(login.unwrap(), password.unwrap()))
         } else {
             warn!("Args don't contain login or password. It won't be possible to retrieve the members list.");
-            None
+            Err(NoCredentials)
         }
     }
 }
 
-async fn connect(client: &Client) -> Result<(), ()> {
-    let credentials = match retrieve_credentials() {
-        None => { return Err(()); }
-        Some(credentials) => { credentials }
-    };
+async fn connect(client: &Client) -> Result<()> {
+    let credentials = retrieve_credentials()?;
 
     let url = format!("{URL_DOMAIN}/page.php");
     let arguments = [
@@ -86,22 +86,22 @@ async fn connect(client: &Client) -> Result<(), ()> {
         Ok(response) => {
             let status = response.status();
             if status.is_success() || status.is_redirection() {
-                debug!("Connected!");
+                debug!("Connected to {url}!");
                 Ok(())
             } else {
-                error!("Connection failed...");
-                panic!("Connection failed, aborting process.")
+                error!("Connection to {url} failed because of status {status}...");
+                Err(ConnectionFailed)
             }
         }
         Err(e) => {
             error!("Connection failed...");
             error!("{}", e.to_string());
-            panic!("Connection failed, aborting process.")
+            Err(ConnectionFailedBecauseOfServer)
         }
     }
 }
 
-async fn load_list_into_server_session(client: &Client) -> Result<(), ()> {
+async fn load_list_into_server_session(client: &Client) -> Result<()> {
     let url = format!("{URL_DOMAIN}/page.php?P=bo/extranet/adhesion/annuaire/index");
     let arguments = [
         ("Action", "adherent_filtrer"),
@@ -138,19 +138,18 @@ async fn load_list_into_server_session(client: &Client) -> Result<(), ()> {
         .send()
         .await {
         Ok(_) => {
-            debug!("Retrieved list!");
+            debug!("List loaded on server.");
+            Ok(())
         }
         Err(e) => {
-            error!("Can't retrieve list");
+            error!("The server couldn't load the list.");
             error!("{}", e.to_string());
-            panic!("Aborting process.")
+            Err(CantLoadListOnServer)
         }
-    };
-
-    Ok(())
+    }
 }
 
-async fn export_list(client: &Client) -> Result<(NaiveDate, OsString), ()> {
+async fn prepare_list_for_export(client: &Client) -> Result<String> {
     let url = format!("{URL_DOMAIN}/includer.php?inc=ajax/adherent/adherent_export");
     let arguments = [
         ("requestForm", "formExport"),
@@ -180,15 +179,19 @@ async fn export_list(client: &Client) -> Result<(NaiveDate, OsString), ()> {
             response
         }
         Err(e) => {
-            error!("Can't retrieve list");
+            error!("Can't export list");
             error!("{}", e.to_string());
-            panic!("Aborting process.")
+            return Err(CantPrepareListForExport);
         }
     };
 
     let page_content = response.text().await.unwrap();
     let regex = Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv").unwrap();
     let file_url = regex.find(&page_content).unwrap().as_str();
+    Ok(file_url.to_owned())
+}
+
+async fn export_list(client: &Client, file_url: &str) -> Result<(NaiveDate, OsString)> {
     match client.get(file_url).send().await {
         Ok(response) => {
             let date_time = Local::now().date_naive();
@@ -201,7 +204,7 @@ async fn export_list(client: &Client) -> Result<(NaiveDate, OsString), ()> {
         }
         Err(error) => {
             dbg!(&error);
-            Err(())
+            Err(CantExportList)
         }
     }
 }

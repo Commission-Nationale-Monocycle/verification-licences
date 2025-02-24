@@ -23,9 +23,15 @@ async fn members(members_state: &State<Mutex<MembersState>>) -> Result<String, S
     if filename.is_none() {
         Err("Can't find file.".to_string())
     } else {
-        let members_by_membership = import_from_file(filename.as_ref().unwrap());
-        members_state.set_members(members_by_membership);
-        Ok(format!("{:#?}", members_state.members()))
+        match import_from_file(filename.as_ref().unwrap()) {
+            Ok(members) => {
+                members_state.set_members(members);
+                Ok(format!("{:#?}", members_state.members()))
+            }
+            Err(e) => {
+                Err(format!("{e:?}"))
+            }
+        }
     }
 }
 
@@ -44,10 +50,17 @@ async fn update_members(members_state: &State<Mutex<MembersState>>) {
 #[launch]
 fn rocket() -> _ {
     let mut members_state = MembersState::default();
-    let file_details = find_file();
-    if let Some((date, filename)) = file_details {
-        members_state.set_last_update(date);
-        members_state.set_filename(filename);
+    match find_file() {
+        Ok((date, filename)) => {
+            members_state.set_last_update(date);
+            members_state.set_filename(filename);
+        }
+        Err(member::error::Error::NoFileFound) => {},
+        Err(e) => {
+            error!("Can't read members file, aborting...");
+            error!("{e:#?}");
+            panic!("Can't read members file, aborting...");
+        }
     }
 
     rocket::build()
