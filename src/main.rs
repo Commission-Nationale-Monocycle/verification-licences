@@ -21,8 +21,7 @@ fn load_members_file_details() -> MembersState {
         }
         Err(member::error::Error::NoFileFound) => { MembersState::default() }
         Err(e) => {
-            error!("Can't read members file, aborting...");
-            error!("{e:#?}");
+            error!("Can't read members file, aborting...\n{e:#?}");
             panic!("Can't read members file, aborting...");
         }
     }

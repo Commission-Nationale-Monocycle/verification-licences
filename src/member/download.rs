@@ -41,7 +41,6 @@ fn build_client() -> Client {
 
 fn retrieve_credentials() -> Result<Credentials> {
     let args: Vec<String> = env::args().collect();
-    dbg!(&args);
     if args.len() < 3 {
         warn!("Args don't contain login or password. It won't be possible to retrieve the members list.");
         Err(NoCredentials)
@@ -94,8 +93,7 @@ async fn connect(client: &Client) -> Result<()> {
             }
         }
         Err(e) => {
-            error!("Connection failed...");
-            error!("{}", e.to_string());
+            error!("Connection failed...\n{e:#?}");
             Err(ConnectionFailedBecauseOfServer)
         }
     }
@@ -142,8 +140,7 @@ async fn load_list_into_server_session(client: &Client) -> Result<()> {
             Ok(())
         }
         Err(e) => {
-            error!("The server couldn't load the list.");
-            error!("{}", e.to_string());
+            error!("The server couldn't load the list.\n{e:#?}");
             Err(CantLoadListOnServer)
         }
     }
@@ -179,8 +176,7 @@ async fn prepare_list_for_export(client: &Client) -> Result<String> {
             response
         }
         Err(e) => {
-            error!("Can't export list");
-            error!("{}", e.to_string());
+            error!("Can't export list.\n{e:#?}");
             return Err(CantPrepareListForExport);
         }
     };
@@ -196,14 +192,13 @@ async fn export_list(client: &Client, file_url: &str) -> Result<(NaiveDate, OsSt
         Ok(response) => {
             let date_time = Local::now().date_naive();
             let filename = format!("members-{}.csv", date_time.format("%Y-%m-%d"));
-            dbg!(&filename);
             let mut file = File::create(&filename).unwrap();
             let bytes = ISO_8859_1.decode(response.bytes().await.unwrap().as_ref(), DecoderTrap::Strict).unwrap();
             file.write_all(bytes.as_bytes()).unwrap();
             Ok((date_time, OsString::from(filename)))
         }
-        Err(error) => {
-            dbg!(&error);
+        Err(e) => {
+            error!("Can't export list.\n{e:#?}");
             Err(CantExportList)
         }
     }

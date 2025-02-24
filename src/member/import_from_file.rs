@@ -11,8 +11,7 @@ use crate::member::Result;
 
 pub fn import_from_file(filename: &OsStr) -> Result<HashMap<String, BTreeSet<Member>>> {
     let file = File::open(filename).map_err(|e| {
-        error!("Can't open members file `{:?}`.", filename.to_str());
-        error!("{e}");
+        error!("Can't open members file `{:?}`.\n{e:#?}", filename.to_str());
         CantOpenMembersFile
     })?;
     let mut reader = csv::ReaderBuilder::new()
