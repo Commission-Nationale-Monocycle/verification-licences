@@ -18,13 +18,14 @@ fn index() -> &'static str {
 
 #[get("/members")]
 async fn members(members_state: &State<Mutex<MembersState>>) -> Result<String, String> {
-    let members_state = members_state.lock().unwrap();
+    let mut members_state = members_state.lock().unwrap();
     let filename: &Option<OsString> = members_state.filename();
     if filename.is_none() {
         Err("Can't find file.".to_string())
     } else {
         let members_by_membership = import_from_file(filename.as_ref().unwrap());
-        Ok(format!("{:#?}", members_by_membership))
+        members_state.set_members(members_by_membership);
+        Ok(format!("{:#?}", members_state.members()))
     }
 }
 

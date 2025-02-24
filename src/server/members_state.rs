@@ -25,4 +25,8 @@ impl MembersState {
     pub fn set_last_update(&mut self, last_update: NaiveDate) {
         self.last_update = Some(last_update);
     }
+
+    pub fn set_members(&mut self, members: HashMap<String, BTreeSet<Member>>) {
+        self.members = members;
+    }
 }
