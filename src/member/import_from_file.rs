@@ -46,9 +46,8 @@ pub fn find_file() -> Result<FileDetails> {
             let captures = captures.unwrap();
             let date = NaiveDate::from_ymd_opt(
                 convert_match_to_integer(&captures, "year")?,
-                // String::from_utf8_lossy(&captures["year"]).parse::<i32>().unwrap(),
-                String::from_utf8_lossy(&captures["month"]).parse::<u32>().unwrap(),
-                String::from_utf8_lossy(&captures["day"]).parse::<u32>().unwrap(),
+                convert_match_to_integer(&captures, "month")?,
+                convert_match_to_integer(&captures, "day")?
             ).unwrap();
 
             return Ok(FileDetails::new(date, filename));
