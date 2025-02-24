@@ -5,12 +5,23 @@ mod download;
 mod import_members_list;
 
 
-fn main() {
-    env_logger::init();
-    let client = connect().unwrap();
-    get_list(&client);
-    let filename = export_list(&client).unwrap();
+// fn main() {
+//     env_logger::init();
+//     let client = connect().unwrap();
+//     get_list(&client);
+//     let filename = export_list(&client).unwrap();
+//
+//     import_from_file(&filename);
+// }
 
-    import_from_file(&filename);
+#[macro_use] extern crate rocket;
+
+#[get("/")]
+fn index() -> &'static str {
+    "Hello, world!"
 }
 
+#[launch]
+fn rocket() -> _ {
+    rocket::build().mount("/", routes![index])
+}
