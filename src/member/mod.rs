@@ -3,6 +3,7 @@ use crate::member::error::Error;
 
 pub mod download;
 pub mod import_from_file;
+pub mod file_details;
 pub mod error;
 
 type Result<T, E = Error> = std::result::Result<T, E>;

@@ -1,10 +1,11 @@
 use std::collections::{BTreeSet, HashMap};
-use std::ffi::{OsStr, OsString};
+use std::ffi::{OsStr};
 use std::fs::File;
 use std::str::FromStr;
 use chrono::NaiveDate;
 use regex::bytes::{Captures, Regex};
 use crate::member::error::Error::{CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile, NoFileFound, WrongRegex};
+use crate::member::file_details::FileDetails;
 use crate::member::Member;
 use crate::member::Result;
 
@@ -33,7 +34,7 @@ pub fn import_from_file(filename: &OsStr) -> Result<HashMap<String, BTreeSet<Mem
     Ok(map)
 }
 
-pub fn find_file() -> Result<(NaiveDate, OsString)> {
+pub fn find_file() -> Result<FileDetails> {
     let regex = Regex::new("^members-(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})\\.csv$")
         .or(Err(WrongRegex))?;
     let paths = std::fs::read_dir("./").or(Err(CantBrowseThroughFiles))?;
@@ -50,7 +51,7 @@ pub fn find_file() -> Result<(NaiveDate, OsString)> {
                 String::from_utf8_lossy(&captures["day"]).parse::<u32>().unwrap(),
             ).unwrap();
 
-            return Ok((date, filename));
+            return Ok(FileDetails::new(date, filename));
         }
     }
 

@@ -1,23 +1,17 @@
 use std::collections::{BTreeSet, HashMap};
-use std::ffi::OsString;
-use chrono::NaiveDate;
 use derive_getters::Getters;
+use crate::member::file_details::FileDetails;
 use crate::member::Member;
 
 #[derive(Getters, Default)]
 pub struct MembersState {
-    filename: Option<OsString>,
-    last_update: Option<NaiveDate>,
+    file_details: Option<FileDetails>,
     members: HashMap<String, BTreeSet<Member>>
 }
 
 impl MembersState {
-    pub fn set_filename(&mut self, filename: OsString) {
-        self.filename = Some(filename);
-    }
-
-    pub fn set_last_update(&mut self, last_update: NaiveDate) {
-        self.last_update = Some(last_update);
+    pub fn set_file_details(&mut self, file_details: FileDetails) {
+        self.file_details = Some(file_details);
     }
 
     pub fn set_members(&mut self, members: HashMap<String, BTreeSet<Member>>) {
