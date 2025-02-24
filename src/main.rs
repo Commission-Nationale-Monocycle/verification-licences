@@ -1,3 +1,10 @@
+use crate::download::connect;
+
+mod download;
+
+
 fn main() {
-    println!("Hello, world!");
+    env_logger::init();
+    connect();
 }
+
