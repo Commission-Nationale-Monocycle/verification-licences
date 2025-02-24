@@ -3,6 +3,8 @@ use std::fs::File;
 use std::io::Write;
 use std::time::SystemTime;
 use chrono::Local;
+use encoding::all::ISO_8859_1;
+use encoding::{DecoderTrap, Encoding};
 use log::{debug, error, info, warn};
 use reqwest::blocking::Client;
 use regex::Regex;
@@ -180,10 +182,11 @@ pub fn export_list(client: &Client) -> Result<String, ()> {
     let file_url = regex.find(&page_content).unwrap().as_str();
     match client.get(file_url).send() {
         Ok(response) => {
-            let filename = format!("members-{}.csv", Local::now().format("%Y-%m%d"));
+            let filename = format!("members-{}.csv", Local::now().format("%Y-%m-%d"));
             dbg!(&filename);
             let mut file = File::create(&filename).unwrap();
-            file.write(response.bytes().unwrap().as_ref());
+            let bytes = ISO_8859_1.decode(response.bytes().unwrap().as_ref(), DecoderTrap::Strict).unwrap();
+            file.write(bytes.as_bytes());
             return Ok(filename);
         }
         Err(error) => {
