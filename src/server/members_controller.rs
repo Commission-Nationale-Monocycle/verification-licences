@@ -25,12 +25,16 @@ pub async fn members(members_state: &State<Mutex<MembersState>>) -> Result<Strin
 }
 
 #[post("/members")]
-pub async fn update_members(members_state: &State<Mutex<MembersState>>) {
+pub async fn update_members(members_state: &State<Mutex<MembersState>>) -> Result<(), String> {
     let (datetime, filename) = match download_members_list().await {
-        Ok((date, filename)) => { (date, filename) }
-        Err(_) => { panic!("Oops") }
-    };
+        Ok((date, filename)) => Ok((date, filename)),
+        Err(e) => {
+            Err(format!("{e:?}"))
+        }
+    }?;
 
     let mut members_state = members_state.lock().unwrap();
     members_state.set_file_details(FileDetails::new(datetime, filename));
+
+    Ok(())
 }
