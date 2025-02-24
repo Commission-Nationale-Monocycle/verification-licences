@@ -12,6 +12,8 @@ use chrono::NaiveDate;
 use derive_getters::Getters;
 use serde::Deserialize;
 
+const MEMBERS_FILE_FOLDER: &str = "data";
+
 #[derive(Debug, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
 pub struct Member {
     #[serde(alias = "Nom d'usage")]

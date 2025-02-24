@@ -1,5 +1,7 @@
 #[derive(Debug)]
 pub enum Error {
+    CantCreateMembersFileFolder,
+
     NoCredentials,
     ConnectionFailed,
     ConnectionFailedBecauseOfServer,
@@ -7,10 +9,10 @@ pub enum Error {
     CantPrepareListForExport,
     CantExportList,
 
+    CantOpenMembersFileFolder,
     CantOpenMembersFile,
     WrongRegex,
     CantBrowseThroughFiles,
     CantConvertDateFieldToString,
     NoFileFound,
-
 }

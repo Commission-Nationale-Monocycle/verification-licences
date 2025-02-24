@@ -4,9 +4,9 @@ use std::fs::File;
 use std::str::FromStr;
 use chrono::NaiveDate;
 use regex::bytes::{Captures, Regex};
-use crate::member::error::Error::{CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile, NoFileFound, WrongRegex};
+use crate::member::error::Error::{CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile, CantOpenMembersFileFolder, NoFileFound, WrongRegex};
 use crate::member::file_details::FileDetails;
-use crate::member::Member;
+use crate::member::{Member, MEMBERS_FILE_FOLDER};
 use crate::member::Result;
 
 pub fn import_from_file(filename: &OsStr) -> Result<HashMap<String, BTreeSet<Member>>> {
@@ -34,9 +34,18 @@ pub fn import_from_file(filename: &OsStr) -> Result<HashMap<String, BTreeSet<Mem
 }
 
 pub fn find_file() -> Result<FileDetails> {
+    match std::fs::exists(MEMBERS_FILE_FOLDER) {
+        Ok(true) => Ok(()),
+        Ok(false) => Err(NoFileFound),
+        Err(e) => {
+            error!("MEMBERS_FILE_FOLDER `{MEMBERS_FILE_FOLDER} is inaccessible.\n{e:#?}");
+            Err(CantOpenMembersFileFolder)
+        }
+    }?;
+
     let regex = Regex::new("^members-(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})\\.csv$")
         .or(Err(WrongRegex))?;
-    let paths = std::fs::read_dir("./").or(Err(CantBrowseThroughFiles))?;
+    let paths = std::fs::read_dir(MEMBERS_FILE_FOLDER).or(Err(CantBrowseThroughFiles))?;
     for path in paths {
         let path = path.expect("Path should be valid.");
         let filename = path.file_name();

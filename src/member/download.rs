@@ -8,8 +8,8 @@ use encoding::{DecoderTrap, Encoding};
 use log::{debug, error, warn};
 use reqwest::Client;
 use regex::Regex;
-use crate::member::error::Error::{CantExportList, CantLoadListOnServer, CantPrepareListForExport, ConnectionFailed, ConnectionFailedBecauseOfServer, NoCredentials};
-use crate::member::Result;
+use crate::member::error::Error::{CantCreateMembersFileFolder, CantExportList, CantLoadListOnServer, CantPrepareListForExport, ConnectionFailed, ConnectionFailedBecauseOfServer, NoCredentials};
+use crate::member::{MEMBERS_FILE_FOLDER, Result};
 
 const URL_DOMAIN: &str = "https://www.leolagrange-fileo.org";
 
@@ -25,6 +25,11 @@ impl Credentials {
 }
 
 pub async fn download_members_list() -> Result<(NaiveDate, OsString)> {
+    std::fs::create_dir_all(MEMBERS_FILE_FOLDER).map_err(|e| {
+        error!("Can't create MEMBERS_FILE_FOLDER `{MEMBERS_FILE_FOLDER}`.\n{e:#?}");
+        CantCreateMembersFileFolder
+    })?;
+
     let client = build_client();
     connect(&client).await?;
     load_list_into_server_session(&client).await?;
@@ -191,7 +196,7 @@ async fn export_list(client: &Client, file_url: &str) -> Result<(NaiveDate, OsSt
     match client.get(file_url).send().await {
         Ok(response) => {
             let date_time = Local::now().date_naive();
-            let filename = format!("members-{}.csv", date_time.format("%Y-%m-%d"));
+            let filename = format!("{MEMBERS_FILE_FOLDER}/members-{}.csv", date_time.format("%Y-%m-%d"));
             let mut file = File::create(&filename).unwrap();
             let bytes = ISO_8859_1.decode(response.bytes().await.unwrap().as_ref(), DecoderTrap::Strict).unwrap();
             file.write_all(bytes.as_bytes()).unwrap();
