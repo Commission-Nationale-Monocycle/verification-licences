@@ -106,3 +106,53 @@ mod bool_format {
         result
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use parameterized::ide;
+    use parameterized::parameterized;
+
+    use std::cmp::Ordering;
+    use chrono::NaiveDate;
+    use crate::member::Member;
+
+    ide!();
+
+    impl Member {
+        fn new_test(end_date: NaiveDate) -> Self {
+            Member {
+                name: "".to_string(),
+                firstname: "".to_string(),
+                gender: "".to_string(),
+                birthdate: None,
+                age: None,
+                membership_number: "".to_string(),
+                email_address: "".to_string(),
+                payed: false,
+                end_date,
+                expired: false,
+                club: "".to_string(),
+                structure_code: "".to_string(),
+            }
+        }
+    }
+
+    #[parameterized(
+        end_dates = {
+            ((2020, 10, 12), (2020, 11, 12)),
+            ((2020, 11, 12), (2020, 10, 12)),
+            ((2020, 11, 12), (2020, 11, 12)),
+        },
+        expected_result = {
+            Ordering::Less,
+            Ordering::Greater,
+            Ordering::Equal,
+        }
+    )]
+    fn should_sort_members(end_dates: ((i32, u32, u32), (i32, u32, u32)), expected_result: Ordering) {
+        let ((y1, m1, d1), (y2, m2, d2)) = end_dates;
+        let member1 = Member::new_test(NaiveDate::from_ymd_opt(y1, m1, d1).unwrap());
+        let member2 = Member::new_test(NaiveDate::from_ymd_opt(y2, m2, d2).unwrap());
+        assert_eq!(Some(expected_result), member1.partial_cmp(&member2));
+    }
+}
