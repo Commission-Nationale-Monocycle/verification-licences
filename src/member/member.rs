@@ -42,7 +42,7 @@ mod date_format {
     use chrono::NaiveDate;
     use serde::{Deserialize, Deserializer};
 
-    const FORMAT: &'static str = "%d-%m-%Y";
+    const FORMAT: &str = "%d-%m-%Y";
 
     pub fn deserialize_required<'de, D>(
         deserializer: D,

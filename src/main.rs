@@ -4,15 +4,11 @@ mod server;
 #[macro_use]
 extern crate rocket;
 
-use std::collections::{BTreeSet, HashMap};
 use std::ffi::OsString;
 use std::sync::Mutex;
-use chrono::Local;
 use rocket::State;
-use rocket::time::macros::datetime;
 use crate::member::download::download_members_list;
 use crate::member::import_from_file::{find_file, import_from_file};
-use crate::member::member::Member;
 use crate::server::members_state::MembersState;
 
 #[get("/")]
@@ -41,19 +37,16 @@ async fn update_members(members_state: &State<Mutex<MembersState>>) {
 
     let mut members_state = members_state.lock().unwrap();
     members_state.set_filename(filename);
-    members_state.set_last_update(datetime.clone());
+    members_state.set_last_update(datetime);
 }
 
 #[launch]
 fn rocket() -> _ {
     let mut members_state = MembersState::default();
     let file_details = find_file();
-    match file_details {
-        Some((date, filename)) => {
-            members_state.set_last_update(date);
-            members_state.set_filename(filename);
-        }
-        None => {}
+    if let Some((date, filename)) = file_details {
+        members_state.set_last_update(date);
+        members_state.set_filename(filename);
     }
 
     rocket::build()

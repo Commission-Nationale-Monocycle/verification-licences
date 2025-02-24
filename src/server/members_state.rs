@@ -1,6 +1,6 @@
 use std::collections::{BTreeSet, HashMap};
 use std::ffi::OsString;
-use chrono::{DateTime, Local, NaiveDate};
+use chrono::NaiveDate;
 use derive_getters::Getters;
 use crate::member::member::Member;
 

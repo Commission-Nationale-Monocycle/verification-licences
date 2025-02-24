@@ -1,9 +1,8 @@
 use std::env;
-use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::fs::File;
 use std::io::Write;
-use chrono::{DateTime, Local, NaiveDate};
+use chrono::{Local, NaiveDate};
 use encoding::all::ISO_8859_1;
 use encoding::{DecoderTrap, Encoding};
 use log::{debug, error, warn};
@@ -88,7 +87,7 @@ async fn connect(client: &Client) -> Result<(), ()> {
             let status = response.status();
             if status.is_success() || status.is_redirection() {
                 debug!("Connected!");
-                return Ok(());
+                Ok(())
             } else {
                 error!("Connection failed...");
                 panic!("Connection failed, aborting process.")
@@ -197,8 +196,8 @@ async fn export_list(client: &Client) -> Result<(NaiveDate, OsString), ()> {
             dbg!(&filename);
             let mut file = File::create(&filename).unwrap();
             let bytes = ISO_8859_1.decode(response.bytes().await.unwrap().as_ref(), DecoderTrap::Strict).unwrap();
-            file.write(bytes.as_bytes()).unwrap();
-            return Ok((date_time, OsString::from(filename)));
+            file.write_all(bytes.as_bytes()).unwrap();
+            Ok((date_time, OsString::from(filename)))
         }
         Err(error) => {
             dbg!(&error);
