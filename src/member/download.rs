@@ -651,6 +651,12 @@ mod tests {
         assert_eq!("key1=value1&key2=value2&key3", format_arguments_into_body(&arguments))
     }
 
+    #[test]
+    fn debug_credentials() {
+        let credentials = Credentials::new("login".to_owned(), "password".to_owned());
+        assert_eq!("Credentials {login=login, password=MASKED}", format!("{credentials:?}"));
+    }
+
     fn temp_dir() -> PathBuf {
         let buf = std::env::temp_dir().join(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_micros().to_string());
         fs::create_dir(&buf).unwrap();
