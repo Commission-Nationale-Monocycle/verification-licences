@@ -4,10 +4,11 @@ use std::fs::File;
 use std::str::FromStr;
 use chrono::NaiveDate;
 use regex::bytes::{Captures, Regex};
-use crate::member::error::Error::{CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile, CantOpenMembersFileFolder, NoFileFound, WrongRegex};
+use crate::member::error::Error::{CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile, CantOpenMembersFileFolder, InvalidDate, NoFileFound, WrongRegex};
 use crate::member::file_details::FileDetails;
 use crate::member::{Member, MEMBERS_FILE_FOLDER};
 use crate::member::Result;
+use crate::tools::log_message;
 
 pub fn import_from_file(filename: &OsStr) -> Result<HashMap<String, BTreeSet<Member>>> {
     let file = File::open(filename).map_err(|e| {
@@ -18,7 +19,13 @@ pub fn import_from_file(filename: &OsStr) -> Result<HashMap<String, BTreeSet<Mem
         .delimiter(b';')
         .from_reader(file);
     let members = reader.deserialize()
-        .map(|result: Result<Member, _>| result.unwrap())
+        .filter_map(|result: Result<Member, _>| match result {
+            Ok(member) => Some(member),
+            Err(e) => {
+                log_message("Error while reading member")(e);
+                None
+            }
+        })
         .collect::<Vec<_>>();
 
     let mut map = HashMap::new();
@@ -50,13 +57,12 @@ pub fn find_file() -> Result<FileDetails> {
         let path = path.expect("Path should be valid.");
         let filename = path.file_name();
         let captures = regex.captures(filename.as_encoded_bytes());
-        if captures.is_some() {
-            let captures = captures.unwrap();
+        if let Some(captures) = captures {
             let date = NaiveDate::from_ymd_opt(
                 convert_match_to_integer(&captures, "year")?,
                 convert_match_to_integer(&captures, "month")?,
                 convert_match_to_integer(&captures, "day")?
-            ).unwrap();
+            ).ok_or(InvalidDate)?;
 
             return Ok(FileDetails::new(date, filename));
         }

@@ -8,8 +8,9 @@ use encoding::{DecoderTrap, Encoding};
 use log::{debug, error, warn};
 use reqwest::Client;
 use regex::Regex;
-use crate::member::error::Error::{CantCreateMembersFileFolder, CantExportList, CantLoadListOnServer, CantPrepareListForExport, ConnectionFailed, ConnectionFailedBecauseOfServer, NoCredentials};
+use crate::member::error::Error::{CantCreateClient, CantCreateMembersFile, CantCreateMembersFileFolder, CantExportList, CantLoadListOnServer, CantPrepareListForExport, CantReadMembersDownloadResponse, CantReadPageContent, CantWriteMembersFile, ConnectionFailed, ConnectionFailedBecauseOfServer, NoCredentials, NoDownloadLink, WrongEncoding, WrongRegex};
 use crate::member::{MEMBERS_FILE_FOLDER, Result};
+use crate::tools::{log_error_and_return, log_message_and_return};
 
 const URL_DOMAIN: &str = "https://www.leolagrange-fileo.org";
 
@@ -30,18 +31,18 @@ pub async fn download_members_list() -> Result<(NaiveDate, OsString)> {
         CantCreateMembersFileFolder
     })?;
 
-    let client = build_client();
+    let client = build_client()?;
     connect(&client).await?;
     load_list_into_server_session(&client).await?;
     let download_url = prepare_list_for_export(&client).await?;
     export_list(&client, &download_url).await
 }
 
-fn build_client() -> Client {
+fn build_client() -> Result<Client> {
     reqwest::ClientBuilder::new()
         .cookie_store(true)
         .build()
-        .unwrap()
+        .map_err(log_message_and_return("Can't build HTTP client.", CantCreateClient))
 }
 
 fn retrieve_credentials() -> Result<Credentials> {
@@ -53,16 +54,17 @@ fn retrieve_credentials() -> Result<Credentials> {
         let mut login = None;
         let mut password = None;
         for arg in &args {
+            let arg = arg.trim();
             if arg.starts_with("--login=") || arg.starts_with("-l=") {
-                login = Some(arg[arg.find("=").unwrap() + 1..].to_string());
+                login = arg.split_once("=").map(|(_, l)| l);
             }
             if arg.starts_with("--password=") || arg.starts_with("-p=") {
-                password = Some(arg[arg.find("=").unwrap() + 1..].to_string());
+                password = arg.split_once("=").map(|(_, p)| p);
             }
         }
 
         if let (Some(l), Some(p)) = (login, password) {
-            Ok(Credentials::new(l, p))
+            Ok(Credentials::new(l.to_owned(), p.to_owned()))
         } else {
             warn!("Args don't contain login or password. It won't be possible to retrieve the members list.");
             Err(NoCredentials)
@@ -186,9 +188,10 @@ async fn prepare_list_for_export(client: &Client) -> Result<String> {
         }
     };
 
-    let page_content = response.text().await.unwrap();
-    let regex = Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv").unwrap();
-    let file_url = regex.find(&page_content).unwrap().as_str();
+    let page_content = response.text().await.map_err(log_error_and_return(CantReadPageContent))?;
+    let regex = Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv")
+        .map_err(log_error_and_return(WrongRegex))?;
+    let file_url = regex.find(&page_content).ok_or(NoDownloadLink)?.as_str();
     Ok(file_url.to_owned())
 }
 
@@ -197,9 +200,14 @@ async fn export_list(client: &Client, file_url: &str) -> Result<(NaiveDate, OsSt
         Ok(response) => {
             let date_time = Local::now().date_naive();
             let filename = format!("{MEMBERS_FILE_FOLDER}/members-{}.csv", date_time.format("%Y-%m-%d"));
-            let mut file = File::create(&filename).unwrap();
-            let bytes = ISO_8859_1.decode(response.bytes().await.unwrap().as_ref(), DecoderTrap::Strict).unwrap();
-            file.write_all(bytes.as_bytes()).unwrap();
+            let mut file = File::create(&filename).map_err(log_error_and_return(CantCreateMembersFile))?;
+            let file_content_as_bytes = response.bytes()
+                .await
+                .map_err(log_error_and_return(CantReadMembersDownloadResponse))?;
+            let file_content = ISO_8859_1
+                .decode(file_content_as_bytes.as_ref(), DecoderTrap::Strict)
+                .map_err(log_message_and_return("Wrong encoding: expected LATIN-1.", WrongEncoding))?;
+            file.write_all(file_content.as_bytes()).map_err(log_error_and_return(CantWriteMembersFile))?;
             Ok((date_time, OsString::from(filename)))
         }
         Err(e) => {
