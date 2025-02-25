@@ -14,7 +14,7 @@ pub async fn members(members_state: &State<Mutex<MembersState>>) -> Result<Strin
         .map_err(log_message_and_return("Couldn't acquire lock", "Error while getting members."))?;
     let file_details = members_state.file_details();
     if let Some(details) = file_details {
-        match import_from_file(details.filename()) {
+        match import_from_file(details.filepath()) {
             Ok(members) => {
                 members_state.set_members(members);
                 Ok(format!("{:#?}", members_state.members()))

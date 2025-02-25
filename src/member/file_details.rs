@@ -5,12 +5,12 @@ use derive_getters::Getters;
 #[derive(Debug, Default, Getters)]
 pub struct FileDetails {
     update_date: NaiveDate,
-    filename: OsString,
+    filepath: OsString,
 }
 
 impl FileDetails {
-    pub fn new(update_date: NaiveDate, filename: OsString) -> Self {
-        Self { update_date, filename }
+    pub fn new(update_date: NaiveDate, filepath: OsString) -> Self {
+        Self { update_date, filepath }
     }
 }
 
@@ -23,10 +23,10 @@ mod tests {
     #[test]
     fn test_new_file_details() {
         let date = NaiveDate::from_ymd_opt(2025, 1, 2).unwrap();
-        let filename = OsString::from("file");
-        let details = FileDetails::new(date, filename.clone());
+        let filepath = OsString::from("file");
+        let details = FileDetails::new(date, filepath.clone());
 
         assert_eq!(&date, details.update_date());
-        assert_eq!(&filename, details.filename());
+        assert_eq!(&filepath, details.filepath());
     }
 }

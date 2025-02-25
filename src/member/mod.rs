@@ -56,7 +56,10 @@ impl PartialOrd for Member {
 
 impl Ord for Member {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.end_date.cmp(&other.end_date)
+        self.membership_number.cmp(&other.membership_number)
+            .then(self.name.cmp(&other.name))
+            .then(self.firstname.cmp(&other.firstname))
+            .then(self.end_date.cmp(&other.end_date))
     }
 }
 

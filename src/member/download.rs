@@ -178,10 +178,10 @@ async fn download_list(client: &Client, file_url: &str) -> Result<String> {
 
 fn write_list_to_file(members_file_folder: &OsStr, file_content: &str) -> Result<FileDetails> {
     let date_time = Local::now().date_naive();
-    let filename = PathBuf::from(members_file_folder)
+    let filepath = PathBuf::from(members_file_folder)
         .join(format!("members-{}.csv", date_time.format("%Y-%m-%d")));
-    std::fs::write(&filename, file_content).map_err(log_error_and_return(CantWriteMembersFile))?;
-    Ok(FileDetails::new(date_time, OsString::from(filename)))
+    std::fs::write(&filepath, file_content).map_err(log_error_and_return(CantWriteMembersFile))?;
+    Ok(FileDetails::new(date_time, OsString::from(filepath)))
 }
 // endregion
 
@@ -273,7 +273,6 @@ fn format_arguments_into_body(args: &[(&str, &str)]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::env::temp_dir;
     use std::fs;
     use std::path::PathBuf;
     use std::time::SystemTime;
@@ -339,7 +338,7 @@ mod tests {
 
         let result = download_members_list(&args, &config).await;
         let file_details = result.unwrap();
-        let content = fs::read_to_string(file_details.filename()).unwrap();
+        let content = fs::read_to_string(file_details.filepath()).unwrap();
         assert_eq!(expected_content, content);
     }
 
@@ -579,7 +578,7 @@ mod tests {
         let result = write_list_to_file(temp_dir.as_ref(), expected_content);
 
         let file_details = result.unwrap();
-        let content = fs::read_to_string(file_details.filename()).unwrap();
+        let content = fs::read_to_string(file_details.filepath()).unwrap();
         assert_eq!(expected_content, content);
     }
 
@@ -650,5 +649,12 @@ mod tests {
     fn should_format_arguments_into_body() {
         let arguments = [("key1", "value1"), ("key2", "value2"), ("key3", "")];
         assert_eq!("key1=value1&key2=value2&key3", format_arguments_into_body(&arguments))
+    }
+
+    fn temp_dir() -> PathBuf {
+        let buf = std::env::temp_dir().join(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_micros().to_string());
+        fs::create_dir(&buf).unwrap();
+
+        buf
     }
 }
