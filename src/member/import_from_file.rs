@@ -115,7 +115,9 @@ mod tests {
     use crate::member::import_from_file::{check_folder, convert_captures_to_date, convert_match_to_integer, find_file, group_members_by_membership, import_from_file, load_members};
     use crate::member::Member;
 
-    const MEMBER_AS_CSV: &str = "Nom d'usage;Prénom;Sexe;Date de Naissance;Age;Numéro d'adhérent;Email;Réglé;Date Fin d'adhésion;Adherent expiré;Nom de structure;Code de structure\nDoe;Jon;H;01-02-1980;45;123456;email@address.com;Oui;30-09-2025;Non;My club;Z01234";
+    const HEADER: &str = "Nom d'usage;Prénom;Sexe;Date de Naissance;Age;Numéro d'adhérent;Email;Réglé;Date Fin d'adhésion;Adherent expiré;Nom de structure;Code de structure";
+    const MEMBER_AS_CSV: &str = "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oui;30-09-2025;Non;My club;Z01234";
+    const MALFORMED_MEMBER_AS_CSV: &str = "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oops;30-09-2025;Non;My club;Z01234";
 
     fn get_expected_member() -> Member {
         Member {
@@ -134,6 +136,14 @@ mod tests {
         }
     }
 
+    fn get_member_as_csv() -> String {
+        format!("{HEADER}\n{MEMBER_AS_CSV}")
+    }
+
+    fn get_malformed_member_as_csv() -> String {
+        format!("{HEADER}\n{MALFORMED_MEMBER_AS_CSV}")
+    }
+
     // region import_from_file
     #[test]
     fn should_import_from_file() {
@@ -141,7 +151,7 @@ mod tests {
         let file_name = "members.csv";
         let file_path = dir.join(file_name);
 
-        fs::write(&file_path, MEMBER_AS_CSV).unwrap();
+        fs::write(&file_path, get_member_as_csv()).unwrap();
 
         let result = import_from_file(file_path.as_ref()).unwrap();
         assert_eq!(&BTreeSet::from([get_expected_member()]), result.get("123456").unwrap())
@@ -162,7 +172,7 @@ mod tests {
     // region load_members
     #[test]
     fn should_load_members() {
-        let entry = MEMBER_AS_CSV.to_owned();
+        let entry = get_member_as_csv();
         let expected_member = get_expected_member();
 
         let mut reader = csv::ReaderBuilder::new()
@@ -173,8 +183,8 @@ mod tests {
     }
 
     #[test]
-    fn should_not_load_members_when_wrong_input() {
-        let entry = String::from("test");
+    fn should_not_load_members_when_malformed_input() {
+        let entry = get_malformed_member_as_csv();
         let mut reader = csv::ReaderBuilder::new()
             .delimiter(b';')
             .from_reader(BufReader::new(entry.as_bytes()));
