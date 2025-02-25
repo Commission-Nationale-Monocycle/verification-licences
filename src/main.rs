@@ -1,5 +1,6 @@
 mod member;
 mod server;
+mod tools;
 
 #[macro_use]
 extern crate rocket;
