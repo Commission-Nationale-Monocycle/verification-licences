@@ -65,6 +65,7 @@ fn build_client() -> Result<Client> {
         .map_err(log_message_and_return("Can't build HTTP client.", CantCreateClient))
 }
 
+// region Retrieve args & credentials
 fn retrieve_arg<'a>(arg: &'a str, arg_names: &[&str]) -> Option<&'a str> {
     for arg_name in arg_names {
         let arg_prefix = format!("{arg_name}=");
@@ -107,6 +108,7 @@ fn retrieve_credentials(args: &Vec<String>) -> Result<Credentials> {
         }
     }
 }
+// endregion
 
 // region Requests
 async fn connect(client: &Client, domain: &str, credentials: &Credentials) -> Result<()> {
