@@ -35,17 +35,6 @@ impl Debug for Credentials {
     }
 }
 
-fn create_members_file_dir(members_file_folder: &OsStr) -> Result<()> {
-    let err_message = format!("Can't create MEMBERS_FILE_FOLDER `{members_file_folder:?}`.");
-    let err_mapper = log_message_and_return(
-        &err_message,
-        CantCreateMembersFileFolder,
-    );
-    std::fs::create_dir_all(members_file_folder).map_err(err_mapper)?;
-
-    Ok(())
-}
-
 pub async fn download_members_list(args: &Vec<String>) -> Result<FileDetails> {
     create_members_file_dir(MEMBERS_FILE_FOLDER.as_ref())?;
 
@@ -63,6 +52,17 @@ fn build_client() -> Result<Client> {
         .cookie_store(true)
         .build()
         .map_err(log_message_and_return("Can't build HTTP client.", CantCreateClient))
+}
+
+fn create_members_file_dir(members_file_folder: &OsStr) -> Result<()> {
+    let err_message = format!("Can't create MEMBERS_FILE_FOLDER `{members_file_folder:?}`.");
+    let err_mapper = log_message_and_return(
+        &err_message,
+        CantCreateMembersFileFolder,
+    );
+    std::fs::create_dir_all(members_file_folder).map_err(err_mapper)?;
+
+    Ok(())
 }
 
 // region Retrieve args & credentials
@@ -163,7 +163,7 @@ async fn download_list(client: &Client, file_url: &str) -> Result<String> {
 
     let status = response.status();
     if !status.is_success() && !status.is_redirection() {
-        return Err(FileNotFoundOnServer)
+        return Err(FileNotFoundOnServer);
     }
 
     let file_content_as_bytes = response.bytes()
