@@ -107,6 +107,7 @@ fn retrieve_credentials(args: &Vec<String>) -> Result<Credentials> {
     }
 }
 
+// region Requests
 async fn connect(client: &Client, domain: &str, credentials: &Credentials) -> Result<()> {
     let request = prepare_request_for_connection(client, domain, credentials)?;
     match request
@@ -128,21 +129,6 @@ async fn connect(client: &Client, domain: &str, credentials: &Credentials) -> Re
     }
 }
 
-fn prepare_request_for_connection(client: &Client, domain: &str, credentials: &Credentials) -> Result<RequestBuilder> {
-    let url = format!("{domain}/page.php");
-    let arguments = [
-        ("Action", "connect_user"),
-        ("requestForm", "formConnecter"),
-        ("login", credentials.login.as_str()),
-        ("password", credentials.password.as_str())
-    ];
-    let body = format_arguments_into_body(&arguments);
-    let request = client.post(&url)
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .body(body);
-    Ok(request)
-}
-
 async fn load_list_into_server_session(client: &Client, domain: &str) -> Result<()> {
     let request = prepare_request_for_loading_list_into_server_session(client, domain);
     match request
@@ -157,6 +143,59 @@ async fn load_list_into_server_session(client: &Client, domain: &str) -> Result<
             Err(CantLoadListOnServer)
         }
     }
+}
+
+async fn prepare_list_for_export(client: &Client, domain: &str) -> Result<String> {
+    let request = prepare_request_for_preparing_list_for_export(client, domain);
+    let response = request
+        .send()
+        .await
+        .map_err(log_message_and_return("Can't export list.", CantPrepareListForExport))?;
+
+    let page_content = response.text().await.map_err(log_error_and_return(CantReadPageContent))?;
+    let regex = Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv")
+        .map_err(log_error_and_return(WrongRegex))?;
+    let file_url = regex.find(&page_content).ok_or(NoDownloadLink)?.as_str();
+    Ok(file_url.to_owned())
+}
+
+async fn export_list(client: &Client, file_url: &str, members_file_folder: &str) -> Result<FileDetails> {
+    match client.get(file_url).send().await {
+        Ok(response) => {
+            let date_time = Local::now().date_naive();
+            let filename = format!("{members_file_folder}/members-{}.csv", date_time.format("%Y-%m-%d"));
+            let mut file = File::create(&filename).map_err(log_error_and_return(CantCreateMembersFile))?;
+            let file_content_as_bytes = response.bytes()
+                .await
+                .map_err(log_error_and_return(CantReadMembersDownloadResponse))?;
+            let file_content = ISO_8859_1
+                .decode(file_content_as_bytes.as_ref(), DecoderTrap::Strict)
+                .map_err(log_message_and_return("Wrong encoding: expected LATIN-1.", WrongEncoding))?;
+            file.write_all(file_content.as_bytes()).map_err(log_error_and_return(CantWriteMembersFile))?;
+            Ok(FileDetails::new(date_time, OsString::from(filename)))
+        }
+        Err(e) => {
+            log_message("Can't export list.")(e);
+            Err(CantExportList)
+        }
+    }
+}
+// endregion
+
+// region Requests preparation
+fn prepare_request_for_connection(client: &Client, domain: &str, credentials: &Credentials) -> Result<RequestBuilder> {
+    let url = format!("{domain}/page.php");
+    let arguments = [
+        ("Action", "connect_user"),
+        ("requestForm", "formConnecter"),
+        ("login", credentials.login.as_str()),
+        ("password", credentials.password.as_str())
+    ];
+    let body = format_arguments_into_body(&arguments);
+    let request = client.post(&url)
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(body);
+    Ok(request)
 }
 
 fn prepare_request_for_loading_list_into_server_session(client: &Client, domain: &str) -> RequestBuilder {
@@ -195,20 +234,6 @@ fn prepare_request_for_loading_list_into_server_session(client: &Client, domain:
         .body(body)
 }
 
-async fn prepare_list_for_export(client: &Client, domain: &str) -> Result<String> {
-    let request = prepare_request_for_preparing_list_for_export(client, domain);
-    let response = request
-        .send()
-        .await
-        .map_err(log_message_and_return("Can't export list.", CantPrepareListForExport))?;
-
-    let page_content = response.text().await.map_err(log_error_and_return(CantReadPageContent))?;
-    let regex = Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv")
-        .map_err(log_error_and_return(WrongRegex))?;
-    let file_url = regex.find(&page_content).ok_or(NoDownloadLink)?.as_str();
-    Ok(file_url.to_owned())
-}
-
 fn prepare_request_for_preparing_list_for_export(client: &Client, domain: &str) -> RequestBuilder {
     let url = format!("{domain}/includer.php?inc=ajax/adherent/adherent_export");
     let arguments = [
@@ -233,28 +258,7 @@ fn prepare_request_for_preparing_list_for_export(client: &Client, domain: &str) 
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(body)
 }
-
-async fn export_list(client: &Client, file_url: &str, members_file_folder: &str) -> Result<FileDetails> {
-    match client.get(file_url).send().await {
-        Ok(response) => {
-            let date_time = Local::now().date_naive();
-            let filename = format!("{members_file_folder}/members-{}.csv", date_time.format("%Y-%m-%d"));
-            let mut file = File::create(&filename).map_err(log_error_and_return(CantCreateMembersFile))?;
-            let file_content_as_bytes = response.bytes()
-                .await
-                .map_err(log_error_and_return(CantReadMembersDownloadResponse))?;
-            let file_content = ISO_8859_1
-                .decode(file_content_as_bytes.as_ref(), DecoderTrap::Strict)
-                .map_err(log_message_and_return("Wrong encoding: expected LATIN-1.", WrongEncoding))?;
-            file.write_all(file_content.as_bytes()).map_err(log_error_and_return(CantWriteMembersFile))?;
-            Ok(FileDetails::new(date_time, OsString::from(filename)))
-        }
-        Err(e) => {
-            log_message("Can't export list.")(e);
-            Err(CantExportList)
-        }
-    }
-}
+// endregion
 
 fn format_arguments_into_body(args: &[(&str, &str)]) -> String {
     args.iter().map(|(key, value)| format!("{key}={value}")).collect::<Vec<_>>().join("&")
@@ -290,6 +294,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    // region Retrieve args & credentials
     #[parameterized(
         arg = {"-l=test_login", "--login=test_login", "-p=test_password", "--password=test_password", "--another-arg=wrong"},
         arg_names = {& ["-l", "--login"], & ["-l", "--login"], & ["-p", "--password"], & ["-p", "--password"], & ["-p", "--password"]},
@@ -337,6 +342,7 @@ mod tests {
         let result = retrieve_credentials(args);
         assert_eq!(expected_result, result);
     }
+    // endregion
 
     #[test]
     fn should_format_arguments_into_body() {
