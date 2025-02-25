@@ -501,7 +501,6 @@ mod tests {
         let client = build_client().unwrap();
 
         let result = retrieve_download_link(&client, &mock_server.uri(), &download_link_regex).await;
-        println!("{result:#?}");
         assert!(result.is_ok_and(|link| link == expected_link));
     }
 
