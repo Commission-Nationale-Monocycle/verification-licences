@@ -51,10 +51,10 @@ pub async fn download_members_list(args: &Vec<String>) -> Result<FileDetails> {
 
     let client = build_client()?;
     let credentials = retrieve_credentials(args)?;
-    connect(&client, &credentials).await?;
-    load_list_into_server_session(&client).await?;
-    let download_url = prepare_list_for_export(&client).await?;
-    export_list(&client, &download_url).await
+    connect(&client, URL_DOMAIN, &credentials).await?;
+    load_list_into_server_session(&client, URL_DOMAIN).await?;
+    let download_url = prepare_list_for_export(&client, URL_DOMAIN).await?;
+    export_list(&client, &download_url, MEMBERS_FILE_FOLDER).await
 }
 
 fn build_client() -> Result<Client> {
@@ -107,8 +107,8 @@ fn retrieve_credentials(args: &Vec<String>) -> Result<Credentials> {
     }
 }
 
-async fn connect(client: &Client, credentials: &Credentials) -> Result<()> {
-    let request = prepare_request_for_connection(client, credentials)?;
+async fn connect(client: &Client, domain: &str, credentials: &Credentials) -> Result<()> {
+    let request = prepare_request_for_connection(client, domain, credentials)?;
     match request
         .send()
         .await {
@@ -128,8 +128,8 @@ async fn connect(client: &Client, credentials: &Credentials) -> Result<()> {
     }
 }
 
-fn prepare_request_for_connection(client: &Client, credentials: &Credentials) -> Result<RequestBuilder> {
-    let url = format!("{URL_DOMAIN}/page.php");
+fn prepare_request_for_connection(client: &Client, domain: &str, credentials: &Credentials) -> Result<RequestBuilder> {
+    let url = format!("{domain}/page.php");
     let arguments = [
         ("Action", "connect_user"),
         ("requestForm", "formConnecter"),
@@ -143,8 +143,8 @@ fn prepare_request_for_connection(client: &Client, credentials: &Credentials) ->
     Ok(request)
 }
 
-async fn load_list_into_server_session(client: &Client) -> Result<()> {
-    let request = prepare_request_for_loading_list_into_server_session(client);
+async fn load_list_into_server_session(client: &Client, domain: &str) -> Result<()> {
+    let request = prepare_request_for_loading_list_into_server_session(client, domain);
     match request
         .send()
         .await {
@@ -159,8 +159,8 @@ async fn load_list_into_server_session(client: &Client) -> Result<()> {
     }
 }
 
-fn prepare_request_for_loading_list_into_server_session(client: &Client) -> RequestBuilder {
-    let url = format!("{URL_DOMAIN}/page.php?P=bo/extranet/adhesion/annuaire/index");
+fn prepare_request_for_loading_list_into_server_session(client: &Client, domain: &str) -> RequestBuilder {
+    let url = format!("{domain}/page.php?P=bo/extranet/adhesion/annuaire/index");
     let arguments = [
         ("Action", "adherent_filtrer"),
         ("requestForm", "formFiltrer"),
@@ -195,8 +195,8 @@ fn prepare_request_for_loading_list_into_server_session(client: &Client) -> Requ
         .body(body)
 }
 
-async fn prepare_list_for_export(client: &Client) -> Result<String> {
-    let request = prepare_request_for_preparing_list_for_export(client);
+async fn prepare_list_for_export(client: &Client, domain: &str) -> Result<String> {
+    let request = prepare_request_for_preparing_list_for_export(client, domain);
     let response = request
         .send()
         .await
@@ -209,8 +209,8 @@ async fn prepare_list_for_export(client: &Client) -> Result<String> {
     Ok(file_url.to_owned())
 }
 
-fn prepare_request_for_preparing_list_for_export(client: &Client) -> RequestBuilder {
-    let url = format!("{URL_DOMAIN}/includer.php?inc=ajax/adherent/adherent_export");
+fn prepare_request_for_preparing_list_for_export(client: &Client, domain: &str) -> RequestBuilder {
+    let url = format!("{domain}/includer.php?inc=ajax/adherent/adherent_export");
     let arguments = [
         ("requestForm", "formExport"),
         ("export_radio_format", "2"),
@@ -234,11 +234,11 @@ fn prepare_request_for_preparing_list_for_export(client: &Client) -> RequestBuil
         .body(body)
 }
 
-async fn export_list(client: &Client, file_url: &str) -> Result<FileDetails> {
+async fn export_list(client: &Client, file_url: &str, members_file_folder: &str) -> Result<FileDetails> {
     match client.get(file_url).send().await {
         Ok(response) => {
             let date_time = Local::now().date_naive();
-            let filename = format!("{MEMBERS_FILE_FOLDER}/members-{}.csv", date_time.format("%Y-%m-%d"));
+            let filename = format!("{members_file_folder}/members-{}.csv", date_time.format("%Y-%m-%d"));
             let mut file = File::create(&filename).map_err(log_error_and_return(CantCreateMembersFile))?;
             let file_content_as_bytes = response.bytes()
                 .await
