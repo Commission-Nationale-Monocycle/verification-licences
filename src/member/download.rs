@@ -488,7 +488,7 @@ mod tests {
     #[async_test]
     async fn should_retrieve_download_link() {
         let mock_server = MockServer::start().await;
-        let expected_link = format!("{}/download\\.csv", mock_server.uri());
+        let expected_link = format!("{}/download.csv", mock_server.uri());
         let download_link_regex = Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap();
 
         Mock::given(method("POST"))
@@ -501,6 +501,7 @@ mod tests {
         let client = build_client().unwrap();
 
         let result = retrieve_download_link(&client, &mock_server.uri(), &download_link_regex).await;
+        println!("{result:#?}");
         assert!(result.is_ok_and(|link| link == expected_link));
     }
 
