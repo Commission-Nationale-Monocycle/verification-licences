@@ -1,4 +1,9 @@
 use std::cmp::Ordering;
+
+use chrono::NaiveDate;
+use derive_getters::Getters;
+use serde::Deserialize;
+
 use crate::member::error::Error;
 
 pub mod download;
@@ -7,10 +12,6 @@ pub mod file_details;
 pub mod error;
 
 type Result<T, E = Error> = std::result::Result<T, E>;
-
-use chrono::NaiveDate;
-use derive_getters::Getters;
-use serde::Deserialize;
 
 const MEMBERS_FILE_FOLDER: &str = "data";
 
@@ -109,11 +110,12 @@ mod bool_format {
 
 #[cfg(test)]
 mod tests {
+    use std::cmp::Ordering;
+
+    use chrono::NaiveDate;
     use parameterized::ide;
     use parameterized::parameterized;
 
-    use std::cmp::Ordering;
-    use chrono::NaiveDate;
     use crate::member::Member;
 
     ide!();
@@ -177,5 +179,38 @@ mod tests {
 
         assert!(result.is_ok());
         assert_eq!(member, result.unwrap())
+    }
+
+    #[test]
+    fn should_deserialize_when_empty_date() {
+        let member = Member {
+            name: "Doe".to_owned(),
+            firstname: "John".to_owned(),
+            gender: "M".to_string(),
+            birthdate: None,
+            age: None,
+            membership_number: "42".to_string(),
+            email_address: "john.doe@yopmail.com".to_owned(),
+            payed: true,
+            end_date: NaiveDate::from_ymd_opt(2025, 10, 11).unwrap(),
+            expired: false,
+            club: "Best Club".to_owned(),
+            structure_code: "A12345".to_owned()
+        };
+        let json = r#"{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"","Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"Oui","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}"#;
+        let result = serde_json::from_str(json);
+
+        assert!(result.is_ok());
+        assert_eq!(member, result.unwrap())
+    }
+
+
+    #[parameterized(
+        payed = {"Oops", ""}
+    )]
+    fn should_not_deserialize_member_as_wrong_bool(payed: &str) {
+        let json = format!(r#"{{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"11-10-2000","Age":24,"Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"{payed}","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}}"#);
+        let result: Result<Member, _> = serde_json::from_str(&json);
+        assert!(result.is_err());
     }
 }
