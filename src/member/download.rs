@@ -26,19 +26,19 @@ impl Credentials {
     }
 }
 
-fn create_dir() -> Result<()> {
-    let err_message = format!("Can't create MEMBERS_FILE_FOLDER `{MEMBERS_FILE_FOLDER}`.");
+fn create_dir(members_file_folder: &str) -> Result<()> {
+    let err_message = format!("Can't create MEMBERS_FILE_FOLDER `{members_file_folder}`.");
     let err_mapper = log_message_and_return(
         &err_message,
         CantCreateMembersFileFolder,
     );
-    std::fs::create_dir_all(MEMBERS_FILE_FOLDER).map_err(err_mapper)?;
+    std::fs::create_dir_all(members_file_folder).map_err(err_mapper)?;
 
     Ok(())
 }
 
 pub async fn download_members_list() -> Result<FileDetails> {
-    create_dir()?;
+    create_dir(MEMBERS_FILE_FOLDER)?;
 
     let client = build_client()?;
     connect(&client).await?;
