@@ -22,10 +22,18 @@ pub fn log_message_and_return<E: Debug, T>(message: &str, value_to_return: T) ->
 
 #[cfg(test)]
 mod tests {
-    use crate::tools::{log_error_and_return, log_message_and_return};
+    use crate::tools::{log_error_and_return, log_message, log_message_and_return};
 
     fn init() {
         let _ = env_logger::builder().is_test(true).try_init();
+    }
+
+    #[test]
+    fn should_log_message() {
+        init();
+
+        let message = "test";
+        log_message(message)("This is an error.");
     }
 
     #[test]
