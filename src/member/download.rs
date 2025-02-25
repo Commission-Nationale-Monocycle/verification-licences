@@ -9,6 +9,7 @@ use encoding::all::ISO_8859_1;
 use log::{debug, error, warn};
 use regex::Regex;
 use reqwest::{Client, RequestBuilder};
+use rocket::http::ContentType;
 
 use crate::member::{MEMBERS_FILE_FOLDER, Result};
 use crate::member::error::Error::{CantCreateClient, CantCreateMembersFile, CantCreateMembersFileFolder, CantExportList, CantLoadListOnServer, CantPrepareListForExport, CantReadMembersDownloadResponse, CantReadPageContent, CantWriteMembersFile, ConnectionFailed, ConnectionFailedBecauseOfServer, NoCredentials, NoDownloadLink, WrongEncoding, WrongRegex};
@@ -109,7 +110,7 @@ fn retrieve_credentials(args: &Vec<String>) -> Result<Credentials> {
 
 // region Requests
 async fn connect(client: &Client, domain: &str, credentials: &Credentials) -> Result<()> {
-    let request = prepare_request_for_connection(client, domain, credentials)?;
+    let request = prepare_request_for_connection(client, domain, credentials);
     match request
         .send()
         .await {
@@ -183,7 +184,7 @@ async fn export_list(client: &Client, file_url: &str, members_file_folder: &str)
 // endregion
 
 // region Requests preparation
-fn prepare_request_for_connection(client: &Client, domain: &str, credentials: &Credentials) -> Result<RequestBuilder> {
+fn prepare_request_for_connection(client: &Client, domain: &str, credentials: &Credentials) -> RequestBuilder {
     let url = format!("{domain}/page.php");
     let arguments = [
         ("Action", "connect_user"),
@@ -192,10 +193,9 @@ fn prepare_request_for_connection(client: &Client, domain: &str, credentials: &C
         ("password", credentials.password.as_str())
     ];
     let body = format_arguments_into_body(&arguments);
-    let request = client.post(&url)
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .body(body);
-    Ok(request)
+    client.post(&url)
+        .header("Content-Type", ContentType::Form.to_string())
+        .body(body)
 }
 
 fn prepare_request_for_loading_list_into_server_session(client: &Client, domain: &str) -> RequestBuilder {
@@ -261,7 +261,12 @@ fn prepare_request_for_preparing_list_for_export(client: &Client, domain: &str) 
 // endregion
 
 fn format_arguments_into_body(args: &[(&str, &str)]) -> String {
-    args.iter().map(|(key, value)| format!("{key}={value}")).collect::<Vec<_>>().join("&")
+    args.iter().map(|(key, value)| {
+        match value {
+            &"" => format!("{key}"),
+            value => format!("{key}={value}")
+        }
+    }).collect::<Vec<_>>().join("&")
 }
 
 #[cfg(test)]
@@ -270,9 +275,10 @@ mod tests {
     use std::time::SystemTime;
 
     use parameterized::{ide, parameterized};
+    use rocket::http::ContentType;
 
     use crate::member::{MEMBERS_FILE_FOLDER, Result};
-    use crate::member::download::{build_client, create_members_file_dir, Credentials, format_arguments_into_body, retrieve_arg, retrieve_credentials, retrieve_login_and_password};
+    use crate::member::download::{build_client, create_members_file_dir, Credentials, format_arguments_into_body, prepare_request_for_connection, prepare_request_for_loading_list_into_server_session, prepare_request_for_preparing_list_for_export, retrieve_arg, retrieve_credentials, retrieve_login_and_password};
 
     ide!();
 
@@ -342,11 +348,65 @@ mod tests {
         let result = retrieve_credentials(args);
         assert_eq!(expected_result, result);
     }
+
+    // endregion
+
+    // region Requests preparation
+    #[test]
+    fn should_prepare_request_for_connection() {
+        let client = build_client().unwrap();
+        let domain = "http://localhost:27001";
+        let login = "login";
+        let password = "password";
+        let credentials = Credentials::new(login.to_owned(), password.to_owned());
+
+        let expected_body = format!("Action=connect_user&requestForm=formConnecter&login={login}&password={password}");
+
+        let result = prepare_request_for_connection(&client, domain, &credentials);
+
+        let result_request = result.build();
+        assert!(result_request.is_ok());
+        let request = result_request.unwrap();
+        assert_eq!(expected_body, String::from_utf8_lossy(request.body().unwrap().as_bytes().unwrap()));
+        assert_eq!(&ContentType::Form.to_string(), request.headers().get("Content-Type").unwrap().to_str().unwrap());
+    }
+
+    #[test]
+    fn should_prepare_request_for_loading_list_into_server_session() {
+        let client = build_client().unwrap();
+        let domain = "http://localhost:27001";
+
+        let expected_body = "Action=adherent_filtrer&requestForm=formFiltrer&affich_select_nom=3&affich_text_nom&affich_select_prenom=3&affich_text_prenom&affich_select_majeur&affich_text_numLicence&affich_text_dateCreationFrom&affich_text_dateCreationTo&affich_text_dateDebut&affich_text_dateFin&affich_text_dateSaisieDebut&affich_text_dateSaisieFin&affich_radio_statut&affich_select_regionStructure&affich_select_departementStructure&affich_select_code=2&affich_text_code&affich_fixed_instanceId=2012&affich_radio_structFille=1&affich_select_typeAdhesion&affich_select_tarif&affich_select_regle&affich_select_nomGroupe=3&affich_text_nomGroupe";
+
+        let result = prepare_request_for_loading_list_into_server_session(&client, domain);
+
+        let result_request = result.build();
+        assert!(result_request.is_ok());
+        let request = result_request.unwrap();
+        assert_eq!(expected_body, String::from_utf8_lossy(request.body().unwrap().as_bytes().unwrap()));
+        assert_eq!(&ContentType::Form.to_string(), request.headers().get("Content-Type").unwrap().to_str().unwrap());
+    }
+
+    #[test]
+    fn should_prepare_request_for_preparing_list_for_export() {
+        let client = build_client().unwrap();
+        let domain = "http://localhost:27001";
+
+        let expected_body = "requestForm=formExport&export_radio_format=2&option_checkbox_champs[nom]=nom&option_checkbox_champs[prenom]=prenom&option_checkbox_champs[sexe]=sexe&option_checkbox_champs[dateNaissance]=dateNaissance&option_checkbox_champs[age]=age&option_checkbox_champs[numeroLicence]=numeroLicence&option_checkbox_champs[email]=email&option_checkbox_champs[isAdhesionRegle]=isAdhesionRegle&option_checkbox_champs[dateAdhesionFin]=dateAdhesionFin&option_checkbox_champs[expire]=expire&option_checkbox_champs[instanceNom]=instanceNom&option_checkbox_champs[instanceCode]=instanceCode&generation=2";
+
+        let result = prepare_request_for_preparing_list_for_export(&client, domain);
+
+        let result_request = result.build();
+        assert!(result_request.is_ok());
+        let request = result_request.unwrap();
+        assert_eq!(expected_body, String::from_utf8_lossy(request.body().unwrap().as_bytes().unwrap()));
+        assert_eq!(&ContentType::Form.to_string(), request.headers().get("Content-Type").unwrap().to_str().unwrap());
+    }
     // endregion
 
     #[test]
     fn should_format_arguments_into_body() {
-        let arguments = [("key1", "value1"), ("key2", "value2")];
-        assert_eq!("key1=value1&key2=value2", format_arguments_into_body(&arguments))
+        let arguments = [("key1", "value1"), ("key2", "value2"), ("key3", "")];
+        assert_eq!("key1=value1&key2=value2&key3", format_arguments_into_body(&arguments))
     }
 }
