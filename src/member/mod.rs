@@ -141,14 +141,14 @@ mod tests {
 
     #[parameterized(
         end_dates = {
-            ((2020, 10, 12), (2020, 11, 12)),
-            ((2020, 11, 12), (2020, 10, 12)),
-            ((2020, 11, 12), (2020, 11, 12)),
+        ((2020, 10, 12), (2020, 11, 12)),
+        ((2020, 11, 12), (2020, 10, 12)),
+        ((2020, 11, 12), (2020, 11, 12)),
         },
         expected_result = {
-            Ordering::Less,
-            Ordering::Greater,
-            Ordering::Equal,
+        Ordering::Less,
+        Ordering::Greater,
+        Ordering::Equal,
         }
     )]
     fn should_sort_members(end_dates: ((i32, u32, u32), (i32, u32, u32)), expected_result: Ordering) {
@@ -172,7 +172,7 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2025, 10, 11).unwrap(),
             expired: false,
             club: "Best Club".to_owned(),
-            structure_code: "A12345".to_owned()
+            structure_code: "A12345".to_owned(),
         };
         let json = r#"{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"11-10-2000","Age":24,"Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"Oui","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}"#;
         let result = serde_json::from_str(json);
@@ -195,7 +195,7 @@ mod tests {
             end_date: NaiveDate::from_ymd_opt(2025, 10, 11).unwrap(),
             expired: false,
             club: "Best Club".to_owned(),
-            structure_code: "A12345".to_owned()
+            structure_code: "A12345".to_owned(),
         };
         let json = r#"{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"","Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"Oui","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}"#;
         let result = serde_json::from_str(json);

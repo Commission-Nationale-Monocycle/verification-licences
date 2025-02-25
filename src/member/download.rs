@@ -1,20 +1,23 @@
-use std::env;
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
+use std::fmt::{Debug, Formatter};
 use std::fs::File;
 use std::io::Write;
+
 use chrono::Local;
-use encoding::all::ISO_8859_1;
 use encoding::{DecoderTrap, Encoding};
+use encoding::all::ISO_8859_1;
 use log::{debug, error, warn};
-use reqwest::{Client, RequestBuilder};
 use regex::Regex;
-use crate::member::error::Error::{CantCreateClient, CantCreateMembersFile, CantCreateMembersFileFolder, CantExportList, CantLoadListOnServer, CantPrepareListForExport, CantReadMembersDownloadResponse, CantReadPageContent, CantWriteMembersFile, ConnectionFailed, ConnectionFailedBecauseOfServer, NoCredentials, NoDownloadLink, WrongEncoding, WrongRegex};
+use reqwest::{Client, RequestBuilder};
+
 use crate::member::{MEMBERS_FILE_FOLDER, Result};
+use crate::member::error::Error::{CantCreateClient, CantCreateMembersFile, CantCreateMembersFileFolder, CantExportList, CantLoadListOnServer, CantPrepareListForExport, CantReadMembersDownloadResponse, CantReadPageContent, CantWriteMembersFile, ConnectionFailed, ConnectionFailedBecauseOfServer, NoCredentials, NoDownloadLink, WrongEncoding, WrongRegex};
 use crate::member::file_details::FileDetails;
 use crate::tools::{log_error_and_return, log_message, log_message_and_return};
 
 const URL_DOMAIN: &str = "https://www.leolagrange-fileo.org";
 
+#[derive(PartialEq)]
 struct Credentials {
     login: String,
     password: String,
@@ -26,8 +29,14 @@ impl Credentials {
     }
 }
 
-fn create_dir(members_file_folder: &str) -> Result<()> {
-    let err_message = format!("Can't create MEMBERS_FILE_FOLDER `{members_file_folder}`.");
+impl Debug for Credentials {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Credentials {{login={}, password=MASKED}}", self.login)
+    }
+}
+
+fn create_members_file_dir(members_file_folder: &OsStr) -> Result<()> {
+    let err_message = format!("Can't create MEMBERS_FILE_FOLDER `{members_file_folder:?}`.");
     let err_mapper = log_message_and_return(
         &err_message,
         CantCreateMembersFileFolder,
@@ -37,11 +46,12 @@ fn create_dir(members_file_folder: &str) -> Result<()> {
     Ok(())
 }
 
-pub async fn download_members_list() -> Result<FileDetails> {
-    create_dir(MEMBERS_FILE_FOLDER)?;
+pub async fn download_members_list(args: &Vec<String>) -> Result<FileDetails> {
+    create_members_file_dir(MEMBERS_FILE_FOLDER.as_ref())?;
 
     let client = build_client()?;
-    connect(&client).await?;
+    let credentials = retrieve_credentials(&args)?;
+    connect(&client, &credentials).await?;
     load_list_into_server_session(&client).await?;
     let download_url = prepare_list_for_export(&client).await?;
     export_list(&client, &download_url).await
@@ -81,8 +91,7 @@ fn retrieve_login_and_password(args: &Vec<String>) -> (Option<&str>, Option<&str
     (login, password)
 }
 
-fn retrieve_credentials() -> Result<Credentials> {
-    let args: Vec<String> = env::args().collect();
+fn retrieve_credentials(args: &Vec<String>) -> Result<Credentials> {
     if args.len() < 3 {
         warn!("Args don't contain login or password. It won't be possible to retrieve the members list.");
         Err(NoCredentials)
@@ -98,8 +107,8 @@ fn retrieve_credentials() -> Result<Credentials> {
     }
 }
 
-async fn connect(client: &Client) -> Result<()> {
-    let request = prepare_request_for_connection(client)?;
+async fn connect(client: &Client, credentials: &Credentials) -> Result<()> {
+    let request = prepare_request_for_connection(client, credentials)?;
     match request
         .send()
         .await {
@@ -119,9 +128,7 @@ async fn connect(client: &Client) -> Result<()> {
     }
 }
 
-fn prepare_request_for_connection(client: &Client) -> Result<RequestBuilder> {
-    let credentials = retrieve_credentials()?;
-
+fn prepare_request_for_connection(client: &Client, credentials: &Credentials) -> Result<RequestBuilder> {
     let url = format!("{URL_DOMAIN}/page.php");
     let arguments = [
         ("Action", "connect_user"),
@@ -255,7 +262,81 @@ fn format_arguments_into_body(args: &[(&str, &str)]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::member::download::format_arguments_into_body;
+    use std::env::temp_dir;
+    use std::time::SystemTime;
+
+    use parameterized::{ide, parameterized};
+
+    use crate::member::{MEMBERS_FILE_FOLDER, Result};
+    use crate::member::download::{build_client, create_members_file_dir, Credentials, format_arguments_into_body, retrieve_arg, retrieve_credentials, retrieve_login_and_password};
+
+    ide!();
+
+    #[test]
+    fn should_create_members_file_dir() {
+        let path = temp_dir();
+        let path = path.join(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis().to_string());
+        std::fs::create_dir(&path).unwrap();
+        let members_file_folder_path = path.join(MEMBERS_FILE_FOLDER);
+        let result = create_members_file_dir(members_file_folder_path.as_ref());
+
+        assert!(result.is_ok());
+        assert!(std::fs::exists(members_file_folder_path).is_ok_and(|r| r));
+    }
+
+    #[test]
+    fn should_build_client() {
+        let result = build_client();
+        assert!(result.is_ok());
+    }
+
+    #[parameterized(
+        arg = {"-l=test_login", "--login=test_login", "-p=test_password", "--password=test_password", "--another-arg=wrong"},
+        arg_names = {& ["-l", "--login"], & ["-l", "--login"], & ["-p", "--password"], & ["-p", "--password"], & ["-p", "--password"]},
+        expected_result = {Some("test_login"), Some("test_login"), Some("test_password"), Some("test_password"), None}
+    )]
+    fn should_retrieve_arg(arg: &str, arg_names: &[&str], expected_result: Option<&str>) {
+        let result = retrieve_arg(arg, arg_names);
+        assert_eq!(expected_result, result);
+    }
+
+    #[parameterized(
+        args = {
+        & vec ! ["--login=test_login".to_string(), "--password=test_password".to_string()],
+        & vec ! ["--password=test_password".to_string(), "--login=test_login".to_string()],
+        & vec ! ["--login=test_login".to_string()],
+        & vec ! ["--password=test_password".to_string()],
+        & vec ! []
+        },
+        expected_result = {
+        (Some("test_login"), Some("test_password")),
+        (Some("test_login"), Some("test_password")),
+        (Some("test_login"), None),
+        (None, Some("test_password")),
+        (None, None),
+        }
+    )]
+    fn should_retrieve_login_and_password(args: &Vec<String>, expected_result: (Option<&str>, Option<&str>)) {
+        let result = retrieve_login_and_password(args);
+        assert_eq!(expected_result, result);
+    }
+
+    #[parameterized(
+        args = {
+        & vec ! ["path/to/executable".to_string(), "--login=test_login".to_string(), "--password=test_password".to_string()],
+        & vec ! ["path/to/executable".to_string(), "--login=test_login".to_string(), "--another-argument".to_string()],
+        & vec ! ["--login=test_login".to_string(), "--password=test_password".to_string()],
+        },
+        expected_result = {
+        Ok(Credentials::new("test_login".to_string(), "test_password".to_string())),
+        Err(crate::member::error::Error::NoCredentials),
+        Err(crate::member::error::Error::NoCredentials)
+        }
+    )]
+    fn should_retrieve_credentials(args: &Vec<String>, expected_result: Result<Credentials>) {
+        let result = retrieve_credentials(args);
+        assert_eq!(expected_result, result);
+    }
 
     #[test]
     fn should_format_arguments_into_body() {
