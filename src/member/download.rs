@@ -1,7 +1,6 @@
 use std::ffi::{OsStr, OsString};
 use std::fmt::{Debug, Formatter};
-use std::fs::File;
-use std::io::Write;
+use std::path::PathBuf;
 
 use chrono::Local;
 use encoding::{DecoderTrap, Encoding};
@@ -12,9 +11,9 @@ use reqwest::{Client, RequestBuilder};
 use rocket::http::ContentType;
 
 use crate::member::{MEMBERS_FILE_FOLDER, Result};
-use crate::member::error::Error::{CantCreateClient, CantCreateMembersFile, CantCreateMembersFileFolder, CantExportList, CantLoadListOnServer, CantPrepareListForExport, CantReadMembersDownloadResponse, CantReadPageContent, CantWriteMembersFile, ConnectionFailed, ConnectionFailedBecauseOfServer, NoCredentials, NoDownloadLink, WrongEncoding, WrongRegex};
+use crate::member::error::Error::{CantCreateClient, CantCreateMembersFileFolder, CantLoadListOnServer, CantReadMembersDownloadResponse, CantReadPageContent, CantRetrieveDownloadLink, CantWriteMembersFile, ConnectionFailed, FileNotFoundOnServer, NoCredentials, NoDownloadLink, WrongEncoding, WrongRegex};
 use crate::member::file_details::FileDetails;
-use crate::tools::{log_error_and_return, log_message, log_message_and_return};
+use crate::tools::{log_error_and_return, log_message_and_return};
 
 const URL_DOMAIN: &str = "https://www.leolagrange-fileo.org";
 
@@ -54,8 +53,9 @@ pub async fn download_members_list(args: &Vec<String>) -> Result<FileDetails> {
     let credentials = retrieve_credentials(args)?;
     connect(&client, URL_DOMAIN, &credentials).await?;
     load_list_into_server_session(&client, URL_DOMAIN).await?;
-    let download_url = prepare_list_for_export(&client, URL_DOMAIN).await?;
-    export_list(&client, &download_url, MEMBERS_FILE_FOLDER).await
+    let download_url = retrieve_download_link(&client, URL_DOMAIN).await?;
+    let file_content = download_list(&client, &download_url).await?;
+    write_list_to_file(MEMBERS_FILE_FOLDER.as_ref(), &file_content)
 }
 
 fn build_client() -> Result<Client> {
@@ -113,47 +113,40 @@ fn retrieve_credentials(args: &Vec<String>) -> Result<Credentials> {
 // region Requests
 async fn connect(client: &Client, domain: &str, credentials: &Credentials) -> Result<()> {
     let request = prepare_request_for_connection(client, domain, credentials);
-    match request
-        .send()
-        .await {
-        Ok(response) => {
-            let status = response.status();
-            if status.is_success() || status.is_redirection() {
-                Ok(())
-            } else {
-                error!("Connection failed because of status {status}...");
-                Err(ConnectionFailed)
-            }
-        }
-        Err(e) => {
-            log_message("Connection failed...")(e);
-            Err(ConnectionFailedBecauseOfServer)
-        }
+    let response = request.send().await.map_err(log_message_and_return("Connection failed...", ConnectionFailed))?;
+    let status = response.status();
+    if status.is_success() || status.is_redirection() {
+        Ok(())
+    } else {
+        error!("Connection failed because of status {status}...");
+        Err(ConnectionFailed)
     }
 }
 
 async fn load_list_into_server_session(client: &Client, domain: &str) -> Result<()> {
     let request = prepare_request_for_loading_list_into_server_session(client, domain);
-    match request
-        .send()
-        .await {
-        Ok(_) => {
-            debug!("List loaded on server.");
-            Ok(())
-        }
-        Err(e) => {
-            log_message_and_return("The server couldn't load the list.", CantLoadListOnServer)(e);
-            Err(CantLoadListOnServer)
-        }
+    let response = request.send().await.map_err(log_message_and_return("The server couldn't load the list.", CantLoadListOnServer))?;
+    let status = response.status();
+    if status.is_success() || status.is_redirection() {
+        debug!("List loaded on server.");
+        Ok(())
+    } else {
+        error!("Couldn't load list on server because of status {status}...");
+        Err(CantLoadListOnServer)
     }
 }
 
-async fn prepare_list_for_export(client: &Client, domain: &str) -> Result<String> {
-    let request = prepare_request_for_preparing_list_for_export(client, domain);
+async fn retrieve_download_link(client: &Client, domain: &str) -> Result<String> {
+    let request = prepare_request_for_retrieving_download_link(client, domain);
     let response = request
         .send()
         .await
-        .map_err(log_message_and_return("Can't export list.", CantPrepareListForExport))?;
+        .map_err(log_message_and_return("Can't export list.", CantRetrieveDownloadLink))?;
+
+    let status = response.status();
+    if !status.is_success() && !status.is_redirection() {
+        return Err(CantRetrieveDownloadLink);
+    }
 
     let page_content = response.text().await.map_err(log_error_and_return(CantReadPageContent))?;
     let regex = Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv")
@@ -162,26 +155,31 @@ async fn prepare_list_for_export(client: &Client, domain: &str) -> Result<String
     Ok(file_url.to_owned())
 }
 
-async fn export_list(client: &Client, file_url: &str, members_file_folder: &str) -> Result<FileDetails> {
-    match client.get(file_url).send().await {
-        Ok(response) => {
-            let date_time = Local::now().date_naive();
-            let filename = format!("{members_file_folder}/members-{}.csv", date_time.format("%Y-%m-%d"));
-            let mut file = File::create(&filename).map_err(log_error_and_return(CantCreateMembersFile))?;
-            let file_content_as_bytes = response.bytes()
-                .await
-                .map_err(log_error_and_return(CantReadMembersDownloadResponse))?;
-            let file_content = ISO_8859_1
-                .decode(file_content_as_bytes.as_ref(), DecoderTrap::Strict)
-                .map_err(log_message_and_return("Wrong encoding: expected LATIN-1.", WrongEncoding))?;
-            file.write_all(file_content.as_bytes()).map_err(log_error_and_return(CantWriteMembersFile))?;
-            Ok(FileDetails::new(date_time, OsString::from(filename)))
-        }
-        Err(e) => {
-            log_message("Can't export list.")(e);
-            Err(CantExportList)
-        }
+async fn download_list(client: &Client, file_url: &str) -> Result<String> {
+    let response = client.get(file_url)
+        .send()
+        .await
+        .map_err(log_message_and_return("Can't download list.", FileNotFoundOnServer))?;
+
+    let status = response.status();
+    if !status.is_success() && !status.is_redirection() {
+        return Err(FileNotFoundOnServer)
     }
+
+    let file_content_as_bytes = response.bytes()
+        .await
+        .map_err(log_error_and_return(CantReadMembersDownloadResponse))?;
+    ISO_8859_1
+        .decode(file_content_as_bytes.as_ref(), DecoderTrap::Strict)
+        .map_err(log_message_and_return("Wrong encoding: expected LATIN-1.", WrongEncoding))
+}
+
+fn write_list_to_file(members_file_folder: &OsStr, file_content: &str) -> Result<FileDetails> {
+    let date_time = Local::now().date_naive();
+    let filename = PathBuf::from(members_file_folder)
+        .join(format!("members-{}.csv", date_time.format("%Y-%m-%d")));
+    std::fs::write(&filename, file_content).map_err(log_error_and_return(CantWriteMembersFile))?;
+    Ok(FileDetails::new(date_time, OsString::from(filename)))
 }
 // endregion
 
@@ -232,11 +230,11 @@ fn prepare_request_for_loading_list_into_server_session(client: &Client, domain:
     ];
     let body = format_arguments_into_body(&arguments);
     client.post(url)
-        .header("Content-Type", "application/x-www-form-urlencoded")
+        .header("Content-Type", ContentType::Form.to_string())
         .body(body)
 }
 
-fn prepare_request_for_preparing_list_for_export(client: &Client, domain: &str) -> RequestBuilder {
+fn prepare_request_for_retrieving_download_link(client: &Client, domain: &str) -> RequestBuilder {
     let url = format!("{domain}/includer.php?inc=ajax/adherent/adherent_export");
     let arguments = [
         ("requestForm", "formExport"),
@@ -257,7 +255,7 @@ fn prepare_request_for_preparing_list_for_export(client: &Client, domain: &str) 
     ];
     let body = format_arguments_into_body(&arguments);
     client.post(url)
-        .header("Content-Type", "application/x-www-form-urlencoded")
+        .header("Content-Type", ContentType::Form.to_string())
         .body(body)
 }
 // endregion
@@ -265,7 +263,7 @@ fn prepare_request_for_preparing_list_for_export(client: &Client, domain: &str) 
 fn format_arguments_into_body(args: &[(&str, &str)]) -> String {
     args.iter().map(|(key, value)| {
         match value {
-            &"" => format!("{key}"),
+            &"" => key.to_string(),
             value => format!("{key}={value}")
         }
     }).collect::<Vec<_>>().join("&")
@@ -274,13 +272,19 @@ fn format_arguments_into_body(args: &[(&str, &str)]) -> String {
 #[cfg(test)]
 mod tests {
     use std::env::temp_dir;
+    use std::fs;
+    use std::path::PathBuf;
     use std::time::SystemTime;
 
     use parameterized::{ide, parameterized};
     use rocket::http::ContentType;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use wiremock::matchers::{body_string_contains, method, path, query_param_contains};
 
     use crate::member::{MEMBERS_FILE_FOLDER, Result};
-    use crate::member::download::{build_client, create_members_file_dir, Credentials, format_arguments_into_body, prepare_request_for_connection, prepare_request_for_loading_list_into_server_session, prepare_request_for_preparing_list_for_export, retrieve_arg, retrieve_credentials, retrieve_login_and_password};
+    use crate::member::download::{build_client, connect, create_members_file_dir, Credentials, download_list, format_arguments_into_body, load_list_into_server_session, prepare_request_for_connection, prepare_request_for_loading_list_into_server_session, prepare_request_for_retrieving_download_link, retrieve_arg, retrieve_credentials, retrieve_download_link, retrieve_login_and_password, write_list_to_file};
+    use crate::member::Error::{CantLoadListOnServer, CantRetrieveDownloadLink, ConnectionFailed, FileNotFoundOnServer, NoDownloadLink};
+    use crate::member::error::Error::CantWriteMembersFile;
 
     ide!();
 
@@ -353,6 +357,182 @@ mod tests {
 
     // endregion
 
+    // region Requests
+    #[async_test]
+    async fn should_connect() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/page.php"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&mock_server)
+            .await;
+
+        let client = build_client().unwrap();
+        let credentials = Credentials::new(String::new(), String::new());
+
+        let result = connect(&client, &mock_server.uri(), &credentials).await;
+        assert!(result.is_ok());
+    }
+
+    #[async_test]
+    async fn should_not_connect_when_internal_error() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/page.php"))
+            .respond_with(ResponseTemplate::new(500))
+            .mount(&mock_server)
+            .await;
+
+        let client = build_client().unwrap();
+        let credentials = Credentials::new(String::new(), String::new());
+
+        let result = connect(&client, &mock_server.uri(), &credentials).await;
+        assert!(result.is_err_and(|e| e == ConnectionFailed));
+    }
+
+    #[async_test]
+    async fn should_load_list_into_server_session() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/page.php"))
+            .and(query_param_contains("P", "bo/extranet/adhesion/annuaire/index"))
+            .and(body_string_contains("Action=adherent_filtrer"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&mock_server)
+            .await;
+
+        let client = build_client().unwrap();
+
+        let result = load_list_into_server_session(&client, &mock_server.uri()).await;
+        assert!(result.is_ok());
+    }
+
+    #[async_test]
+    async fn should_not_load_list_into_server_session() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/page.php"))
+            .and(query_param_contains("P", "bo/extranet/adhesion/annuaire/index"))
+            .and(body_string_contains("Action=adherent_filtrer"))
+            .respond_with(ResponseTemplate::new(500))
+            .mount(&mock_server)
+            .await;
+
+        let client = build_client().unwrap();
+
+        let result = load_list_into_server_session(&client, &mock_server.uri()).await;
+        assert!(result.is_err_and(|e| e == CantLoadListOnServer));
+    }
+
+    #[async_test]
+    async fn should_retrieve_download_link() {
+        let expected_link = "https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/filename.csv";
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/includer.php"))
+            .and(query_param_contains("inc", "ajax/adherent/adherent_export"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(format!("<p>Here is the download link: {expected_link}</p>"), "text/html"))
+            .mount(&mock_server)
+            .await;
+
+        let client = build_client().unwrap();
+
+        let result = retrieve_download_link(&client, &mock_server.uri()).await;
+        assert!(result.is_ok_and(|link| link == expected_link));
+    }
+
+    #[async_test]
+    async fn should_not_retrieve_download_link_when_internal_server_error() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/includer.php"))
+            .and(query_param_contains("inc", "ajax/adherent/adherent_export"))
+            .respond_with(ResponseTemplate::new(500))
+            .mount(&mock_server)
+            .await;
+
+        let client = build_client().unwrap();
+
+        let result = retrieve_download_link(&client, &mock_server.uri()).await;
+        assert!(result.is_err_and(|e| e == CantRetrieveDownloadLink));
+    }
+
+    #[async_test]
+    async fn should_not_retrieve_download_link_when_no_link_in_page() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/includer.php"))
+            .and(query_param_contains("inc", "ajax/adherent/adherent_export"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw("Are ya lookin' for a link?".to_string(), "text/html"))
+            .mount(&mock_server)
+            .await;
+
+        let client = build_client().unwrap();
+
+        let result = retrieve_download_link(&client, &mock_server.uri()).await;
+        assert!(result.is_err_and(|e| e == NoDownloadLink));
+    }
+
+    #[async_test]
+    async fn should_download_list() {
+        let message_in_latin1: &[u8] = &[239];  // Represents the character `ï` in LATIN1/ISO_8859_1
+
+        let mock_server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(message_in_latin1, "text/csv"))
+            .mount(&mock_server)
+            .await;
+
+        let client = build_client().unwrap();
+
+        let result = download_list(&client, &mock_server.uri()).await;
+        assert_eq!("ï", result.unwrap());
+    }
+
+    #[async_test]
+    async fn should_not_download_list_when_file_not_found() {
+        let mock_server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&mock_server)
+            .await;
+
+        let client = build_client().unwrap();
+
+        let result = download_list(&client, &mock_server.uri()).await;
+        let error = result.err().unwrap();
+        assert_eq!(FileNotFoundOnServer, error);
+    }
+
+    #[test]
+    fn should_write_list_to_file() {
+        let temp_dir = temp_dir();
+        let expected_content = "content;csv";
+
+        let result = write_list_to_file(temp_dir.as_ref(), expected_content);
+
+        let file_details = result.unwrap();
+        let content = fs::read_to_string(file_details.filename()).unwrap();
+        assert_eq!(expected_content, content);
+    }
+
+    #[test]
+    fn should_write_list_to_file_when_non_existing_folder() {
+        let temp_dir = PathBuf::from("/this/path/does/not/exist");
+
+        let result = write_list_to_file(temp_dir.as_ref(), "");
+
+        assert_eq!(CantWriteMembersFile, result.err().unwrap());
+    }
+    // endregion
+
     // region Requests preparation
     #[test]
     fn should_prepare_request_for_connection() {
@@ -390,13 +570,13 @@ mod tests {
     }
 
     #[test]
-    fn should_prepare_request_for_preparing_list_for_export() {
+    fn should_prepare_request_for_retrieving_download_link() {
         let client = build_client().unwrap();
         let domain = "http://localhost:27001";
 
         let expected_body = "requestForm=formExport&export_radio_format=2&option_checkbox_champs[nom]=nom&option_checkbox_champs[prenom]=prenom&option_checkbox_champs[sexe]=sexe&option_checkbox_champs[dateNaissance]=dateNaissance&option_checkbox_champs[age]=age&option_checkbox_champs[numeroLicence]=numeroLicence&option_checkbox_champs[email]=email&option_checkbox_champs[isAdhesionRegle]=isAdhesionRegle&option_checkbox_champs[dateAdhesionFin]=dateAdhesionFin&option_checkbox_champs[expire]=expire&option_checkbox_champs[instanceNom]=instanceNom&option_checkbox_champs[instanceCode]=instanceCode&generation=2";
 
-        let result = prepare_request_for_preparing_list_for_export(&client, domain);
+        let result = prepare_request_for_retrieving_download_link(&client, domain);
 
         let result_request = result.build();
         assert!(result_request.is_ok());

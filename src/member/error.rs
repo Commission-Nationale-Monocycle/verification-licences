@@ -2,17 +2,15 @@
 pub enum Error {
     CantCreateClient,
     CantCreateMembersFileFolder,
-    CantCreateMembersFile,
     WrongEncoding,
     NoCredentials,
 
     ConnectionFailed,
-    ConnectionFailedBecauseOfServer,
     CantLoadListOnServer,
-    CantPrepareListForExport,
+    CantRetrieveDownloadLink,
     CantReadPageContent,
     NoDownloadLink,
-    CantExportList,
+    FileNotFoundOnServer,
     CantReadMembersDownloadResponse,
     CantWriteMembersFile,
 
