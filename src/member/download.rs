@@ -6,12 +6,12 @@ use chrono::Local;
 use encoding::all::ISO_8859_1;
 use encoding::{DecoderTrap, Encoding};
 use log::{debug, error, warn};
-use reqwest::Client;
+use reqwest::{Client, RequestBuilder};
 use regex::Regex;
 use crate::member::error::Error::{CantCreateClient, CantCreateMembersFile, CantCreateMembersFileFolder, CantExportList, CantLoadListOnServer, CantPrepareListForExport, CantReadMembersDownloadResponse, CantReadPageContent, CantWriteMembersFile, ConnectionFailed, ConnectionFailedBecauseOfServer, NoCredentials, NoDownloadLink, WrongEncoding, WrongRegex};
 use crate::member::{MEMBERS_FILE_FOLDER, Result};
 use crate::member::file_details::FileDetails;
-use crate::tools::{log_error_and_return, log_message_and_return};
+use crate::tools::{log_error_and_return, log_message, log_message_and_return};
 
 const URL_DOMAIN: &str = "https://www.leolagrange-fileo.org";
 
@@ -26,11 +26,19 @@ impl Credentials {
     }
 }
 
+fn create_dir() -> Result<()> {
+    let err_message = format!("Can't create MEMBERS_FILE_FOLDER `{MEMBERS_FILE_FOLDER}`.");
+    let err_mapper = log_message_and_return(
+        &err_message,
+        CantCreateMembersFileFolder,
+    );
+    std::fs::create_dir_all(MEMBERS_FILE_FOLDER).map_err(err_mapper)?;
+
+    Ok(())
+}
+
 pub async fn download_members_list() -> Result<FileDetails> {
-    std::fs::create_dir_all(MEMBERS_FILE_FOLDER).map_err(|e| {
-        error!("Can't create MEMBERS_FILE_FOLDER `{MEMBERS_FILE_FOLDER}`.\n{e:#?}");
-        CantCreateMembersFileFolder
-    })?;
+    create_dir()?;
 
     let client = build_client()?;
     connect(&client).await?;
@@ -46,23 +54,40 @@ fn build_client() -> Result<Client> {
         .map_err(log_message_and_return("Can't build HTTP client.", CantCreateClient))
 }
 
+fn retrieve_arg<'a>(arg: &'a str, arg_names: &[&str]) -> Option<&'a str> {
+    for arg_name in arg_names {
+        let arg_prefix = format!("{arg_name}=");
+        if arg.starts_with(&arg_prefix) {
+            return arg.split_once("=").map(|(_, l)| l);
+        }
+    }
+
+    None
+}
+
+fn retrieve_login_and_password(args: &Vec<String>) -> (Option<&str>, Option<&str>) {
+    let mut login = None;
+    let mut password = None;
+    for arg in args {
+        let arg = arg.trim();
+        if let Some(new_login) = retrieve_arg(arg, &["--login", "-l"]) {
+            login = Some(new_login);
+        }
+        if let Some(new_password) = retrieve_arg(arg, &["--password", "-p"]) {
+            password = Some(new_password);
+        }
+    }
+
+    (login, password)
+}
+
 fn retrieve_credentials() -> Result<Credentials> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
         warn!("Args don't contain login or password. It won't be possible to retrieve the members list.");
         Err(NoCredentials)
     } else {
-        let mut login = None;
-        let mut password = None;
-        for arg in &args {
-            let arg = arg.trim();
-            if arg.starts_with("--login=") || arg.starts_with("-l=") {
-                login = arg.split_once("=").map(|(_, l)| l);
-            }
-            if arg.starts_with("--password=") || arg.starts_with("-p=") {
-                password = arg.split_once("=").map(|(_, p)| p);
-            }
-        }
+        let (login, password) = retrieve_login_and_password(&args);
 
         if let (Some(l), Some(p)) = (login, password) {
             Ok(Credentials::new(l.to_owned(), p.to_owned()))
@@ -74,6 +99,27 @@ fn retrieve_credentials() -> Result<Credentials> {
 }
 
 async fn connect(client: &Client) -> Result<()> {
+    let request = prepare_request_for_connection(client)?;
+    match request
+        .send()
+        .await {
+        Ok(response) => {
+            let status = response.status();
+            if status.is_success() || status.is_redirection() {
+                Ok(())
+            } else {
+                error!("Connection failed because of status {status}...");
+                Err(ConnectionFailed)
+            }
+        }
+        Err(e) => {
+            log_message("Connection failed...")(e);
+            Err(ConnectionFailedBecauseOfServer)
+        }
+    }
+}
+
+fn prepare_request_for_connection(client: &Client) -> Result<RequestBuilder> {
     let credentials = retrieve_credentials()?;
 
     let url = format!("{URL_DOMAIN}/page.php");
@@ -84,30 +130,29 @@ async fn connect(client: &Client) -> Result<()> {
         ("password", credentials.password.as_str())
     ];
     let body = format_arguments_into_body(&arguments);
-    let query = client.post(&url)
+    let request = client.post(&url)
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(body);
-    match query
+    Ok(request)
+}
+
+async fn load_list_into_server_session(client: &Client) -> Result<()> {
+    let request = prepare_request_for_loading_list_into_server_session(client);
+    match request
         .send()
         .await {
-        Ok(response) => {
-            let status = response.status();
-            if status.is_success() || status.is_redirection() {
-                debug!("Connected to {url}!");
-                Ok(())
-            } else {
-                error!("Connection to {url} failed because of status {status}...");
-                Err(ConnectionFailed)
-            }
+        Ok(_) => {
+            debug!("List loaded on server.");
+            Ok(())
         }
         Err(e) => {
-            error!("Connection failed...\n{e:#?}");
-            Err(ConnectionFailedBecauseOfServer)
+            log_message_and_return("The server couldn't load the list.", CantLoadListOnServer)(e);
+            Err(CantLoadListOnServer)
         }
     }
 }
 
-async fn load_list_into_server_session(client: &Client) -> Result<()> {
+fn prepare_request_for_loading_list_into_server_session(client: &Client) -> RequestBuilder {
     let url = format!("{URL_DOMAIN}/page.php?P=bo/extranet/adhesion/annuaire/index");
     let arguments = [
         ("Action", "adherent_filtrer"),
@@ -138,23 +183,26 @@ async fn load_list_into_server_session(client: &Client) -> Result<()> {
         ("affich_text_nomGroupe", ""),
     ];
     let body = format_arguments_into_body(&arguments);
-    match client.post(url)
+    client.post(url)
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(body)
-        .send()
-        .await {
-        Ok(_) => {
-            debug!("List loaded on server.");
-            Ok(())
-        }
-        Err(e) => {
-            error!("The server couldn't load the list.\n{e:#?}");
-            Err(CantLoadListOnServer)
-        }
-    }
 }
 
 async fn prepare_list_for_export(client: &Client) -> Result<String> {
+    let request = prepare_request_for_preparing_list_for_export(client);
+    let response = request
+        .send()
+        .await
+        .map_err(log_message_and_return("Can't export list.", CantPrepareListForExport))?;
+
+    let page_content = response.text().await.map_err(log_error_and_return(CantReadPageContent))?;
+    let regex = Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv")
+        .map_err(log_error_and_return(WrongRegex))?;
+    let file_url = regex.find(&page_content).ok_or(NoDownloadLink)?.as_str();
+    Ok(file_url.to_owned())
+}
+
+fn prepare_request_for_preparing_list_for_export(client: &Client) -> RequestBuilder {
     let url = format!("{URL_DOMAIN}/includer.php?inc=ajax/adherent/adherent_export");
     let arguments = [
         ("requestForm", "formExport"),
@@ -174,26 +222,9 @@ async fn prepare_list_for_export(client: &Client) -> Result<String> {
         ("generation", "2"),
     ];
     let body = format_arguments_into_body(&arguments);
-    let response = match client.post(url)
+    client.post(url)
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(body)
-        .send()
-        .await {
-        Ok(response) => {
-            debug!("Export is ready!");
-            response
-        }
-        Err(e) => {
-            error!("Can't export list.\n{e:#?}");
-            return Err(CantPrepareListForExport);
-        }
-    };
-
-    let page_content = response.text().await.map_err(log_error_and_return(CantReadPageContent))?;
-    let regex = Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv")
-        .map_err(log_error_and_return(WrongRegex))?;
-    let file_url = regex.find(&page_content).ok_or(NoDownloadLink)?.as_str();
-    Ok(file_url.to_owned())
 }
 
 async fn export_list(client: &Client, file_url: &str) -> Result<FileDetails> {
@@ -212,7 +243,7 @@ async fn export_list(client: &Client, file_url: &str) -> Result<FileDetails> {
             Ok(FileDetails::new(date_time, OsString::from(filename)))
         }
         Err(e) => {
-            error!("Can't export list.\n{e:#?}");
+            log_message("Can't export list.")(e);
             Err(CantExportList)
         }
     }
