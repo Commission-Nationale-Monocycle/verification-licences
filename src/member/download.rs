@@ -2,7 +2,7 @@ use std::env;
 use std::ffi::OsString;
 use std::fs::File;
 use std::io::Write;
-use chrono::{Local, NaiveDate};
+use chrono::Local;
 use encoding::all::ISO_8859_1;
 use encoding::{DecoderTrap, Encoding};
 use log::{debug, error, warn};
@@ -10,6 +10,7 @@ use reqwest::Client;
 use regex::Regex;
 use crate::member::error::Error::{CantCreateClient, CantCreateMembersFile, CantCreateMembersFileFolder, CantExportList, CantLoadListOnServer, CantPrepareListForExport, CantReadMembersDownloadResponse, CantReadPageContent, CantWriteMembersFile, ConnectionFailed, ConnectionFailedBecauseOfServer, NoCredentials, NoDownloadLink, WrongEncoding, WrongRegex};
 use crate::member::{MEMBERS_FILE_FOLDER, Result};
+use crate::member::file_details::FileDetails;
 use crate::tools::{log_error_and_return, log_message_and_return};
 
 const URL_DOMAIN: &str = "https://www.leolagrange-fileo.org";
@@ -25,7 +26,7 @@ impl Credentials {
     }
 }
 
-pub async fn download_members_list() -> Result<(NaiveDate, OsString)> {
+pub async fn download_members_list() -> Result<FileDetails> {
     std::fs::create_dir_all(MEMBERS_FILE_FOLDER).map_err(|e| {
         error!("Can't create MEMBERS_FILE_FOLDER `{MEMBERS_FILE_FOLDER}`.\n{e:#?}");
         CantCreateMembersFileFolder
@@ -195,7 +196,7 @@ async fn prepare_list_for_export(client: &Client) -> Result<String> {
     Ok(file_url.to_owned())
 }
 
-async fn export_list(client: &Client, file_url: &str) -> Result<(NaiveDate, OsString)> {
+async fn export_list(client: &Client, file_url: &str) -> Result<FileDetails> {
     match client.get(file_url).send().await {
         Ok(response) => {
             let date_time = Local::now().date_naive();
@@ -208,7 +209,7 @@ async fn export_list(client: &Client, file_url: &str) -> Result<(NaiveDate, OsSt
                 .decode(file_content_as_bytes.as_ref(), DecoderTrap::Strict)
                 .map_err(log_message_and_return("Wrong encoding: expected LATIN-1.", WrongEncoding))?;
             file.write_all(file_content.as_bytes()).map_err(log_error_and_return(CantWriteMembersFile))?;
-            Ok((date_time, OsString::from(filename)))
+            Ok(FileDetails::new(date_time, OsString::from(filename)))
         }
         Err(e) => {
             error!("Can't export list.\n{e:#?}");
