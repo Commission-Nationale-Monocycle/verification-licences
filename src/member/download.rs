@@ -9,13 +9,12 @@ use log::{debug, error, warn};
 use regex::Regex;
 use reqwest::{Client, RequestBuilder};
 use rocket::http::ContentType;
+use crate::member::config::MembersProviderConfig;
 
-use crate::member::{MEMBERS_FILE_FOLDER, Result};
-use crate::member::error::Error::{CantCreateClient, CantCreateMembersFileFolder, CantLoadListOnServer, CantReadMembersDownloadResponse, CantReadPageContent, CantRetrieveDownloadLink, CantWriteMembersFile, ConnectionFailed, FileNotFoundOnServer, NoCredentials, NoDownloadLink, WrongEncoding, WrongRegex};
+use crate::member::Result;
+use crate::member::error::Error::{CantCreateClient, CantCreateMembersFileFolder, CantLoadListOnServer, CantReadMembersDownloadResponse, CantReadPageContent, CantRetrieveDownloadLink, CantWriteMembersFile, ConnectionFailed, FileNotFoundOnServer, NoCredentials, NoDownloadLink, WrongEncoding};
 use crate::member::file_details::FileDetails;
 use crate::tools::{log_error_and_return, log_message_and_return};
-
-const URL_DOMAIN: &str = "https://www.leolagrange-fileo.org";
 
 #[derive(PartialEq)]
 struct Credentials {
@@ -35,16 +34,19 @@ impl Debug for Credentials {
     }
 }
 
-pub async fn download_members_list(args: &Vec<String>) -> Result<FileDetails> {
-    create_members_file_dir(MEMBERS_FILE_FOLDER.as_ref())?;
+pub async fn download_members_list(args: &Vec<String>, members_provider_config: &MembersProviderConfig) -> Result<FileDetails> {
+    let folder = members_provider_config.folder();
+    let host = members_provider_config.host();
+    let download_link_regex = members_provider_config.download_link_regex();
+    create_members_file_dir(folder)?;
 
     let client = build_client()?;
     let credentials = retrieve_credentials(args)?;
-    connect(&client, URL_DOMAIN, &credentials).await?;
-    load_list_into_server_session(&client, URL_DOMAIN).await?;
-    let download_url = retrieve_download_link(&client, URL_DOMAIN).await?;
+    connect(&client, host, &credentials).await?;
+    load_list_into_server_session(&client, host).await?;
+    let download_url = retrieve_download_link(&client, host, download_link_regex).await?;
     let file_content = download_list(&client, &download_url).await?;
-    write_list_to_file(MEMBERS_FILE_FOLDER.as_ref(), &file_content)
+    write_list_to_file(folder, &file_content)
 }
 
 fn build_client() -> Result<Client> {
@@ -55,7 +57,7 @@ fn build_client() -> Result<Client> {
 }
 
 fn create_members_file_dir(members_file_folder: &OsStr) -> Result<()> {
-    let err_message = format!("Can't create MEMBERS_FILE_FOLDER `{members_file_folder:?}`.");
+    let err_message = format!("Can't create `{members_file_folder:?}` folder.");
     let err_mapper = log_message_and_return(
         &err_message,
         CantCreateMembersFileFolder,
@@ -136,8 +138,8 @@ async fn load_list_into_server_session(client: &Client, domain: &str) -> Result<
     }
 }
 
-async fn retrieve_download_link(client: &Client, domain: &str) -> Result<String> {
-    let request = prepare_request_for_retrieving_download_link(client, domain);
+async fn retrieve_download_link(client: &Client, host: &str, download_link_regex: &Regex) -> Result<String> {
+    let request = prepare_request_for_retrieving_download_link(client, host);
     let response = request
         .send()
         .await
@@ -149,14 +151,14 @@ async fn retrieve_download_link(client: &Client, domain: &str) -> Result<String>
     }
 
     let page_content = response.text().await.map_err(log_error_and_return(CantReadPageContent))?;
-    let regex = Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv")
-        .map_err(log_error_and_return(WrongRegex))?;
+    let regex = download_link_regex;
     let file_url = regex.find(&page_content).ok_or(NoDownloadLink)?.as_str();
     Ok(file_url.to_owned())
 }
 
 async fn download_list(client: &Client, file_url: &str) -> Result<String> {
-    let response = client.get(file_url)
+    let response = client
+        .get(file_url)
         .send()
         .await
         .map_err(log_message_and_return("Can't download list.", FileNotFoundOnServer))?;
@@ -277,27 +279,80 @@ mod tests {
     use std::time::SystemTime;
 
     use parameterized::{ide, parameterized};
+    use regex::Regex;
     use rocket::http::ContentType;
     use wiremock::{Mock, MockServer, ResponseTemplate};
     use wiremock::matchers::{body_string_contains, method, path, query_param_contains};
 
-    use crate::member::{MEMBERS_FILE_FOLDER, Result};
-    use crate::member::download::{build_client, connect, create_members_file_dir, Credentials, download_list, format_arguments_into_body, load_list_into_server_session, prepare_request_for_connection, prepare_request_for_loading_list_into_server_session, prepare_request_for_retrieving_download_link, retrieve_arg, retrieve_credentials, retrieve_download_link, retrieve_login_and_password, write_list_to_file};
+    use crate::member::{get_members_file_folder, Result};
+    use crate::member::config::MembersProviderConfig;
+    use crate::member::download::{build_client, connect, create_members_file_dir, Credentials, download_list, download_members_list, format_arguments_into_body, load_list_into_server_session, prepare_request_for_connection, prepare_request_for_loading_list_into_server_session, prepare_request_for_retrieving_download_link, retrieve_arg, retrieve_credentials, retrieve_download_link, retrieve_login_and_password, write_list_to_file};
     use crate::member::Error::{CantLoadListOnServer, CantRetrieveDownloadLink, ConnectionFailed, FileNotFoundOnServer, NoDownloadLink};
     use crate::member::error::Error::CantWriteMembersFile;
 
     ide!();
 
+    #[async_test]
+    async fn should_download_members_list() {
+        let mock_server = MockServer::start().await;
+
+        let args = vec![
+            "path/to/executable".to_string(),
+            "--login=test_login".to_string(),
+            "--password=test_password".to_string(),
+        ];
+        let temp_dir = temp_dir();
+        let config = MembersProviderConfig::new(
+            mock_server.uri(),
+            Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap(),
+            temp_dir.into_os_string(),
+        );
+        let download_filename = "download.csv";
+        let download_link = format!("{}/{download_filename}", mock_server.uri());
+        let expected_content = "ï";
+
+        Mock::given(method("POST"))
+            .and(path("/page.php"))
+            .and(body_string_contains("Action=connect_user"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&mock_server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/page.php"))
+            .and(query_param_contains("P", "bo/extranet/adhesion/annuaire/index"))
+            .and(body_string_contains("Action=adherent_filtrer"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&mock_server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/includer.php"))
+            .and(query_param_contains("inc", "ajax/adherent/adherent_export"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(format!("<p>Here is the download link: {download_link}</p>"), "text/html"))
+            .mount(&mock_server)
+            .await;
+        let message_in_latin1: &[u8] = &[239];  // Represents the character `ï` in LATIN1/ISO_8859_1
+        Mock::given(method("GET"))
+            .and(path(format!("/{download_filename}").to_owned()))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(message_in_latin1, "text/csv"))
+            .mount(&mock_server)
+            .await;
+
+        let result = download_members_list(&args, &config).await;
+        let file_details = result.unwrap();
+        let content = fs::read_to_string(file_details.filename()).unwrap();
+        assert_eq!(expected_content, content);
+    }
+
     #[test]
     fn should_create_members_file_dir() {
         let path = temp_dir();
         let path = path.join(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis().to_string());
-        std::fs::create_dir(&path).unwrap();
-        let members_file_folder_path = path.join(MEMBERS_FILE_FOLDER);
+        fs::create_dir(&path).unwrap();
+        let members_file_folder_path = path.join(get_members_file_folder());
         let result = create_members_file_dir(members_file_folder_path.as_ref());
 
         assert!(result.is_ok());
-        assert!(std::fs::exists(members_file_folder_path).is_ok_and(|r| r));
+        assert!(fs::exists(members_file_folder_path).is_ok_and(|r| r));
     }
 
     #[test]
@@ -364,6 +419,7 @@ mod tests {
 
         Mock::given(method("POST"))
             .and(path("/page.php"))
+            .and(body_string_contains("Action=connect_user"))
             .respond_with(ResponseTemplate::new(200))
             .mount(&mock_server)
             .await;
@@ -381,6 +437,7 @@ mod tests {
 
         Mock::given(method("POST"))
             .and(path("/page.php"))
+            .and(body_string_contains("Action=connect_user"))
             .respond_with(ResponseTemplate::new(500))
             .mount(&mock_server)
             .await;
@@ -430,8 +487,9 @@ mod tests {
 
     #[async_test]
     async fn should_retrieve_download_link() {
-        let expected_link = "https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/filename.csv";
         let mock_server = MockServer::start().await;
+        let expected_link = format!("{}/download\\.csv", mock_server.uri());
+        let download_link_regex = Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap();
 
         Mock::given(method("POST"))
             .and(path("/includer.php"))
@@ -442,13 +500,14 @@ mod tests {
 
         let client = build_client().unwrap();
 
-        let result = retrieve_download_link(&client, &mock_server.uri()).await;
+        let result = retrieve_download_link(&client, &mock_server.uri(), &download_link_regex).await;
         assert!(result.is_ok_and(|link| link == expected_link));
     }
 
     #[async_test]
     async fn should_not_retrieve_download_link_when_internal_server_error() {
         let mock_server = MockServer::start().await;
+        let download_link_regex = Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap();
 
         Mock::given(method("POST"))
             .and(path("/includer.php"))
@@ -459,13 +518,14 @@ mod tests {
 
         let client = build_client().unwrap();
 
-        let result = retrieve_download_link(&client, &mock_server.uri()).await;
+        let result = retrieve_download_link(&client, &mock_server.uri(), &download_link_regex).await;
         assert!(result.is_err_and(|e| e == CantRetrieveDownloadLink));
     }
 
     #[async_test]
     async fn should_not_retrieve_download_link_when_no_link_in_page() {
         let mock_server = MockServer::start().await;
+        let download_link_regex = Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap();
 
         Mock::given(method("POST"))
             .and(path("/includer.php"))
@@ -476,7 +536,7 @@ mod tests {
 
         let client = build_client().unwrap();
 
-        let result = retrieve_download_link(&client, &mock_server.uri()).await;
+        let result = retrieve_download_link(&client, &mock_server.uri(), &download_link_regex).await;
         assert!(result.is_err_and(|e| e == NoDownloadLink));
     }
 

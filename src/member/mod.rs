@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::ffi::OsStr;
 
 use chrono::NaiveDate;
 use derive_getters::Getters;
@@ -10,10 +11,14 @@ pub mod download;
 pub mod import_from_file;
 pub mod file_details;
 pub mod error;
+pub mod config;
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
 const MEMBERS_FILE_FOLDER: &str = "data";
+pub fn get_members_file_folder() -> &'static OsStr {
+    MEMBERS_FILE_FOLDER.as_ref()
+}
 
 #[derive(Debug, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
 pub struct Member {
