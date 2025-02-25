@@ -50,7 +50,7 @@ pub async fn download_members_list(args: &Vec<String>) -> Result<FileDetails> {
     create_members_file_dir(MEMBERS_FILE_FOLDER.as_ref())?;
 
     let client = build_client()?;
-    let credentials = retrieve_credentials(&args)?;
+    let credentials = retrieve_credentials(args)?;
     connect(&client, &credentials).await?;
     load_list_into_server_session(&client).await?;
     let download_url = prepare_list_for_export(&client).await?;
@@ -96,7 +96,7 @@ fn retrieve_credentials(args: &Vec<String>) -> Result<Credentials> {
         warn!("Args don't contain login or password. It won't be possible to retrieve the members list.");
         Err(NoCredentials)
     } else {
-        let (login, password) = retrieve_login_and_password(&args);
+        let (login, password) = retrieve_login_and_password(args);
 
         if let (Some(l), Some(p)) = (login, password) {
             Ok(Credentials::new(l.to_owned(), p.to_owned()))
