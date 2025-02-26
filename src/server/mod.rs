@@ -10,5 +10,5 @@ pub fn start_server(members_provider_config: MembersProviderConfig, members_stat
     rocket::build()
         .manage(members_provider_config)
         .manage(Mutex::new(members_state))
-        .mount("/", routes![members_controller::members, members_controller::update_members])
+        .mount("/", routes![members_controller::list_members, members_controller::update_members])
 }
