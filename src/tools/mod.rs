@@ -1,5 +1,5 @@
 pub mod test;
-pub mod env_vars;
+pub mod env_args;
 
 use std::fmt::Debug;
 
