@@ -34,7 +34,7 @@ thread_local! {
     /// When a test is run with `with_env_args`,
     /// the inner `Vec` is set to whatever param is passed.
     /// It is then reset to its previous state.
-    static ENV_ARGS: RefCell<Vec<String>> = RefCell::new(vec![]);
+    static ENV_ARGS: RefCell<Vec<String>> = const { RefCell::new(vec![]) };
 }
 #[cfg(test)]
 fn get_env_args() -> Vec<String> {

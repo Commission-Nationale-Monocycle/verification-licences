@@ -361,7 +361,7 @@ mod tests {
         }
     )]
     fn should_retrieve_login_and_password(args: Vec<String>, expected_result: (Option<String>, Option<String>)) {
-        let result = with_env_args(args, || retrieve_login_and_password());
+        let result = with_env_args(args, retrieve_login_and_password);
         assert_eq!(expected_result, result);
     }
 
@@ -376,7 +376,7 @@ mod tests {
         }
     )]
     fn should_retrieve_credentials(args: Vec<String>, expected_result: Result<Credentials>) {
-        let result = with_env_args(args, || retrieve_credentials());
+        let result = with_env_args(args, retrieve_credentials);
         assert_eq!(expected_result, result);
     }
 

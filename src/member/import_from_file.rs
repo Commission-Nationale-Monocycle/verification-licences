@@ -86,9 +86,9 @@ fn check_folder(members_file_folder: &OsStr) -> Result<()> {
 
 fn convert_captures_to_date(captures: &Captures) -> Result<NaiveDate> {
     NaiveDate::from_ymd_opt(
-        convert_match_to_integer(&captures, "year")?,
-        convert_match_to_integer(&captures, "month")?,
-        convert_match_to_integer(&captures, "day")?,
+        convert_match_to_integer(captures, "year")?,
+        convert_match_to_integer(captures, "month")?,
+        convert_match_to_integer(captures, "day")?,
     ).ok_or(InvalidDate)
 }
 
