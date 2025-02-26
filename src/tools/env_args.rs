@@ -31,7 +31,7 @@ thread_local! {
     /// A mutable `Vec<String>` to host env args for tests.
     /// When a test is run with `with_env_args`,
     /// the inner `Vec` is set to whatever param is passed.
-    /// It is then cleared to get back to a clean basis.
+    /// It is then reset to its previous state.
     static ENV_ARGS: RefCell<Vec<String>> = RefCell::new(vec![]);
 }
 #[cfg(test)]
@@ -46,9 +46,9 @@ pub fn with_env_args<F, T>(args: Vec<String>, function: F) -> T
     where F: FnOnce() -> T
 {
     ENV_ARGS.with(|refcell| {
-        refcell.replace(args);
+        let old_value = refcell.replace(args);
         let result = function();
-        refcell.replace(vec![]);
+        refcell.replace(old_value);
         result
     })
 }
