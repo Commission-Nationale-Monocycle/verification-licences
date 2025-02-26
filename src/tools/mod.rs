@@ -1,3 +1,5 @@
+pub mod test;
+
 use std::fmt::Debug;
 
 pub fn log_message<E: Debug>(message: &str) -> impl FnOnce(E) {

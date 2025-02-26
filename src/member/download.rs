@@ -288,6 +288,7 @@ mod tests {
     use crate::member::download::{build_client, connect, create_members_file_dir, Credentials, download_list, download_members_list, format_arguments_into_body, load_list_into_server_session, prepare_request_for_connection, prepare_request_for_loading_list_into_server_session, prepare_request_for_retrieving_download_link, retrieve_arg, retrieve_credentials, retrieve_download_link, retrieve_login_and_password, write_list_to_file};
     use crate::member::Error::{CantLoadListOnServer, CantRetrieveDownloadLink, ConnectionFailed, FileNotFoundOnServer, NoDownloadLink};
     use crate::member::error::Error::CantWriteMembersFile;
+    use crate::tools::test::tests::temp_dir;
 
     ide!();
 
@@ -655,12 +656,5 @@ mod tests {
     fn debug_credentials() {
         let credentials = Credentials::new("login".to_owned(), "password".to_owned());
         assert_eq!("Credentials {login=login, password=MASKED}", format!("{credentials:?}"));
-    }
-
-    fn temp_dir() -> PathBuf {
-        let buf = std::env::temp_dir().join(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_micros().to_string());
-        fs::create_dir(&buf).unwrap();
-
-        buf
     }
 }
