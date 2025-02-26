@@ -1,0 +1,10 @@
+.git/
+.github/
+.idea/
+data/
+target/
+.dockerignore
+.gitignore
+Dockerfile
+LICENSE
+tarpaulin-report.html
