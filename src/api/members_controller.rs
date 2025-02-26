@@ -66,7 +66,7 @@ mod tests {
         let members_file_path = temp_dir.join(members_file_name);
         fs::write(&members_file_path, format!("{HEADER}\n{MEMBER_AS_CSV}")).unwrap();
 
-        let file_details = FileDetails::new(NaiveDate::from_ymd_opt(2025, 02, 26).unwrap(), members_file_path.into_os_string());
+        let file_details = FileDetails::new(NaiveDate::from_ymd_opt(2025, 2, 26).unwrap(), members_file_path.into_os_string());
         let members_state = MembersState::new(Some(file_details));
         let mutex = Mutex::new(members_state);
         let state = State::from(&mutex);
@@ -91,7 +91,7 @@ mod tests {
         let members_file_name = "members-2025-02-26.csv";
         let members_file_path = temp_dir.join(members_file_name);
 
-        let file_details = FileDetails::new(NaiveDate::from_ymd_opt(2025, 02, 26).unwrap(), members_file_path.into_os_string());
+        let file_details = FileDetails::new(NaiveDate::from_ymd_opt(2025, 2, 26).unwrap(), members_file_path.into_os_string());
         let members_state = MembersState::new(Some(file_details));
         let mutex = Mutex::new(members_state);
         let state = State::from(&mutex);
