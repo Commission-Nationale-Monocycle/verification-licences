@@ -7,11 +7,11 @@ extern crate rocket;
 
 use std::ffi::OsStr;
 use regex::Regex;
+use crate::api::members_state::MembersState;
+use crate::api::server::start_api_server;
 use crate::member::config::MembersProviderConfig;
 use crate::member::get_members_file_folder;
 use crate::member::import_from_file::find_file;
-use crate::api::members_state::MembersState;
-use crate::api::start_api_server;
 
 #[launch]
 fn rocket() -> _ {
