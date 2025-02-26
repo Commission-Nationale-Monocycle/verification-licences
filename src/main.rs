@@ -1,5 +1,5 @@
 mod member;
-mod server;
+mod api;
 mod tools;
 
 #[macro_use]
@@ -10,8 +10,8 @@ use regex::Regex;
 use crate::member::config::MembersProviderConfig;
 use crate::member::get_members_file_folder;
 use crate::member::import_from_file::find_file;
-use crate::server::members_state::MembersState;
-use crate::server::start_server;
+use crate::api::members_state::MembersState;
+use crate::api::start_api_server;
 
 #[launch]
 fn rocket() -> _ {
@@ -19,7 +19,7 @@ fn rocket() -> _ {
 
     let members_provider_config = build_members_provider_config();
     let members_state = load_members_file_details(members_provider_config.folder());
-    start_server(members_provider_config, members_state)
+    start_api_server(members_provider_config, members_state)
 }
 
 fn build_members_provider_config() -> MembersProviderConfig {
