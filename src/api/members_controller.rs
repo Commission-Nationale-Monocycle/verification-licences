@@ -4,7 +4,7 @@ use rocket::State;
 use crate::member::config::MembersProviderConfig;
 use crate::member::download::download_members_list;
 use crate::member::import_from_file::import_from_file;
-use crate::server::members_state::MembersState;
+use crate::api::members_state::MembersState;
 use crate::tools::log_message_and_return;
 
 #[get("/members")]
@@ -53,8 +53,8 @@ mod tests {
     use chrono::NaiveDate;
     use rocket::State;
     use crate::member::file_details::FileDetails;
-    use crate::server::members_state::MembersState;
-    use crate::server::members_controller::list_members;
+    use crate::api::members_state::MembersState;
+    use crate::api::members_controller::list_members;
     use crate::tools::test::tests::temp_dir;
 
     const HEADER: &str = "Nom d'usage;Prénom;Sexe;Date de Naissance;Age;Numéro d'adhérent;Email;Réglé;Date Fin d'adhésion;Adherent expiré;Nom de structure;Code de structure";
