@@ -14,7 +14,7 @@ use crate::member::config::MembersProviderConfig;
 use crate::member::Result;
 use crate::member::error::Error::{CantCreateClient, CantCreateMembersFileFolder, CantLoadListOnServer, CantReadMembersDownloadResponse, CantReadPageContent, CantRetrieveDownloadLink, CantWriteMembersFile, ConnectionFailed, FileNotFoundOnServer, NoCredentials, NoDownloadLink, WrongEncoding};
 use crate::member::file_details::FileDetails;
-use crate::tools::{env_vars, log_error_and_return, log_message_and_return};
+use crate::tools::{env_args, log_error_and_return, log_message_and_return};
 
 #[derive(PartialEq)]
 struct Credentials {
@@ -34,14 +34,14 @@ impl Debug for Credentials {
     }
 }
 
-pub async fn download_members_list(args: &Vec<String>, members_provider_config: &MembersProviderConfig) -> Result<FileDetails> {
+pub async fn download_members_list(members_provider_config: &MembersProviderConfig) -> Result<FileDetails> {
     let folder = members_provider_config.folder();
     let host = members_provider_config.host();
     let download_link_regex = members_provider_config.download_link_regex();
     create_members_file_dir(folder)?;
 
     let client = build_client()?;
-    let credentials = retrieve_credentials(args)?;
+    let credentials = retrieve_credentials()?;
     connect(&client, host, &credentials).await?;
     load_list_into_server_session(&client, host).await?;
     let download_url = retrieve_download_link(&client, host, download_link_regex).await?;
@@ -68,35 +68,26 @@ fn create_members_file_dir(members_file_folder: &OsStr) -> Result<()> {
 }
 
 // region Retrieve credentials
-fn retrieve_login_and_password(args: &Vec<String>) -> (Option<&str>, Option<&str>) {
+fn retrieve_login_and_password() -> (Option<String>, Option<String>) {
     let mut login = None;
     let mut password = None;
-    for arg in args {
-        let arg = arg.trim();
-        if let Some(new_login) = env_vars::retrieve_arg_value(arg, &["--login", "-l"]) {
-            login = Some(new_login);
-        }
-        if let Some(new_password) = env_vars::retrieve_arg_value(arg, &["--password", "-p"]) {
-            password = Some(new_password);
-        }
+    if let Some(new_login) = env_args::retrieve_arg_value(&["--login", "-l"]) {
+        login = Some(new_login);
     }
-
+    if let Some(new_password) = env_args::retrieve_arg_value(&["--password", "-p"]) {
+        password = Some(new_password);
+    }
     (login, password)
 }
 
-fn retrieve_credentials(args: &Vec<String>) -> Result<Credentials> {
-    if args.len() < 3 {
+fn retrieve_credentials() -> Result<Credentials> {
+    let (login, password) = retrieve_login_and_password();
+
+    if let (Some(l), Some(p)) = (login, password) {
+        Ok(Credentials::new(l, p))
+    } else {
         warn!("Args don't contain login or password. It won't be possible to retrieve the members list.");
         Err(NoCredentials)
-    } else {
-        let (login, password) = retrieve_login_and_password(args);
-
-        if let (Some(l), Some(p)) = (login, password) {
-            Ok(Credentials::new(l.to_owned(), p.to_owned()))
-        } else {
-            warn!("Args don't contain login or password. It won't be possible to retrieve the members list.");
-            Err(NoCredentials)
-        }
     }
 }
 // endregion
@@ -268,6 +259,7 @@ mod tests {
 
     use parameterized::{ide, parameterized};
     use regex::Regex;
+    use rocket::futures::executor::block_on;
     use rocket::http::ContentType;
     use wiremock::{Mock, MockServer, ResponseTemplate};
     use wiremock::matchers::{body_string_contains, method, path, query_param_contains};
@@ -277,6 +269,7 @@ mod tests {
     use crate::member::download::{build_client, connect, create_members_file_dir, Credentials, download_list, download_members_list, format_arguments_into_body, load_list_into_server_session, prepare_request_for_connection, prepare_request_for_loading_list_into_server_session, prepare_request_for_retrieving_download_link, retrieve_credentials, retrieve_download_link, retrieve_login_and_password, write_list_to_file};
     use crate::member::Error::{CantLoadListOnServer, CantRetrieveDownloadLink, ConnectionFailed, FileNotFoundOnServer, NoDownloadLink};
     use crate::member::error::Error::CantWriteMembersFile;
+    use crate::tools::env_args::with_env_args;
     use crate::tools::test::tests::temp_dir;
 
     ide!();
@@ -326,7 +319,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let result = download_members_list(&args, &config).await;
+        let result = with_env_args(args, || block_on(download_members_list(&config)));
         let file_details = result.unwrap();
         let content = fs::read_to_string(file_details.filepath()).unwrap();
         assert_eq!(expected_content, content);
@@ -353,39 +346,37 @@ mod tests {
     // region Retrieve credentials
     #[parameterized(
         args = {
-        & vec ! ["--login=test_login".to_string(), "--password=test_password".to_string()],
-        & vec ! ["--password=test_password".to_string(), "--login=test_login".to_string()],
-        & vec ! ["--login=test_login".to_string()],
-        & vec ! ["--password=test_password".to_string()],
-        & vec ! []
+        vec ! ["--login=test_login".to_string(), "--password=test_password".to_string()],
+        vec ! ["--password=test_password".to_string(), "--login=test_login".to_string()],
+        vec ! ["--login=test_login".to_string()],
+        vec ! ["--password=test_password".to_string()],
+        vec ! []
         },
         expected_result = {
-        (Some("test_login"), Some("test_password")),
-        (Some("test_login"), Some("test_password")),
-        (Some("test_login"), None),
-        (None, Some("test_password")),
+        (Some("test_login".to_owned()), Some("test_password".to_owned())),
+        (Some("test_login".to_owned()), Some("test_password".to_owned())),
+        (Some("test_login".to_owned()), None),
+        (None, Some("test_password".to_owned())),
         (None, None),
         }
     )]
-    fn should_retrieve_login_and_password(args: &Vec<String>, expected_result: (Option<&str>, Option<&str>)) {
-        let result = retrieve_login_and_password(args);
+    fn should_retrieve_login_and_password(args: Vec<String>, expected_result: (Option<String>, Option<String>)) {
+        let result = with_env_args(args, retrieve_login_and_password);
         assert_eq!(expected_result, result);
     }
 
     #[parameterized(
         args = {
-        & vec ! ["path/to/executable".to_string(), "--login=test_login".to_string(), "--password=test_password".to_string()],
-        & vec ! ["path/to/executable".to_string(), "--login=test_login".to_string(), "--another-argument".to_string()],
-        & vec ! ["--login=test_login".to_string(), "--password=test_password".to_string()],
+        vec ! ["--login=test_login".to_string(), "--password=test_password".to_string()],
+        vec ! ["--login=test_login".to_string(), "--another-argument".to_string()],
         },
         expected_result = {
         Ok(Credentials::new("test_login".to_string(), "test_password".to_string())),
-        Err(crate::member::error::Error::NoCredentials),
         Err(crate::member::error::Error::NoCredentials)
         }
     )]
-    fn should_retrieve_credentials(args: &Vec<String>, expected_result: Result<Credentials>) {
-        let result = retrieve_credentials(args);
+    fn should_retrieve_credentials(args: Vec<String>, expected_result: Result<Credentials>) {
+        let result = with_env_args(args, retrieve_credentials);
         assert_eq!(expected_result, result);
     }
 

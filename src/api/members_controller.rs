@@ -1,4 +1,3 @@
-use std::env;
 use std::sync::Mutex;
 use rocket::State;
 use crate::member::config::MembersProviderConfig;
@@ -33,8 +32,7 @@ pub async fn update_members(
     members_provider_config: &State<MembersProviderConfig>,
     members_state: &State<Mutex<MembersState>>,
 ) -> Result<(), String> {
-    let args: Vec<String> = env::args().collect();
-    let file_details = download_members_list(&args, members_provider_config)
+    let file_details = download_members_list(members_provider_config)
         .await
         .map_err(log_message_and_return("Can't download members list", "Can't download members list"))?;
 
