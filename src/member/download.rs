@@ -14,7 +14,7 @@ use crate::member::config::MembersProviderConfig;
 use crate::member::Result;
 use crate::member::error::Error::{CantCreateClient, CantCreateMembersFileFolder, CantLoadListOnServer, CantReadMembersDownloadResponse, CantReadPageContent, CantRetrieveDownloadLink, CantWriteMembersFile, ConnectionFailed, FileNotFoundOnServer, NoCredentials, NoDownloadLink, WrongEncoding};
 use crate::member::file_details::FileDetails;
-use crate::tools::{log_error_and_return, log_message_and_return};
+use crate::tools::{env_vars, log_error_and_return, log_message_and_return};
 
 #[derive(PartialEq)]
 struct Credentials {
@@ -67,27 +67,16 @@ fn create_members_file_dir(members_file_folder: &OsStr) -> Result<()> {
     Ok(())
 }
 
-// region Retrieve args & credentials
-fn retrieve_arg<'a>(arg: &'a str, arg_names: &[&str]) -> Option<&'a str> {
-    for arg_name in arg_names {
-        let arg_prefix = format!("{arg_name}=");
-        if arg.starts_with(&arg_prefix) {
-            return arg.split_once("=").map(|(_, l)| l);
-        }
-    }
-
-    None
-}
-
+// region Retrieve credentials
 fn retrieve_login_and_password(args: &Vec<String>) -> (Option<&str>, Option<&str>) {
     let mut login = None;
     let mut password = None;
     for arg in args {
         let arg = arg.trim();
-        if let Some(new_login) = retrieve_arg(arg, &["--login", "-l"]) {
+        if let Some(new_login) = env_vars::retrieve_arg_value(arg, &["--login", "-l"]) {
             login = Some(new_login);
         }
-        if let Some(new_password) = retrieve_arg(arg, &["--password", "-p"]) {
+        if let Some(new_password) = env_vars::retrieve_arg_value(arg, &["--password", "-p"]) {
             password = Some(new_password);
         }
     }
@@ -285,7 +274,7 @@ mod tests {
 
     use crate::member::{get_members_file_folder, Result};
     use crate::member::config::MembersProviderConfig;
-    use crate::member::download::{build_client, connect, create_members_file_dir, Credentials, download_list, download_members_list, format_arguments_into_body, load_list_into_server_session, prepare_request_for_connection, prepare_request_for_loading_list_into_server_session, prepare_request_for_retrieving_download_link, retrieve_arg, retrieve_credentials, retrieve_download_link, retrieve_login_and_password, write_list_to_file};
+    use crate::member::download::{build_client, connect, create_members_file_dir, Credentials, download_list, download_members_list, format_arguments_into_body, load_list_into_server_session, prepare_request_for_connection, prepare_request_for_loading_list_into_server_session, prepare_request_for_retrieving_download_link, retrieve_credentials, retrieve_download_link, retrieve_login_and_password, write_list_to_file};
     use crate::member::Error::{CantLoadListOnServer, CantRetrieveDownloadLink, ConnectionFailed, FileNotFoundOnServer, NoDownloadLink};
     use crate::member::error::Error::CantWriteMembersFile;
     use crate::tools::test::tests::temp_dir;
@@ -361,17 +350,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // region Retrieve args & credentials
-    #[parameterized(
-        arg = {"-l=test_login", "--login=test_login", "-p=test_password", "--password=test_password", "--another-arg=wrong"},
-        arg_names = {& ["-l", "--login"], & ["-l", "--login"], & ["-p", "--password"], & ["-p", "--password"], & ["-p", "--password"]},
-        expected_result = {Some("test_login"), Some("test_login"), Some("test_password"), Some("test_password"), None}
-    )]
-    fn should_retrieve_arg(arg: &str, arg_names: &[&str], expected_result: Option<&str>) {
-        let result = retrieve_arg(arg, arg_names);
-        assert_eq!(expected_result, result);
-    }
-
+    // region Retrieve credentials
     #[parameterized(
         args = {
         & vec ! ["--login=test_login".to_string(), "--password=test_password".to_string()],
