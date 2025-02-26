@@ -1,4 +1,6 @@
+#[cfg(test)]
 use std::cell::RefCell;
+#[cfg(not(test))]
 use std::env;
 
 /// Retrieve value associated to an arg passed to the app.
