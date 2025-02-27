@@ -1,4 +1,5 @@
 use rocket::{Build, Rocket};
+use rocket::fs::FileServer;
 use rocket_dyn_templates::Template;
 use crate::web::server::Server;
 use crate::web::frontend::frontend_controller;
@@ -19,6 +20,7 @@ impl Server for FrontendServer {
             frontend_controller::index,
             frontend_controller::hello
         ])
+            .mount("/", FileServer::from("./public/static"))
             .register("/", catchers![frontend_controller::not_found])
             .attach(Template::fairing())
     }

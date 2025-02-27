@@ -1,2 +1,2 @@
 [default]
-template_dir = "templates"
+template_dir = "public/templates"
