@@ -20,7 +20,7 @@ pub fn get_members_file_folder() -> &'static OsStr {
     MEMBERS_FILE_FOLDER.as_ref()
 }
 
-#[derive(Debug, Serialize, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
 pub struct Member {
     #[serde(alias = "Nom d'usage")]
     name: String,
@@ -48,24 +48,60 @@ pub struct Member {
     structure_code: String,
 }
 
-impl Member {
+#[derive(Debug, Serialize, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
+pub struct MemberDto {
+    name: String,
+    firstname: String,
+    gender: String,
+    birthdate: Option<NaiveDate>,
+    age: Option<u8>,
+    membership_number: String,
+    email_address: String,
+    payed: bool,
+    end_date: NaiveDate,
+    expired: bool,
+    club: String,
+    structure_code: String,
+}
+
+
+impl MemberDto {
     pub fn new(name: String, firstname: String, gender: String, birthdate: Option<NaiveDate>, age: Option<u8>, membership_number: String, email_address: String, payed: bool, end_date: NaiveDate, expired: bool, club: String, structure_code: String) -> Self {
         Self { name, firstname, gender, birthdate, age, membership_number, email_address, payed, end_date, expired, club, structure_code }
     }
 }
 
-impl PartialOrd for Member {
+impl PartialOrd for MemberDto {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for Member {
+impl Ord for MemberDto {
     fn cmp(&self, other: &Self) -> Ordering {
         self.membership_number.cmp(&other.membership_number)
             .then(self.name.cmp(&other.name))
             .then(self.firstname.cmp(&other.firstname))
             .then(self.end_date.cmp(&other.end_date))
+    }
+}
+
+impl From<Member> for MemberDto {
+    fn from(member: Member) -> Self {
+        MemberDto {
+            name: member.name,
+            firstname: member.firstname,
+            gender: member.gender,
+            birthdate: member.birthdate,
+            age: member.age,
+            membership_number: member.membership_number,
+            email_address: member.email_address,
+            payed: member.payed,
+            end_date: member.end_date,
+            expired: member.expired,
+            club: member.club,
+            structure_code: member.structure_code,
+        }
     }
 }
 
@@ -130,13 +166,13 @@ mod tests {
     use parameterized::ide;
     use parameterized::parameterized;
 
-    use crate::member::Member;
+    use crate::member::{Member, MemberDto};
 
     ide!();
 
-    impl Member {
+    impl MemberDto {
         fn new_test(end_date: NaiveDate) -> Self {
-            Member {
+            MemberDto {
                 name: "".to_string(),
                 firstname: "".to_string(),
                 gender: "".to_string(),
@@ -167,8 +203,8 @@ mod tests {
     )]
     fn should_sort_members(end_dates: ((i32, u32, u32), (i32, u32, u32)), expected_result: Ordering) {
         let ((y1, m1, d1), (y2, m2, d2)) = end_dates;
-        let member1 = Member::new_test(NaiveDate::from_ymd_opt(y1, m1, d1).unwrap());
-        let member2 = Member::new_test(NaiveDate::from_ymd_opt(y2, m2, d2).unwrap());
+        let member1 = MemberDto::new_test(NaiveDate::from_ymd_opt(y1, m1, d1).unwrap());
+        let member2 = MemberDto::new_test(NaiveDate::from_ymd_opt(y2, m2, d2).unwrap());
         assert_eq!(Some(expected_result), member1.partial_cmp(&member2));
     }
 

@@ -47,12 +47,13 @@ pub async fn update_members(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::{BTreeSet, HashMap};
     use std::fs;
     use std::sync::Mutex;
     use chrono::NaiveDate;
     use rocket::State;
     use crate::member::file_details::FileDetails;
-    use crate::member::Member;
+    use crate::member::MemberDto;
     use crate::web::api::members_state::MembersState;
     use crate::web::api::members_controller::list_members;
     use crate::tools::test::tests::temp_dir;
@@ -60,8 +61,8 @@ mod tests {
     const HEADER: &str = "Nom d'usage;Prénom;Sexe;Date de Naissance;Age;Numéro d'adhérent;Email;Réglé;Date Fin d'adhésion;Adherent expiré;Nom de structure;Code de structure";
     const MEMBER_AS_CSV: &str = "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oui;30-09-2025;Non;My club;Z01234";
 
-    fn get_expected_member() -> Member {
-        Member::new(
+    fn get_expected_member() -> MemberDto {
+        MemberDto::new(
             "Doe".to_string(),
             "Jon".to_string(),
             "H".to_string(),
@@ -92,9 +93,9 @@ mod tests {
         let state = State::from(&mutex);
 
         let result: String = list_members(state).await.unwrap();
-        let member: Member = serde_json::from_str(&result).unwrap();
-        println!("{:?}", member);
-        assert_eq!(get_expected_member(), member);
+        println!("{:?}", result);
+        let members: HashMap<String, BTreeSet<MemberDto>> = serde_json::from_str(&result).unwrap();
+        assert_eq!(&get_expected_member(), members.get("123456").unwrap().iter().find(|_| true).unwrap());
     }
 
     #[async_test]
