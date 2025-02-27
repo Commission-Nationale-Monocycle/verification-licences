@@ -3,7 +3,7 @@ use std::ffi::OsStr;
 
 use chrono::NaiveDate;
 use derive_getters::Getters;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::member::error::Error;
 
@@ -20,7 +20,7 @@ pub fn get_members_file_folder() -> &'static OsStr {
     MEMBERS_FILE_FOLDER.as_ref()
 }
 
-#[derive(Debug, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, Serialize, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
 pub struct Member {
     #[serde(alias = "Nom d'usage")]
     name: String,
@@ -46,6 +46,12 @@ pub struct Member {
     club: String,
     #[serde(alias = "Code de structure")]
     structure_code: String,
+}
+
+impl Member {
+    pub fn new(name: String, firstname: String, gender: String, birthdate: Option<NaiveDate>, age: Option<u8>, membership_number: String, email_address: String, payed: bool, end_date: NaiveDate, expired: bool, club: String, structure_code: String) -> Self {
+        Self { name, firstname, gender, birthdate, age, membership_number, email_address, payed, end_date, expired, club, structure_code }
+    }
 }
 
 impl PartialOrd for Member {

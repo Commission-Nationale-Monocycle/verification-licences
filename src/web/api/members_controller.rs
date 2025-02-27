@@ -1,5 +1,6 @@
 use std::sync::Mutex;
 use rocket::State;
+use serde_json::json;
 use crate::member::config::MembersProviderConfig;
 use crate::member::download::download_members_list;
 use crate::member::import_from_file::import_from_file;
@@ -16,7 +17,7 @@ pub async fn list_members(members_state: &State<Mutex<MembersState>>) -> Result<
         match import_from_file(details.filepath()) {
             Ok(members) => {
                 members_state.set_members(members);
-                Ok(format!("{:#?}", members_state.members()))
+                Ok(json!(members_state.members()).to_string())
             }
             Err(e) => {
                 Err(format!("{e:?}"))
@@ -51,12 +52,31 @@ mod tests {
     use chrono::NaiveDate;
     use rocket::State;
     use crate::member::file_details::FileDetails;
+    use crate::member::Member;
     use crate::web::api::members_state::MembersState;
     use crate::web::api::members_controller::list_members;
     use crate::tools::test::tests::temp_dir;
 
     const HEADER: &str = "Nom d'usage;Prénom;Sexe;Date de Naissance;Age;Numéro d'adhérent;Email;Réglé;Date Fin d'adhésion;Adherent expiré;Nom de structure;Code de structure";
     const MEMBER_AS_CSV: &str = "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oui;30-09-2025;Non;My club;Z01234";
+
+    fn get_expected_member() -> Member {
+        Member::new(
+            "Doe".to_string(),
+            "Jon".to_string(),
+            "H".to_string(),
+            NaiveDate::from_ymd_opt(1980, 2, 1),
+            Some(45),
+            "123456".to_string(),
+            "email@address.com".to_string(),
+            true,
+            NaiveDate::from_ymd_opt(2025, 9, 30).unwrap(),
+            false,
+            "My club".to_string(),
+            "Z01234".to_string(),
+        )
+    }
+
 
     // region list_members
     #[async_test]
@@ -72,7 +92,9 @@ mod tests {
         let state = State::from(&mutex);
 
         let result: String = list_members(state).await.unwrap();
-        assert!(result.contains("Doe"));
+        let member: Member = serde_json::from_str(&result).unwrap();
+        println!("{:?}", member);
+        assert_eq!(get_expected_member(), member);
     }
 
     #[async_test]
