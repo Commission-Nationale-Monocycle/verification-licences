@@ -93,6 +93,7 @@ mod tests {
         let state = State::from(&mutex);
 
         let result: String = list_members(state).await.unwrap();
+        println!("{:?}", result);
         let members: HashMap<String, BTreeSet<MemberDto>> = serde_json::from_str(&result).unwrap();
         assert_eq!(&get_expected_member(), members.get("123456").unwrap().iter().find(|_| true).unwrap());
     }
