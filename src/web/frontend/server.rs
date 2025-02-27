@@ -1,5 +1,7 @@
 use rocket::{Build, Rocket};
+use rocket_dyn_templates::Template;
 use crate::web::server::Server;
+use crate::web::frontend::frontend_controller;
 
 pub struct FrontendServer {
 
@@ -12,11 +14,12 @@ impl FrontendServer {
 }
 
 impl Server for FrontendServer {
-    fn initialize_managed_states(&self, rocket_build: Rocket<Build>) -> Rocket<Build> {
-        rocket_build
-    }
-
-    fn mount_routes(&self, rocket_build: Rocket<Build>) -> Rocket<Build> {
-        rocket_build.mount("/", routes![])
+    fn configure(&self, rocket_build: Rocket<Build>) -> Rocket<Build> {
+        rocket_build.mount("/", routes![
+            frontend_controller::index,
+            frontend_controller::hello
+        ])
+            .register("/", catchers![frontend_controller::not_found])
+            .attach(Template::fairing())
     }
 }

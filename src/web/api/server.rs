@@ -10,9 +10,7 @@ use crate::member::get_members_file_folder;
 use crate::member::import_from_file::find_file;
 use crate::web::server::Server;
 
-pub struct ApiServer {
-
-}
+pub struct ApiServer {}
 
 impl ApiServer {
     pub fn new() -> Self {
@@ -21,20 +19,17 @@ impl ApiServer {
 }
 
 impl Server for ApiServer {
-    fn initialize_managed_states(&self, rocket_build: Rocket<Build>) -> Rocket<Build> {
+    fn configure(&self, rocket_build: Rocket<Build>) -> Rocket<Build> {
         let members_provider_config = build_members_provider_config();
         let members_state = load_members_file_details(members_provider_config.folder());
 
         rocket_build
             .manage(members_provider_config)
             .manage(Mutex::new(members_state))
-    }
-
-    fn mount_routes(&self, rocket_build: Rocket<Build>) -> Rocket<Build> {
-        rocket_build.mount("/api/", routes![
-        members_controller::list_members,
-        members_controller::update_members
-    ])
+            .mount("/api/", routes![
+                members_controller::list_members,
+                members_controller::update_members
+            ])
     }
 }
 

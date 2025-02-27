@@ -8,8 +8,7 @@ const PORT_ENV_ARG: &str = "--port";
 const DEFAULT_PORT: i32 = 8000;
 
 pub trait Server {
-    fn initialize_managed_states(&self, rocket_build: Rocket<Build>) -> Rocket<Build>;
-    fn mount_routes(&self, rocket_build: Rocket<Build>) -> Rocket<Build>;
+    fn configure(&self, rocket_build: Rocket<Build>) -> Rocket<Build>;
 }
 
 pub fn build_server() -> Rocket<Build> {
@@ -22,7 +21,7 @@ pub fn build_server() -> Rocket<Build> {
         Box::new(FrontendServer::new())
     ];
     servers.iter()
-        .fold(rocket_build, |rocket_build, server| server.mount_routes(server.initialize_managed_states(rocket_build)))
+        .fold(rocket_build, |rocket_build, server| server.configure(rocket_build))
 }
 
 fn get_api_port() -> i32 {
