@@ -20,7 +20,7 @@ pub fn get_members_file_folder() -> &'static OsStr {
     MEMBERS_FILE_FOLDER.as_ref()
 }
 
-#[derive(Debug, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, Serialize, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
 pub struct Member {
     #[serde(alias = "Nom d'usage")]
     name: String,
