@@ -7,13 +7,13 @@ use chrono::NaiveDate;
 use csv::Reader;
 use regex::bytes::{Captures, Regex};
 
+use crate::member::{Member, MemberDto};
 use crate::member::error::Error::{CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile, CantOpenMembersFileFolder, InvalidDate, NoFileFound, WrongRegex};
 use crate::member::file_details::FileDetails;
-use crate::member::Member;
 use crate::member::Result;
 use crate::tools::{log_message, log_message_and_return};
 
-pub fn import_from_file(filepath: &OsStr) -> Result<HashMap<String, BTreeSet<Member>>> {
+pub fn import_from_file(filepath: &OsStr) -> Result<HashMap<String, BTreeSet<MemberDto>>> {
     let error_message = format!("Can't open members file `{:?}`.", filepath.to_str());
     let error_mapping = log_message_and_return(
         &error_message,
@@ -27,10 +27,10 @@ pub fn import_from_file(filepath: &OsStr) -> Result<HashMap<String, BTreeSet<Mem
     Ok(group_members_by_membership(members))
 }
 
-fn load_members<T>(reader: &mut Reader<T>) -> Vec<Member> where T: std::io::Read {
+fn load_members<T>(reader: &mut Reader<T>) -> Vec<MemberDto> where T: std::io::Read {
     reader.deserialize()
         .filter_map(|result: Result<Member, _>| match result {
-            Ok(member) => Some(member),
+            Ok(member) => Some(member.into()),
             Err(e) => {
                 log_message("Error while reading member")(e);
                 None
@@ -39,7 +39,7 @@ fn load_members<T>(reader: &mut Reader<T>) -> Vec<Member> where T: std::io::Read
         .collect::<Vec<_>>()
 }
 
-fn group_members_by_membership(members: Vec<Member>) -> HashMap<String, BTreeSet<Member>> {
+fn group_members_by_membership(members: Vec<MemberDto>) -> HashMap<String, BTreeSet<MemberDto>> {
     let mut map = HashMap::new();
 
     members.into_iter()
@@ -113,14 +113,14 @@ mod tests {
 
     use crate::member::error::Error::{CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound};
     use crate::member::import_from_file::{check_folder, convert_captures_to_date, convert_match_to_integer, find_file, group_members_by_membership, import_from_file, load_members};
-    use crate::member::Member;
+    use crate::member::MemberDto;
 
     const HEADER: &str = "Nom d'usage;Prénom;Sexe;Date de Naissance;Age;Numéro d'adhérent;Email;Réglé;Date Fin d'adhésion;Adherent expiré;Nom de structure;Code de structure";
     const MEMBER_AS_CSV: &str = "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oui;30-09-2025;Non;My club;Z01234";
     const MALFORMED_MEMBER_AS_CSV: &str = "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oops;30-09-2025;Non;My club;Z01234";
 
-    fn get_expected_member() -> Member {
-        Member {
+    fn get_expected_member() -> MemberDto {
+        MemberDto {
             name: "Doe".to_string(),
             firstname: "Jon".to_string(),
             gender: "H".to_string(),
@@ -195,7 +195,7 @@ mod tests {
     // endregion
     #[test]
     fn should_group_members_by_membership() {
-        let jean = Member {
+        let jean = MemberDto {
             name: "1".to_string(),
             firstname: "Jean".to_string(),
             gender: "".to_string(),
@@ -210,7 +210,7 @@ mod tests {
             structure_code: "".to_string(),
         };
 
-        let michel = Member {
+        let michel = MemberDto {
             name: "1".to_string(),
             firstname: "Michel".to_string(),
             gender: "".to_string(),
@@ -224,7 +224,7 @@ mod tests {
             club: "".to_string(),
             structure_code: "".to_string(),
         };
-        let pierre = Member {
+        let pierre = MemberDto {
             name: "2".to_string(),
             firstname: "Pierre".to_string(),
             gender: "".to_string(),
@@ -239,7 +239,7 @@ mod tests {
             structure_code: "".to_string(),
         };
 
-        let expected_map: HashMap<String, BTreeSet<Member>> = [
+        let expected_map: HashMap<String, BTreeSet<MemberDto>> = [
             ("1".to_owned(), BTreeSet::from([jean.clone(), michel.clone()])),
             ("2".to_owned(), BTreeSet::from([pierre.clone()])),
         ].into_iter().collect();

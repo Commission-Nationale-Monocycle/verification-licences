@@ -1,12 +1,12 @@
 use std::collections::{BTreeSet, HashMap};
 use derive_getters::Getters;
 use crate::member::file_details::FileDetails;
-use crate::member::Member;
+use crate::member::MemberDto;
 
 #[derive(Getters, Default)]
 pub struct MembersState {
     file_details: Option<FileDetails>,
-    members: HashMap<String, BTreeSet<Member>>,
+    members: HashMap<String, BTreeSet<MemberDto>>,
 }
 
 impl MembersState {
@@ -18,7 +18,7 @@ impl MembersState {
         self.file_details = Some(file_details);
     }
 
-    pub fn set_members(&mut self, members: HashMap<String, BTreeSet<Member>>) {
+    pub fn set_members(&mut self, members: HashMap<String, BTreeSet<MemberDto>>) {
         self.members = members;
     }
 }
