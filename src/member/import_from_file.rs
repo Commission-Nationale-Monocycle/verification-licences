@@ -26,11 +26,11 @@ pub fn import_from_file(filepath: &OsStr) -> Result<Members> {
     let mut reader = csv::ReaderBuilder::new()
         .delimiter(b';')
         .from_reader(file);
-    let members = load_members(&mut reader);
+    let members = load_memberships(&mut reader);
     Ok(group_members_by_membership(members))
 }
 
-fn load_members<T>(reader: &mut Reader<T>) -> Vec<MembershipDto> where T: std::io::Read {
+fn load_memberships<T>(reader: &mut Reader<T>) -> Vec<MembershipDto> where T: std::io::Read {
     reader.deserialize()
         .filter_map(|result: Result<Membership, _>| match result {
             Ok(membership) => Some(membership.into()),
@@ -135,7 +135,7 @@ mod tests {
     use regex::bytes::Regex;
 
     use crate::member::error::Error::{CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound};
-    use crate::member::import_from_file::{build_members_file_regex, check_folder, convert_captures_to_date, convert_match_to_integer, find_file, group_members_by_membership, import_from_file, load_members};
+    use crate::member::import_from_file::{build_members_file_regex, check_folder, convert_captures_to_date, convert_match_to_integer, find_file, group_members_by_membership, import_from_file, load_memberships};
     use crate::member::memberships::Memberships;
     use crate::member::MembershipDto;
     use crate::member::members::Members;
@@ -176,7 +176,7 @@ mod tests {
         let mut reader = csv::ReaderBuilder::new()
             .delimiter(b';')
             .from_reader(BufReader::new(entry.as_bytes()));
-        let members = load_members(&mut reader);
+        let members = load_memberships(&mut reader);
         assert_eq!(vec![expected_member], members);
     }
 
@@ -186,7 +186,7 @@ mod tests {
         let mut reader = csv::ReaderBuilder::new()
             .delimiter(b';')
             .from_reader(BufReader::new(entry.as_bytes()));
-        let members = load_members(&mut reader);
+        let members = load_memberships(&mut reader);
         assert!(members.is_empty(), "`members` is not empty.");
     }
 
