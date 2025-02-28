@@ -47,37 +47,17 @@ pub async fn update_members(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{BTreeSet, HashMap};
+    use std::collections::HashMap;
     use std::fs;
     use std::sync::Mutex;
     use chrono::NaiveDate;
     use rocket::State;
     use crate::member::file_details::FileDetails;
-    use crate::member::MemberDto;
+    use crate::member::Members;
+    use crate::member::tests::{get_expected_member, get_member_as_csv};
     use crate::web::api::members_state::MembersState;
     use crate::web::api::members_controller::list_members;
     use crate::tools::test::tests::temp_dir;
-
-    const HEADER: &str = "Nom d'usage;Prénom;Sexe;Date de Naissance;Age;Numéro d'adhérent;Email;Réglé;Date Fin d'adhésion;Adherent expiré;Nom de structure;Code de structure";
-    const MEMBER_AS_CSV: &str = "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oui;30-09-2025;Non;My club;Z01234";
-
-    fn get_expected_member() -> MemberDto {
-        MemberDto::new(
-            "Doe".to_string(),
-            "Jon".to_string(),
-            "H".to_string(),
-            NaiveDate::from_ymd_opt(1980, 2, 1),
-            Some(45),
-            "123456".to_string(),
-            "email@address.com".to_string(),
-            true,
-            NaiveDate::from_ymd_opt(2025, 9, 30).unwrap(),
-            false,
-            "My club".to_string(),
-            "Z01234".to_string(),
-        )
-    }
-
 
     // region list_members
     #[async_test]
@@ -85,22 +65,22 @@ mod tests {
         let temp_dir = temp_dir();
         let members_file_name = "members-2025-02-26.csv";
         let members_file_path = temp_dir.join(members_file_name);
-        fs::write(&members_file_path, format!("{HEADER}\n{MEMBER_AS_CSV}")).unwrap();
+        fs::write(&members_file_path, get_member_as_csv()).unwrap();
 
         let file_details = FileDetails::new(NaiveDate::from_ymd_opt(2025, 2, 26).unwrap(), members_file_path.into_os_string());
-        let members_state = MembersState::new(Some(file_details));
+        let members_state = MembersState::new(Some(file_details), HashMap::new());
         let mutex = Mutex::new(members_state);
         let state = State::from(&mutex);
 
         let result: String = list_members(state).await.unwrap();
         println!("{:?}", result);
-        let members: HashMap<String, BTreeSet<MemberDto>> = serde_json::from_str(&result).unwrap();
+        let members: Members = serde_json::from_str(&result).unwrap();
         assert_eq!(&get_expected_member(), members.get("123456").unwrap().iter().find(|_| true).unwrap());
     }
 
     #[async_test]
     async fn should_not_list_members_when_no_file_details() {
-        let members_state = MembersState::new(None);
+        let members_state = MembersState::new(None, HashMap::new());
         let mutex = Mutex::new(members_state);
         let state = State::from(&mutex);
 
@@ -115,7 +95,7 @@ mod tests {
         let members_file_path = temp_dir.join(members_file_name);
 
         let file_details = FileDetails::new(NaiveDate::from_ymd_opt(2025, 2, 26).unwrap(), members_file_path.into_os_string());
-        let members_state = MembersState::new(Some(file_details));
+        let members_state = MembersState::new(Some(file_details), HashMap::new());
         let mutex = Mutex::new(members_state);
         let state = State::from(&mutex);
 

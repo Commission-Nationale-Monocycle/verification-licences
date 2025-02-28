@@ -7,13 +7,13 @@ use chrono::NaiveDate;
 use csv::Reader;
 use regex::bytes::{Captures, Regex};
 
-use crate::member::{Member, MemberDto};
+use crate::member::{Member, MemberDto, Members};
 use crate::member::error::Error::{CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile, CantOpenMembersFileFolder, InvalidDate, NoFileFound, WrongRegex};
 use crate::member::file_details::FileDetails;
 use crate::member::Result;
 use crate::tools::{log_message, log_message_and_return};
 
-pub fn import_from_file(filepath: &OsStr) -> Result<HashMap<String, BTreeSet<MemberDto>>> {
+pub fn import_from_file(filepath: &OsStr) -> Result<Members> {
     let error_message = format!("Can't open members file `{:?}`.", filepath.to_str());
     let error_mapping = log_message_and_return(
         &error_message,
@@ -39,7 +39,7 @@ fn load_members<T>(reader: &mut Reader<T>) -> Vec<MemberDto> where T: std::io::R
         .collect::<Vec<_>>()
 }
 
-fn group_members_by_membership(members: Vec<MemberDto>) -> HashMap<String, BTreeSet<MemberDto>> {
+fn group_members_by_membership(members: Vec<MemberDto>) -> Members {
     let mut map = HashMap::new();
 
     members.into_iter()
@@ -100,49 +100,20 @@ fn convert_match_to_integer<T: FromStr>(captures: &Captures, key: &str) -> Resul
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{BTreeSet, HashMap};
+    use std::collections::BTreeSet;
     use std::ffi::OsString;
     use std::fs;
     use std::fs::File;
     use std::io::BufReader;
-    use std::path::PathBuf;
-    use std::time::SystemTime;
 
     use chrono::NaiveDate;
     use regex::bytes::Regex;
 
+    use crate::member::{MemberDto, Members};
     use crate::member::error::Error::{CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound};
     use crate::member::import_from_file::{check_folder, convert_captures_to_date, convert_match_to_integer, find_file, group_members_by_membership, import_from_file, load_members};
-    use crate::member::MemberDto;
-
-    const HEADER: &str = "Nom d'usage;Prénom;Sexe;Date de Naissance;Age;Numéro d'adhérent;Email;Réglé;Date Fin d'adhésion;Adherent expiré;Nom de structure;Code de structure";
-    const MEMBER_AS_CSV: &str = "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oui;30-09-2025;Non;My club;Z01234";
-    const MALFORMED_MEMBER_AS_CSV: &str = "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oops;30-09-2025;Non;My club;Z01234";
-
-    fn get_expected_member() -> MemberDto {
-        MemberDto {
-            name: "Doe".to_string(),
-            firstname: "Jon".to_string(),
-            gender: "H".to_string(),
-            birthdate: NaiveDate::from_ymd_opt(1980, 2, 1),
-            age: Some(45),
-            membership_number: "123456".to_string(),
-            email_address: "email@address.com".to_string(),
-            payed: true,
-            end_date: NaiveDate::from_ymd_opt(2025, 9, 30).unwrap(),
-            expired: false,
-            club: "My club".to_string(),
-            structure_code: "Z01234".to_string(),
-        }
-    }
-
-    fn get_member_as_csv() -> String {
-        format!("{HEADER}\n{MEMBER_AS_CSV}")
-    }
-
-    fn get_malformed_member_as_csv() -> String {
-        format!("{HEADER}\n{MALFORMED_MEMBER_AS_CSV}")
-    }
+    use crate::member::tests::{get_expected_member, get_malformed_member_as_csv, get_member_as_csv};
+    use crate::tools::test::tests::temp_dir;
 
     // region import_from_file
     #[test]
@@ -239,7 +210,7 @@ mod tests {
             structure_code: "".to_string(),
         };
 
-        let expected_map: HashMap<String, BTreeSet<MemberDto>> = [
+        let expected_map: Members = [
             ("1".to_owned(), BTreeSet::from([jean.clone(), michel.clone()])),
             ("2".to_owned(), BTreeSet::from([pierre.clone()])),
         ].into_iter().collect();
@@ -355,13 +326,6 @@ mod tests {
         let captures = regex.captures(message.as_encoded_bytes()).unwrap();
         let result: Result<u32, _> = convert_match_to_integer(&captures, "integer");
         assert_eq!(Err(CantConvertDateFieldToString), result);
-    }
-
-    fn temp_dir() -> PathBuf {
-        let buf = std::env::temp_dir().join(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_micros().to_string());
-        fs::create_dir(&buf).unwrap();
-
-        buf
     }
     // endregion
 }
