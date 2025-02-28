@@ -13,6 +13,7 @@ pub mod file_details;
 pub mod error;
 pub mod config;
 pub mod members;
+pub mod memberships;
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -22,7 +23,7 @@ pub fn get_members_file_folder() -> &'static OsStr {
 }
 
 #[derive(Debug, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
-pub struct Member {
+pub struct Membership {
     #[serde(alias = "Nom d'usage")]
     name: String,
     #[serde(alias = "Prénom")]
@@ -50,7 +51,7 @@ pub struct Member {
 }
 
 #[derive(Debug, Serialize, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
-pub struct MemberDto {
+pub struct MembershipDto {
     name: String,
     firstname: String,
     gender: String,
@@ -65,13 +66,13 @@ pub struct MemberDto {
     structure_code: String,
 }
 
-impl PartialOrd for MemberDto {
+impl PartialOrd for MembershipDto {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for MemberDto {
+impl Ord for MembershipDto {
     fn cmp(&self, other: &Self) -> Ordering {
         self.membership_number.cmp(&other.membership_number)
             .then(self.name.cmp(&other.name))
@@ -80,21 +81,21 @@ impl Ord for MemberDto {
     }
 }
 
-impl From<Member> for MemberDto {
-    fn from(member: Member) -> Self {
-        MemberDto {
-            name: member.name,
-            firstname: member.firstname,
-            gender: member.gender,
-            birthdate: member.birthdate,
-            age: member.age,
-            membership_number: member.membership_number,
-            email_address: member.email_address,
-            payed: member.payed,
-            end_date: member.end_date,
-            expired: member.expired,
-            club: member.club,
-            structure_code: member.structure_code,
+impl From<Membership> for MembershipDto {
+    fn from(membership: Membership) -> Self {
+        MembershipDto {
+            name: membership.name,
+            firstname: membership.firstname,
+            gender: membership.gender,
+            birthdate: membership.birthdate,
+            age: membership.age,
+            membership_number: membership.membership_number,
+            email_address: membership.email_address,
+            payed: membership.payed,
+            end_date: membership.end_date,
+            expired: membership.expired,
+            club: membership.club,
+            structure_code: membership.structure_code,
         }
     }
 }
@@ -160,13 +161,13 @@ pub mod tests {
     use parameterized::ide;
     use parameterized::parameterized;
 
-    use crate::member::{Member, MemberDto};
+    use crate::member::{Membership, MembershipDto};
 
     ide!();
 
-    impl MemberDto {
-        fn new_test(end_date: NaiveDate) -> Self {
-            MemberDto {
+    impl MembershipDto {
+        pub fn new_test(end_date: NaiveDate) -> Self {
+            MembershipDto {
                 name: "".to_string(),
                 firstname: "".to_string(),
                 gender: "".to_string(),
@@ -190,8 +191,8 @@ pub mod tests {
     pub const MEMBERSHIP_NUMBER: &str = "123456";
     const MALFORMED_MEMBER_AS_CSV: &str = "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oops;30-09-2025;Non;My club;Z01234";
 
-    pub fn get_expected_member() -> MemberDto {
-        MemberDto {
+    pub fn get_expected_member() -> MembershipDto {
+        MembershipDto {
             name: "Doe".to_string(),
             firstname: "Jon".to_string(),
             gender: "H".to_string(),
@@ -229,14 +230,14 @@ pub mod tests {
     )]
     fn should_sort_members(end_dates: ((i32, u32, u32), (i32, u32, u32)), expected_result: Ordering) {
         let ((y1, m1, d1), (y2, m2, d2)) = end_dates;
-        let member1 = MemberDto::new_test(NaiveDate::from_ymd_opt(y1, m1, d1).unwrap());
-        let member2 = MemberDto::new_test(NaiveDate::from_ymd_opt(y2, m2, d2).unwrap());
+        let member1 = MembershipDto::new_test(NaiveDate::from_ymd_opt(y1, m1, d1).unwrap());
+        let member2 = MembershipDto::new_test(NaiveDate::from_ymd_opt(y2, m2, d2).unwrap());
         assert_eq!(Some(expected_result), member1.partial_cmp(&member2));
     }
 
     #[test]
     fn should_deserialize_member() {
-        let member = Member {
+        let membership = Membership {
             name: "Doe".to_owned(),
             firstname: "John".to_owned(),
             gender: "M".to_string(),
@@ -254,12 +255,12 @@ pub mod tests {
         let result = serde_json::from_str(json);
 
         assert!(result.is_ok());
-        assert_eq!(member, result.unwrap())
+        assert_eq!(membership, result.unwrap())
     }
 
     #[test]
     fn should_deserialize_when_empty_date() {
-        let member = Member {
+        let membership = Membership {
             name: "Doe".to_owned(),
             firstname: "John".to_owned(),
             gender: "M".to_string(),
@@ -277,7 +278,7 @@ pub mod tests {
         let result = serde_json::from_str(json);
 
         assert!(result.is_ok());
-        assert_eq!(member, result.unwrap())
+        assert_eq!(membership, result.unwrap())
     }
 
 
@@ -286,7 +287,7 @@ pub mod tests {
     )]
     fn should_not_deserialize_member_as_wrong_bool(payed: &str) {
         let json = format!(r#"{{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"11-10-2000","Age":24,"Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"{payed}","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}}"#);
-        let result: Result<Member, _> = serde_json::from_str(&json);
+        let result: Result<Membership, _> = serde_json::from_str(&json);
         assert!(result.is_err());
     }
 }

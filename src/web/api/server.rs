@@ -3,7 +3,7 @@ use regex::Regex;
 use rocket::{Build, Rocket};
 use crate::web::api::members_controller;
 use crate::web::api::members_state::MembersState;
-use crate::member::config::MembersProviderConfig;
+use crate::member::config::MembershipsProviderConfig;
 use crate::member::get_members_file_folder;
 use crate::web::server::Server;
 
@@ -30,13 +30,13 @@ impl Server for ApiServer {
             .manage(members_provider_config)
             .manage(Mutex::new(members_state))
             .mount("/api/", routes![
-                members_controller::download_members
+                members_controller::download_memberships
             ])
     }
 }
 
-fn build_members_provider_config() -> MembersProviderConfig {
-    MembersProviderConfig::new(
+fn build_members_provider_config() -> MembershipsProviderConfig {
+    MembershipsProviderConfig::new(
         "https://www.leolagrange-fileo.org".to_owned(),
         Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv").unwrap(),
         get_members_file_folder().to_os_string(),
