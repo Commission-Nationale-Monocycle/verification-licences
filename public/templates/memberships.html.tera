@@ -1,4 +1,4 @@
-{% import "member" as macro %}
+{% import "membership" as macro %}
 
 {% extends "base" %}
 

@@ -26,13 +26,13 @@ pub async fn hello(name: &str) -> Template {
 pub async fn list_memberships(members_state: &State<Mutex<MembersState>>) -> Template {
     let members = members_state.lock().unwrap();
     let members: &Members = members.members();
-    let members: Vec<&MembershipDto> = members.values()
+    let memberships: Vec<&MembershipDto> = members.values()
         .filter_map(Memberships::find_last_membership)
         .collect();
 
-    Template::render("members", context! {
-        title: "Liste des membres",
-        members: members
+    Template::render("memberships", context! {
+        title: "Liste des licences",
+        memberships: memberships
     })
 }
 
