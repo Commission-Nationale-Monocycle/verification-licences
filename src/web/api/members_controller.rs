@@ -3,13 +3,14 @@ use rocket::State;
 use serde_json::json;
 use crate::member::config::MembersProviderConfig;
 use crate::member::download::download_members_list;
-use crate::member::import_from_file::import_from_file;
+use crate::member::import_from_file::{clean_old_files, import_from_file};
 use crate::web::api::members_state::MembersState;
-use crate::tools::log_message_and_return;
+use crate::tools::{log_message, log_message_and_return};
 
 /// Download members csv file from remote provided in config,
 /// write said file into filesystem
 /// and load it into memory.
+/// Finally, clean all old members files.
 #[get("/members")]
 pub async fn download_members(
     members_provider_config: &State<MembersProviderConfig>,
@@ -24,6 +25,10 @@ pub async fn download_members(
         .lock()
         .map_err(log_message_and_return("Couldn't acquire lock", "Error while updating members."))?;
 
+    let file_update_date = *file_details.update_date();
+    clean_old_files(members_provider_config.folder(), &file_update_date)
+        .map_err(log_message("Couldn't clean old files."))
+        .ok();
     members_state.set_file_details(file_details);
     members_state.set_members(members);
     Ok(json!(members_state.members()).to_string())
@@ -32,6 +37,7 @@ pub async fn download_members(
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use std::fs;
     use std::sync::Mutex;
     use encoding::all::ISO_8859_1;
     use encoding::{EncoderTrap, Encoding};
@@ -58,6 +64,7 @@ mod tests {
             "--password=test_password".to_string(),
         ];
         let temp_dir = temp_dir();
+        let old_file_path = temp_dir.join("members-1980-01-01.csv");
         let config = MembersProviderConfig::new(
             mock_server.uri(),
             Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap(),
@@ -65,6 +72,9 @@ mod tests {
         );
         let download_filename = "download.csv";
         let download_link = format!("{}/{download_filename}", mock_server.uri());
+
+        fs::write(&old_file_path, "").unwrap();
+        assert!(fs::exists(&old_file_path).ok().unwrap());
 
         Mock::given(method("POST"))
             .and(path("/page.php"))
@@ -101,6 +111,7 @@ mod tests {
         let result = with_env_args(args, || block_on(download_members(config_state, members_state))).unwrap();
         let members: Members = serde_json::from_str(&result).unwrap();
         assert_eq!(&get_expected_member(), members.get(MEMBERSHIP_NUMBER).unwrap().iter().find(|_| true).unwrap());
+        assert!(!fs::exists(&old_file_path).ok().unwrap(), "Old file should have been cleaned.");
     }
 
     #[async_test]
