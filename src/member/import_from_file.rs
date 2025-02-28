@@ -8,9 +8,10 @@ use chrono::NaiveDate;
 use csv::Reader;
 use regex::bytes::{Captures, Regex};
 
-use crate::member::{Member, MemberDto, Members};
+use crate::member::{Member, MemberDto};
 use crate::member::error::Error::{CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile, CantOpenMembersFileFolder, InvalidDate, NoFileFound, WrongRegex};
 use crate::member::file_details::FileDetails;
+use crate::member::members::Members;
 use crate::member::Result;
 use crate::tools::{log_message, log_message_and_return};
 
@@ -132,9 +133,10 @@ mod tests {
     use chrono::NaiveDate;
     use regex::bytes::Regex;
 
-    use crate::member::{MemberDto, Members};
+    use crate::member::MemberDto;
     use crate::member::error::Error::{CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound};
     use crate::member::import_from_file::{build_members_file_regex, check_folder, convert_captures_to_date, convert_match_to_integer, find_file, group_members_by_membership, import_from_file, load_members};
+    use crate::member::members::Members;
     use crate::member::tests::{get_expected_member, get_malformed_member_as_csv, get_member_as_csv};
     use crate::tools::test::tests::temp_dir;
 

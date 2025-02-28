@@ -3,7 +3,7 @@ use derive_getters::Getters;
 use crate::member::error::Error;
 use crate::member::file_details::FileDetails;
 use crate::member::import_from_file::{find_file, import_from_file};
-use crate::member::Members;
+use crate::member::members::Members;
 use crate::tools::log_message;
 
 type Result<T, E = Error> = std::result::Result<T, E>;

@@ -46,7 +46,7 @@ mod tests {
     use rocket::State;
     use wiremock::{Mock, MockServer, ResponseTemplate};
     use wiremock::matchers::{body_string_contains, method, path, query_param_contains};
-    use crate::member::Members;
+    use crate::member::members::Members;
     use crate::member::config::MembersProviderConfig;
     use crate::member::tests::{get_expected_member, get_member_as_csv, MEMBERSHIP_NUMBER};
     use crate::tools::env_args::with_env_args;

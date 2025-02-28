@@ -2,8 +2,9 @@ use std::sync::Mutex;
 use rocket::{Request, State};
 use rocket::response::Redirect;
 
-use rocket_dyn_templates::{Template, context};
-use crate::member::{MemberDto, Members};
+use rocket_dyn_templates::{context, Template};
+use crate::member::MemberDto;
+use crate::member::members::Members;
 use crate::web::api::members_state::MembersState;
 
 #[get("/")]
