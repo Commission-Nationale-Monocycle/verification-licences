@@ -1,5 +1,4 @@
 use std::cmp::Ordering;
-use std::collections::{BTreeSet, HashMap};
 use std::ffi::OsStr;
 
 use chrono::NaiveDate;
@@ -13,9 +12,9 @@ pub mod import_from_file;
 pub mod file_details;
 pub mod error;
 pub mod config;
+pub mod members;
 
 type Result<T, E = Error> = std::result::Result<T, E>;
-pub type Members = HashMap<String, BTreeSet<MemberDto>>;
 
 const MEMBERS_FILE_FOLDER: &str = "data";
 pub fn get_members_file_folder() -> &'static OsStr {
@@ -186,6 +185,8 @@ pub mod tests {
 
     const HEADER: &str = "Nom d'usage;Prénom;Sexe;Date de Naissance;Age;Numéro d'adhérent;Email;Réglé;Date Fin d'adhésion;Adherent expiré;Nom de structure;Code de structure";
     const MEMBER_AS_CSV: &str = "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oui;30-09-2025;Non;My club;Z01234";
+    pub const MEMBER_NAME: &str = "Doe";
+    pub const MEMBER_FIRSTNAME: &str = "Jon";
     pub const MEMBERSHIP_NUMBER: &str = "123456";
     const MALFORMED_MEMBER_AS_CSV: &str = "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oops;30-09-2025;Non;My club;Z01234";
 

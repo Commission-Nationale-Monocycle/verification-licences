@@ -8,9 +8,10 @@ use chrono::NaiveDate;
 use csv::Reader;
 use regex::bytes::{Captures, Regex};
 
-use crate::member::{Member, MemberDto, Members};
+use crate::member::{Member, MemberDto};
 use crate::member::error::Error::{CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile, CantOpenMembersFileFolder, InvalidDate, NoFileFound, WrongRegex};
 use crate::member::file_details::FileDetails;
+use crate::member::members::Members;
 use crate::member::Result;
 use crate::tools::{log_message, log_message_and_return};
 
@@ -51,7 +52,7 @@ fn group_members_by_membership(members: Vec<MemberDto>) -> Members {
                 .or_insert(BTreeSet::from([member.clone(); 1]));
         });
 
-    map
+    Members::from(map)
 }
 
 pub fn find_file(members_file_folder: &OsStr) -> Result<FileDetails> {
@@ -123,7 +124,7 @@ fn build_members_file_regex() -> Result<Regex> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::collections::{BTreeSet, HashMap};
     use std::ffi::OsString;
     use std::fs;
     use std::fs::File;
@@ -132,9 +133,10 @@ mod tests {
     use chrono::NaiveDate;
     use regex::bytes::Regex;
 
-    use crate::member::{MemberDto, Members};
+    use crate::member::MemberDto;
     use crate::member::error::Error::{CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound};
     use crate::member::import_from_file::{build_members_file_regex, check_folder, convert_captures_to_date, convert_match_to_integer, find_file, group_members_by_membership, import_from_file, load_members};
+    use crate::member::members::Members;
     use crate::member::tests::{get_expected_member, get_malformed_member_as_csv, get_member_as_csv};
     use crate::tools::test::tests::temp_dir;
 
@@ -233,10 +235,10 @@ mod tests {
             structure_code: "".to_string(),
         };
 
-        let expected_map: Members = [
+        let expected_map: Members = Members::from([
             ("1".to_owned(), BTreeSet::from([jean.clone(), michel.clone()])),
             ("2".to_owned(), BTreeSet::from([pierre.clone()])),
-        ].into_iter().collect();
+        ].into_iter().collect::<HashMap<String, BTreeSet<MemberDto>>>());
         let result = group_members_by_membership(vec![jean, pierre, michel]);
         assert_eq!(expected_map, result);
     }

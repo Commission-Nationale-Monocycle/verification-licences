@@ -36,7 +36,6 @@ pub async fn download_members(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use std::fs;
     use std::sync::Mutex;
     use encoding::all::ISO_8859_1;
@@ -46,7 +45,7 @@ mod tests {
     use rocket::State;
     use wiremock::{Mock, MockServer, ResponseTemplate};
     use wiremock::matchers::{body_string_contains, method, path, query_param_contains};
-    use crate::member::Members;
+    use crate::member::members::Members;
     use crate::member::config::MembersProviderConfig;
     use crate::member::tests::{get_expected_member, get_member_as_csv, MEMBERSHIP_NUMBER};
     use crate::tools::env_args::with_env_args;
@@ -105,7 +104,7 @@ mod tests {
             .await;
 
         let config_state = State::from(&config);
-        let members_state_mutex = Mutex::new(MembersState::new(None, HashMap::new()));
+        let members_state_mutex = Mutex::new(MembersState::new(None, Members::default()));
         let members_state = State::from(&members_state_mutex);
 
         let result = with_env_args(args, || block_on(download_members(config_state, members_state))).unwrap();
@@ -127,7 +126,7 @@ mod tests {
         );
 
         let config_state = State::from(&config);
-        let members_state_mutex = Mutex::new(MembersState::new(None, HashMap::new()));
+        let members_state_mutex = Mutex::new(MembersState::new(None, Members::default()));
         let members_state = State::from(&members_state_mutex);
 
         let result = with_env_args(args, || block_on(download_members(config_state, members_state)));
