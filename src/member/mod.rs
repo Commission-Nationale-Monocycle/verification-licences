@@ -13,6 +13,7 @@ pub mod file_details;
 pub mod error;
 pub mod config;
 pub mod members;
+pub mod memberships;
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -22,7 +23,7 @@ pub fn get_members_file_folder() -> &'static OsStr {
 }
 
 #[derive(Debug, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
-pub struct Member {
+pub struct Licence {
     #[serde(alias = "Nom d'usage")]
     name: String,
     #[serde(alias = "Prénom")]
@@ -80,8 +81,8 @@ impl Ord for MemberDto {
     }
 }
 
-impl From<Member> for MemberDto {
-    fn from(member: Member) -> Self {
+impl From<Licence> for MemberDto {
+    fn from(member: Licence) -> Self {
         MemberDto {
             name: member.name,
             firstname: member.firstname,
@@ -160,12 +161,12 @@ pub mod tests {
     use parameterized::ide;
     use parameterized::parameterized;
 
-    use crate::member::{Member, MemberDto};
+    use crate::member::{Licence, MemberDto};
 
     ide!();
 
     impl MemberDto {
-        fn new_test(end_date: NaiveDate) -> Self {
+        pub fn new_test(end_date: NaiveDate) -> Self {
             MemberDto {
                 name: "".to_string(),
                 firstname: "".to_string(),
@@ -236,7 +237,7 @@ pub mod tests {
 
     #[test]
     fn should_deserialize_member() {
-        let member = Member {
+        let member = Licence {
             name: "Doe".to_owned(),
             firstname: "John".to_owned(),
             gender: "M".to_string(),
@@ -259,7 +260,7 @@ pub mod tests {
 
     #[test]
     fn should_deserialize_when_empty_date() {
-        let member = Member {
+        let member = Licence {
             name: "Doe".to_owned(),
             firstname: "John".to_owned(),
             gender: "M".to_string(),
@@ -286,7 +287,7 @@ pub mod tests {
     )]
     fn should_not_deserialize_member_as_wrong_bool(payed: &str) {
         let json = format!(r#"{{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"11-10-2000","Age":24,"Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"{payed}","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}}"#);
-        let result: Result<Member, _> = serde_json::from_str(&json);
+        let result: Result<Licence, _> = serde_json::from_str(&json);
         assert!(result.is_err());
     }
 }

@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
@@ -8,9 +8,10 @@ use chrono::NaiveDate;
 use csv::Reader;
 use regex::bytes::{Captures, Regex};
 
-use crate::member::{Member, MemberDto};
+use crate::member::{Licence, MemberDto};
 use crate::member::error::Error::{CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile, CantOpenMembersFileFolder, InvalidDate, NoFileFound, WrongRegex};
 use crate::member::file_details::FileDetails;
+use crate::member::memberships::Memberships;
 use crate::member::members::Members;
 use crate::member::Result;
 use crate::tools::{log_message, log_message_and_return};
@@ -31,7 +32,7 @@ pub fn import_from_file(filepath: &OsStr) -> Result<Members> {
 
 fn load_members<T>(reader: &mut Reader<T>) -> Vec<MemberDto> where T: std::io::Read {
     reader.deserialize()
-        .filter_map(|result: Result<Member, _>| match result {
+        .filter_map(|result: Result<Licence, _>| match result {
             Ok(member) => Some(member.into()),
             Err(e) => {
                 log_message("Error while reading member")(e);
@@ -48,8 +49,8 @@ fn group_members_by_membership(members: Vec<MemberDto>) -> Members {
         .for_each(|member| {
             let membership_number = member.membership_number().to_string();
             map.entry(membership_number)
-                .and_modify(|set: &mut BTreeSet<_>| { set.insert(member.clone()); })
-                .or_insert(BTreeSet::from([member.clone(); 1]));
+                .and_modify(|licences: &mut Memberships| { licences.insert(member.clone()); })
+                .or_insert(Memberships::from([member.clone(); 1]));
         });
 
     Members::from(map)
@@ -124,7 +125,7 @@ fn build_members_file_regex() -> Result<Regex> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{BTreeSet, HashMap};
+    use std::collections::HashMap;
     use std::ffi::OsString;
     use std::fs;
     use std::fs::File;
@@ -133,9 +134,10 @@ mod tests {
     use chrono::NaiveDate;
     use regex::bytes::Regex;
 
-    use crate::member::MemberDto;
     use crate::member::error::Error::{CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound};
     use crate::member::import_from_file::{build_members_file_regex, check_folder, convert_captures_to_date, convert_match_to_integer, find_file, group_members_by_membership, import_from_file, load_members};
+    use crate::member::memberships::Memberships;
+    use crate::member::MemberDto;
     use crate::member::members::Members;
     use crate::member::tests::{get_expected_member, get_malformed_member_as_csv, get_member_as_csv};
     use crate::tools::test::tests::temp_dir;
@@ -150,7 +152,7 @@ mod tests {
         fs::write(&file_path, get_member_as_csv()).unwrap();
 
         let result = import_from_file(file_path.as_ref()).unwrap();
-        assert_eq!(&BTreeSet::from([get_expected_member()]), result.get("123456").unwrap())
+        assert_eq!(&Memberships::from([get_expected_member()]), result.get("123456").unwrap())
     }
 
     #[test]
@@ -236,9 +238,9 @@ mod tests {
         };
 
         let expected_map: Members = Members::from([
-            ("1".to_owned(), BTreeSet::from([jean.clone(), michel.clone()])),
-            ("2".to_owned(), BTreeSet::from([pierre.clone()])),
-        ].into_iter().collect::<HashMap<String, BTreeSet<MemberDto>>>());
+            ("1".to_owned(), Memberships::from([jean.clone(), michel.clone()])),
+            ("2".to_owned(), Memberships::from([pierre.clone()])),
+        ].into_iter().collect::<HashMap<String, Memberships>>());
         let result = group_members_by_membership(vec![jean, pierre, michel]);
         assert_eq!(expected_map, result);
     }

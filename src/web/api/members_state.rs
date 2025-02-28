@@ -1,5 +1,7 @@
 use std::ffi::OsStr;
+
 use derive_getters::Getters;
+
 use crate::member::error::Error;
 use crate::member::file_details::FileDetails;
 use crate::member::import_from_file::{find_file, import_from_file};
@@ -54,12 +56,15 @@ impl MembersState {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{BTreeSet, HashMap};
+    use std::collections::HashMap;
     use std::fs;
     use std::fs::File;
+
     use chrono::NaiveDate;
+
     use crate::member::error::Error::CantBrowseThroughFiles;
     use crate::member::file_details::FileDetails;
+    use crate::member::memberships::Memberships;
     use crate::member::members::Members;
     use crate::member::tests::{get_expected_member, get_member_as_csv, MEMBERSHIP_NUMBER};
     use crate::tools::test::tests::temp_dir;
@@ -117,7 +122,7 @@ mod tests {
         let state = MembersState::load_members(&temp_dir.into_os_string()).unwrap();
         assert_eq!(MembersState::new(
             Some(FileDetails::new(NaiveDate::from_ymd_opt(year, month, day).unwrap(), members_file.into_os_string())),
-            Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_owned(), BTreeSet::from([get_expected_member()]))]))
+            Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_owned(), Memberships::from([get_expected_member()]))]))
         ), state);
     }
 
