@@ -30,8 +30,7 @@ impl Server for ApiServer {
             .manage(members_provider_config)
             .manage(Mutex::new(members_state))
             .mount("/api/", routes![
-                members_controller::list_members,
-                members_controller::update_members
+                members_controller::download_members
             ])
     }
 }
