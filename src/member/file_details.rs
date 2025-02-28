@@ -2,7 +2,7 @@ use std::ffi::OsString;
 use chrono::NaiveDate;
 use derive_getters::Getters;
 
-#[derive(Debug, Default, Getters)]
+#[derive(Debug, Default, Getters, Eq, PartialEq)]
 pub struct FileDetails {
     update_date: NaiveDate,
     filepath: OsString,

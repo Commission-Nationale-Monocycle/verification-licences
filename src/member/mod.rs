@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::collections::{BTreeSet, HashMap};
 use std::ffi::OsStr;
 
 use chrono::NaiveDate;
@@ -14,6 +15,7 @@ pub mod error;
 pub mod config;
 
 type Result<T, E = Error> = std::result::Result<T, E>;
+pub type Members = HashMap<String, BTreeSet<MemberDto>>;
 
 const MEMBERS_FILE_FOLDER: &str = "data";
 pub fn get_members_file_folder() -> &'static OsStr {
@@ -62,13 +64,6 @@ pub struct MemberDto {
     expired: bool,
     club: String,
     structure_code: String,
-}
-
-
-impl MemberDto {
-    pub fn new(name: String, firstname: String, gender: String, birthdate: Option<NaiveDate>, age: Option<u8>, membership_number: String, email_address: String, payed: bool, end_date: NaiveDate, expired: bool, club: String, structure_code: String) -> Self {
-        Self { name, firstname, gender, birthdate, age, membership_number, email_address, payed, end_date, expired, club, structure_code }
-    }
 }
 
 impl PartialOrd for MemberDto {
@@ -159,7 +154,7 @@ mod bool_format {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use std::cmp::Ordering;
 
     use chrono::NaiveDate;
@@ -187,6 +182,36 @@ mod tests {
                 structure_code: "".to_string(),
             }
         }
+    }
+
+    const HEADER: &str = "Nom d'usage;Prénom;Sexe;Date de Naissance;Age;Numéro d'adhérent;Email;Réglé;Date Fin d'adhésion;Adherent expiré;Nom de structure;Code de structure";
+    const MEMBER_AS_CSV: &str = "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oui;30-09-2025;Non;My club;Z01234";
+    pub const MEMBERSHIP_NUMBER: &str = "123456";
+    const MALFORMED_MEMBER_AS_CSV: &str = "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oops;30-09-2025;Non;My club;Z01234";
+
+    pub fn get_expected_member() -> MemberDto {
+        MemberDto {
+            name: "Doe".to_string(),
+            firstname: "Jon".to_string(),
+            gender: "H".to_string(),
+            birthdate: NaiveDate::from_ymd_opt(1980, 2, 1),
+            age: Some(45),
+            membership_number: MEMBERSHIP_NUMBER.to_string(),
+            email_address: "email@address.com".to_string(),
+            payed: true,
+            end_date: NaiveDate::from_ymd_opt(2025, 9, 30).unwrap(),
+            expired: false,
+            club: "My club".to_string(),
+            structure_code: "Z01234".to_string(),
+        }
+    }
+
+    pub fn get_member_as_csv() -> String {
+        format!("{HEADER}\n{MEMBER_AS_CSV}")
+    }
+
+    pub fn get_malformed_member_as_csv() -> String {
+        format!("{HEADER}\n{MALFORMED_MEMBER_AS_CSV}")
     }
 
     #[parameterized(
