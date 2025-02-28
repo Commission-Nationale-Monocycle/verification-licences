@@ -1,32 +1,33 @@
 use std::sync::Mutex;
 use rocket::State;
 use serde_json::json;
-use crate::member::config::MembersProviderConfig;
-use crate::member::download::download_members_list;
+use crate::member::config::MembershipsProviderConfig;
+use crate::member::download::download_memberships_list;
 use crate::member::import_from_file::{clean_old_files, import_from_file};
 use crate::web::api::members_state::MembersState;
 use crate::tools::{log_message, log_message_and_return};
 
-/// Download members csv file from remote provided in config,
+/// Download memberships csv file from remote provided in config,
 /// write said file into filesystem
 /// and load it into memory.
-/// Finally, clean all old members files.
-#[get("/members")]
-pub async fn download_members(
-    members_provider_config: &State<MembersProviderConfig>,
+/// Finally, clean all old memberships files.
+#[get("/memberships")]
+pub async fn download_memberships(
+    memberships_provider_config: &State<MembershipsProviderConfig>,
     members_state: &State<Mutex<MembersState>>,
 ) -> Result<String, String> {
-    let file_details = download_members_list(members_provider_config)
+    let file_details = download_memberships_list(memberships_provider_config)
         .await
-        .map_err(log_message_and_return("Can't download members list", "Can't download members list"))?;
+        .map_err(log_message_and_return("Can't download memberships list", "Can't download memberships list"))?;
 
-    let members = import_from_file(file_details.filepath()).map_err(log_message_and_return("Error while reading members file.", "Error while reading members file."))?;
+    let members = import_from_file(file_details.filepath())
+        .map_err(log_message_and_return("Error while reading memberships file.", "Error while reading memberships file."))?;
     let mut members_state = members_state
         .lock()
-        .map_err(log_message_and_return("Couldn't acquire lock", "Error while updating members."))?;
+        .map_err(log_message_and_return("Couldn't acquire lock", "Error while updating memberships."))?;
 
     let file_update_date = *file_details.update_date();
-    clean_old_files(members_provider_config.folder(), &file_update_date)
+    clean_old_files(memberships_provider_config.folder(), &file_update_date)
         .map_err(log_message("Couldn't clean old files."))
         .ok();
     members_state.set_file_details(file_details);
@@ -46,11 +47,11 @@ mod tests {
     use wiremock::{Mock, MockServer, ResponseTemplate};
     use wiremock::matchers::{body_string_contains, method, path, query_param_contains};
     use crate::member::members::Members;
-    use crate::member::config::MembersProviderConfig;
+    use crate::member::config::MembershipsProviderConfig;
     use crate::member::tests::{get_expected_member, get_member_as_csv, MEMBERSHIP_NUMBER};
     use crate::tools::env_args::with_env_args;
     use crate::web::api::members_state::MembersState;
-    use crate::web::api::members_controller::{download_members};
+    use crate::web::api::members_controller::download_memberships;
     use crate::tools::test::tests::temp_dir;
 
     // region download_members
@@ -63,8 +64,8 @@ mod tests {
             "--password=test_password".to_string(),
         ];
         let temp_dir = temp_dir();
-        let old_file_path = temp_dir.join("members-1980-01-01.csv");
-        let config = MembersProviderConfig::new(
+        let old_file_path = temp_dir.join("memberships-1980-01-01.csv");
+        let config = MembershipsProviderConfig::new(
             mock_server.uri(),
             Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap(),
             temp_dir.into_os_string(),
@@ -107,7 +108,7 @@ mod tests {
         let members_state_mutex = Mutex::new(MembersState::new(None, Members::default()));
         let members_state = State::from(&members_state_mutex);
 
-        let result = with_env_args(args, || block_on(download_members(config_state, members_state))).unwrap();
+        let result = with_env_args(args, || block_on(download_memberships(config_state, members_state))).unwrap();
         let members: Members = serde_json::from_str(&result).unwrap();
         assert_eq!(&get_expected_member(), members.get(MEMBERSHIP_NUMBER).unwrap().iter().find(|_| true).unwrap());
         assert!(!fs::exists(&old_file_path).ok().unwrap(), "Old file should have been cleaned.");
@@ -119,7 +120,7 @@ mod tests {
 
         let args = vec![];
         let temp_dir = temp_dir();
-        let config = MembersProviderConfig::new(
+        let config = MembershipsProviderConfig::new(
             mock_server.uri(),
             Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap(),
             temp_dir.into_os_string(),
@@ -129,7 +130,7 @@ mod tests {
         let members_state_mutex = Mutex::new(MembersState::new(None, Members::default()));
         let members_state = State::from(&members_state_mutex);
 
-        let result = with_env_args(args, || block_on(download_members(config_state, members_state)));
+        let result = with_env_args(args, || block_on(download_memberships(config_state, members_state)));
         assert!(result.err().is_some());
     }
     // endregion

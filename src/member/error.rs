@@ -1,7 +1,7 @@
 #[derive(Debug, PartialEq)]
 pub enum Error {
     CantCreateClient,
-    CantCreateMembersFileFolder,
+    CantCreateMembershipsFileFolder,
     WrongEncoding,
     NoCredentials,
 

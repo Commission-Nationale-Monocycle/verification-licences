@@ -4,8 +4,8 @@
 
 {% block content %}
    <table>
-       {% for member in members %}
-           {{ macro::render_member(member=member) }}
+       {% for membership in memberships %}
+           {{ macro::render_membership(membership=membership) }}
        {% endfor %}
    </table>
 {% endblock content %}

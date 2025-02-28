@@ -52,8 +52,8 @@ mod tests {
     // region check_members
     #[test]
     fn members_should_be_checked() {
-        let member = get_expected_member();
-        let members = Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_string(), Memberships::from([member]))]));
+        let membership = get_expected_member();
+        let members = Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_string(), Memberships::from([membership]))]));
         let member_to_check = (MEMBERSHIP_NUMBER, MEMBER_NAME, MEMBER_FIRSTNAME);
 
         assert_eq!(vec![(&member_to_check, true)], check_members(&members, &[member_to_check]));
@@ -61,8 +61,8 @@ mod tests {
 
     #[test]
     fn members_should_not_be_checked() {
-        let member = get_expected_member();
-        let members = Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_string(), Memberships::from([member]))]));
+        let membership = get_expected_member();
+        let members = Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_string(), Memberships::from([membership]))]));
         let membership_number = format!("{MEMBERSHIP_NUMBER} oops");
         let member_to_check = (membership_number.as_str(), MEMBER_NAME, MEMBER_FIRSTNAME);
 
@@ -73,8 +73,8 @@ mod tests {
     // region check_member
     #[test]
     fn member_should_be_check() {
-        let member = get_expected_member();
-        let members = Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_string(), Memberships::from([member]))]));
+        let membership = get_expected_member();
+        let members = Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_string(), Memberships::from([membership]))]));
         let member_to_check = (MEMBERSHIP_NUMBER, MEMBER_NAME, MEMBER_FIRSTNAME);
 
         assert!(check_member(&members, &member_to_check));
@@ -82,8 +82,8 @@ mod tests {
 
     #[test]
     fn member_should_not_be_check() {
-        let member = get_expected_member();
-        let members = Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_string(), Memberships::from([member]))]));
+        let membership = get_expected_member();
+        let members = Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_string(), Memberships::from([membership]))]));
         let membership_number = format!("{MEMBERSHIP_NUMBER} oops");
         let member_to_check = (membership_number.as_str(), MEMBER_NAME, MEMBER_FIRSTNAME);
 

@@ -77,7 +77,7 @@ mod tests {
         let month = 2;
         let day = 1;
         let temp_dir = temp_dir();
-        let members_file = temp_dir.join(format!("members-{year}-{month:02}-{day:02}.csv"));
+        let members_file = temp_dir.join(format!("memberships-{year}-{month:02}-{day:02}.csv"));
         File::create(&members_file).unwrap();
 
         let file_details = MembersState::load_members_file_details(&temp_dir.into_os_string()).unwrap().unwrap();
@@ -99,7 +99,7 @@ mod tests {
         let month = 2;
         let day = 1;
         let temp_dir = temp_dir();
-        let members_file = temp_dir.join(format!("members-{year}-{month:02}-{day:02}.csv"));
+        let members_file = temp_dir.join(format!("memberships-{year}-{month:02}-{day:02}.csv"));
         File::create(&members_file).unwrap();
 
         let error = MembersState::load_members_file_details(&members_file.into_os_string())
@@ -116,7 +116,7 @@ mod tests {
         let month = 2;
         let day = 1;
         let temp_dir = temp_dir();
-        let members_file = temp_dir.join(format!("members-{year}-{month:02}-{day:02}.csv"));
+        let members_file = temp_dir.join(format!("memberships-{year}-{month:02}-{day:02}.csv"));
         fs::write(&members_file, get_member_as_csv()).unwrap();
 
         let state = MembersState::load_members(&temp_dir.into_os_string()).unwrap();
@@ -140,7 +140,7 @@ mod tests {
         let month = 2;
         let day = 1;
         let temp_dir = temp_dir();
-        let members_file = temp_dir.join(format!("members-{year}-{month:02}-{day:02}.csv"));
+        let members_file = temp_dir.join(format!("memberships-{year}-{month:02}-{day:02}.csv"));
         fs::write(&members_file, get_member_as_csv()).unwrap();
 
         let result = MembersState::load_members(&members_file.into_os_string());

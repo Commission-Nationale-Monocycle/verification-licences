@@ -82,20 +82,20 @@ impl Ord for MembershipDto {
 }
 
 impl From<Membership> for MembershipDto {
-    fn from(member: Membership) -> Self {
+    fn from(membership: Membership) -> Self {
         MembershipDto {
-            name: member.name,
-            firstname: member.firstname,
-            gender: member.gender,
-            birthdate: member.birthdate,
-            age: member.age,
-            membership_number: member.membership_number,
-            email_address: member.email_address,
-            payed: member.payed,
-            end_date: member.end_date,
-            expired: member.expired,
-            club: member.club,
-            structure_code: member.structure_code,
+            name: membership.name,
+            firstname: membership.firstname,
+            gender: membership.gender,
+            birthdate: membership.birthdate,
+            age: membership.age,
+            membership_number: membership.membership_number,
+            email_address: membership.email_address,
+            payed: membership.payed,
+            end_date: membership.end_date,
+            expired: membership.expired,
+            club: membership.club,
+            structure_code: membership.structure_code,
         }
     }
 }
@@ -237,7 +237,7 @@ pub mod tests {
 
     #[test]
     fn should_deserialize_member() {
-        let member = Membership {
+        let membership = Membership {
             name: "Doe".to_owned(),
             firstname: "John".to_owned(),
             gender: "M".to_string(),
@@ -255,12 +255,12 @@ pub mod tests {
         let result = serde_json::from_str(json);
 
         assert!(result.is_ok());
-        assert_eq!(member, result.unwrap())
+        assert_eq!(membership, result.unwrap())
     }
 
     #[test]
     fn should_deserialize_when_empty_date() {
-        let member = Membership {
+        let membership = Membership {
             name: "Doe".to_owned(),
             firstname: "John".to_owned(),
             gender: "M".to_string(),
@@ -278,7 +278,7 @@ pub mod tests {
         let result = serde_json::from_str(json);
 
         assert!(result.is_ok());
-        assert_eq!(member, result.unwrap())
+        assert_eq!(membership, result.unwrap())
     }
 
 

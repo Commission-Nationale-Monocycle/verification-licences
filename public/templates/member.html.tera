@@ -1,9 +1,9 @@
-{% macro render_member(member) %}
-    <tr {% if member.end_date | is_in_the_past %} class="bg-red-300" {% endif %}>
-        <td>{{ member.firstname }}</td>
-        <td>{{ member.name }}</td>
-        <td>{{ member.membership_number }}</td>
-        <td>{{ member.end_date | date(format="%d-%m-%Y") }}</td>
-        <td><a href="mailto:{{ member.email_address }}">{{ member.email_address }}</a></td>
+{% macro render_membership(membership) %}
+    <tr {% if membership.end_date | is_in_the_past %} class="bg-red-300" {% endif %}>
+        <td>{{ membership.firstname }}</td>
+        <td>{{ membership.name }}</td>
+        <td>{{ membership.membership_number }}</td>
+        <td>{{ membership.end_date | date(format="%d-%m-%Y") }}</td>
+        <td><a href="mailto:{{ membership.email_address }}">{{ membership.email_address }}</a></td>
     </tr>
 {% endmacro input %}

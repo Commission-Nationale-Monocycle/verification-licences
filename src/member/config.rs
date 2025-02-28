@@ -3,13 +3,13 @@ use derive_getters::Getters;
 use regex::Regex;
 
 #[derive(Getters)]
-pub struct MembersProviderConfig {
+pub struct MembershipsProviderConfig {
     host: String,
     download_link_regex: Regex,
     folder: OsString,
 }
 
-impl MembersProviderConfig {
+impl MembershipsProviderConfig {
     pub fn new(host: String, download_link_regex: Regex, folder: OsString) -> Self {
         Self { host, download_link_regex, folder }
     }

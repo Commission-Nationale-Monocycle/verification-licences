@@ -9,10 +9,10 @@ use log::{debug, error, warn};
 use regex::Regex;
 use reqwest::{Client, RequestBuilder};
 use rocket::http::ContentType;
-use crate::member::config::MembersProviderConfig;
+use crate::member::config::MembershipsProviderConfig;
 
 use crate::member::Result;
-use crate::member::error::Error::{CantCreateClient, CantCreateMembersFileFolder, CantLoadListOnServer, CantReadMembersDownloadResponse, CantReadPageContent, CantRetrieveDownloadLink, CantWriteMembersFile, ConnectionFailed, FileNotFoundOnServer, NoCredentials, NoDownloadLink, WrongEncoding};
+use crate::member::error::Error::{CantCreateClient, CantCreateMembershipsFileFolder, CantLoadListOnServer, CantReadMembersDownloadResponse, CantReadPageContent, CantRetrieveDownloadLink, CantWriteMembersFile, ConnectionFailed, FileNotFoundOnServer, NoCredentials, NoDownloadLink, WrongEncoding};
 use crate::member::file_details::FileDetails;
 use crate::tools::{env_args, log_error_and_return, log_message_and_return};
 
@@ -34,11 +34,11 @@ impl Debug for Credentials {
     }
 }
 
-pub async fn download_members_list(members_provider_config: &MembersProviderConfig) -> Result<FileDetails> {
-    let folder = members_provider_config.folder();
-    let host = members_provider_config.host();
-    let download_link_regex = members_provider_config.download_link_regex();
-    create_members_file_dir(folder)?;
+pub async fn download_memberships_list(memberships_provider_config: &MembershipsProviderConfig) -> Result<FileDetails> {
+    let folder = memberships_provider_config.folder();
+    let host = memberships_provider_config.host();
+    let download_link_regex = memberships_provider_config.download_link_regex();
+    create_memberships_file_dir(folder)?;
 
     let client = build_client()?;
     let credentials = retrieve_credentials()?;
@@ -56,13 +56,13 @@ fn build_client() -> Result<Client> {
         .map_err(log_message_and_return("Can't build HTTP client.", CantCreateClient))
 }
 
-fn create_members_file_dir(members_file_folder: &OsStr) -> Result<()> {
-    let err_message = format!("Can't create `{members_file_folder:?}` folder.");
+fn create_memberships_file_dir(memberships_file_folder: &OsStr) -> Result<()> {
+    let err_message = format!("Can't create `{memberships_file_folder:?}` folder.");
     let err_mapper = log_message_and_return(
         &err_message,
-        CantCreateMembersFileFolder,
+        CantCreateMembershipsFileFolder,
     );
-    std::fs::create_dir_all(members_file_folder).map_err(err_mapper)?;
+    std::fs::create_dir_all(memberships_file_folder).map_err(err_mapper)?;
 
     Ok(())
 }
@@ -159,7 +159,7 @@ async fn download_list(client: &Client, file_url: &str) -> Result<String> {
 fn write_list_to_file(members_file_folder: &OsStr, file_content: &str) -> Result<FileDetails> {
     let date_time = Local::now().date_naive();
     let filepath = PathBuf::from(members_file_folder)
-        .join(format!("members-{}.csv", date_time.format("%Y-%m-%d")));
+        .join(format!("memberships-{}.csv", date_time.format("%Y-%m-%d")));
     std::fs::write(&filepath, file_content).map_err(log_error_and_return(CantWriteMembersFile))?;
     Ok(FileDetails::new(date_time, OsString::from(filepath)))
 }
@@ -265,8 +265,8 @@ mod tests {
     use wiremock::matchers::{body_string_contains, method, path, query_param_contains};
 
     use crate::member::{get_members_file_folder, Result};
-    use crate::member::config::MembersProviderConfig;
-    use crate::member::download::{build_client, connect, create_members_file_dir, Credentials, download_list, download_members_list, format_arguments_into_body, load_list_into_server_session, prepare_request_for_connection, prepare_request_for_loading_list_into_server_session, prepare_request_for_retrieving_download_link, retrieve_credentials, retrieve_download_link, retrieve_login_and_password, write_list_to_file};
+    use crate::member::config::MembershipsProviderConfig;
+    use crate::member::download::{build_client, connect, create_memberships_file_dir, Credentials, download_list, download_memberships_list, format_arguments_into_body, load_list_into_server_session, prepare_request_for_connection, prepare_request_for_loading_list_into_server_session, prepare_request_for_retrieving_download_link, retrieve_credentials, retrieve_download_link, retrieve_login_and_password, write_list_to_file};
     use crate::member::Error::{CantLoadListOnServer, CantRetrieveDownloadLink, ConnectionFailed, FileNotFoundOnServer, NoDownloadLink};
     use crate::member::error::Error::CantWriteMembersFile;
     use crate::tools::env_args::with_env_args;
@@ -284,7 +284,7 @@ mod tests {
             "--password=test_password".to_string(),
         ];
         let temp_dir = temp_dir();
-        let config = MembersProviderConfig::new(
+        let config = MembershipsProviderConfig::new(
             mock_server.uri(),
             Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap(),
             temp_dir.into_os_string(),
@@ -319,7 +319,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let result = with_env_args(args, || block_on(download_members_list(&config)));
+        let result = with_env_args(args, || block_on(download_memberships_list(&config)));
         let file_details = result.unwrap();
         let content = fs::read_to_string(file_details.filepath()).unwrap();
         assert_eq!(expected_content, content);
@@ -331,7 +331,7 @@ mod tests {
         let path = path.join(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis().to_string());
         fs::create_dir(&path).unwrap();
         let members_file_folder_path = path.join(get_members_file_folder());
-        let result = create_members_file_dir(members_file_folder_path.as_ref());
+        let result = create_memberships_file_dir(members_file_folder_path.as_ref());
 
         assert!(result.is_ok());
         assert!(fs::exists(members_file_folder_path).is_ok_and(|r| r));
