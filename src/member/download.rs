@@ -2,7 +2,7 @@ use std::ffi::{OsStr, OsString};
 use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
 
-use chrono::Local;
+use chrono::{Local, Utc};
 use encoding::{DecoderTrap, Encoding};
 use encoding::all::ISO_8859_1;
 use log::{debug, error, warn};
@@ -11,7 +11,7 @@ use reqwest::{Client, RequestBuilder};
 use rocket::http::ContentType;
 use crate::member::config::MembershipsProviderConfig;
 
-use crate::member::Result;
+use crate::member::{get_members_file_folder, Result};
 use crate::member::error::Error::{CantCreateClient, CantCreateMembershipsFileFolder, CantLoadListOnServer, CantReadMembersDownloadResponse, CantReadPageContent, CantRetrieveDownloadLink, CantWriteMembersFile, ConnectionFailed, FileNotFoundOnServer, NoCredentials, NoDownloadLink, WrongEncoding};
 use crate::member::file_details::FileDetails;
 use crate::tools::{env_args, log_error_and_return, log_message_and_return};
@@ -34,6 +34,7 @@ impl Debug for Credentials {
     }
 }
 
+#[cfg(not(feature = "demo"))]
 pub async fn download_memberships_list(memberships_provider_config: &MembershipsProviderConfig) -> Result<FileDetails> {
     let folder = memberships_provider_config.folder();
     let host = memberships_provider_config.host();
@@ -49,6 +50,12 @@ pub async fn download_memberships_list(memberships_provider_config: &Memberships
     write_list_to_file(folder, &file_content)
 }
 
+#[cfg(feature = "demo")]
+const DEMO_FILE: &str = "Nom d'usage;Prénom;Sexe;Date de Naissance;Age;Numéro d'adhérent;Email;Réglé;Date Fin d'adhésion;Adherent expiré;Nom de structure;Code de structure
+Doe;Jon;H;01-02-1980;45;123456;jon@doe.com;Oui;30-09-2025;Non;My club;Z01234
+Bob;Alice;F;01-02-2000;25;987654;alice@bobo.com;Non;25-08-2024;Non;Her club;A98765";
+
+#[cfg(not(feature = "demo"))]
 fn build_client() -> Result<Client> {
     reqwest::ClientBuilder::new()
         .cookie_store(true)
@@ -56,18 +63,8 @@ fn build_client() -> Result<Client> {
         .map_err(log_message_and_return("Can't build HTTP client.", CantCreateClient))
 }
 
-fn create_memberships_file_dir(memberships_file_folder: &OsStr) -> Result<()> {
-    let err_message = format!("Can't create `{memberships_file_folder:?}` folder.");
-    let err_mapper = log_message_and_return(
-        &err_message,
-        CantCreateMembershipsFileFolder,
-    );
-    std::fs::create_dir_all(memberships_file_folder).map_err(err_mapper)?;
-
-    Ok(())
-}
-
 // region Retrieve credentials
+#[cfg(not(feature = "demo"))]
 fn retrieve_login_and_password() -> (Option<String>, Option<String>) {
     let mut login = None;
     let mut password = None;
@@ -80,6 +77,7 @@ fn retrieve_login_and_password() -> (Option<String>, Option<String>) {
     (login, password)
 }
 
+#[cfg(not(feature = "demo"))]
 fn retrieve_credentials() -> Result<Credentials> {
     let (login, password) = retrieve_login_and_password();
 
@@ -93,6 +91,7 @@ fn retrieve_credentials() -> Result<Credentials> {
 // endregion
 
 // region Requests
+#[cfg(not(feature = "demo"))]
 async fn connect(client: &Client, domain: &str, credentials: &Credentials) -> Result<()> {
     let request = prepare_request_for_connection(client, domain, credentials);
     let response = request.send().await.map_err(log_message_and_return("Connection failed...", ConnectionFailed))?;
@@ -105,6 +104,7 @@ async fn connect(client: &Client, domain: &str, credentials: &Credentials) -> Re
     }
 }
 
+#[cfg(not(feature = "demo"))]
 async fn load_list_into_server_session(client: &Client, domain: &str) -> Result<()> {
     let request = prepare_request_for_loading_list_into_server_session(client, domain);
     let response = request.send().await.map_err(log_message_and_return("The server couldn't load the list.", CantLoadListOnServer))?;
@@ -118,6 +118,7 @@ async fn load_list_into_server_session(client: &Client, domain: &str) -> Result<
     }
 }
 
+#[cfg(not(feature = "demo"))]
 async fn retrieve_download_link(client: &Client, host: &str, download_link_regex: &Regex) -> Result<String> {
     let request = prepare_request_for_retrieving_download_link(client, host);
     let response = request
@@ -136,6 +137,7 @@ async fn retrieve_download_link(client: &Client, host: &str, download_link_regex
     Ok(file_url.to_owned())
 }
 
+#[cfg(not(feature = "demo"))]
 async fn download_list(client: &Client, file_url: &str) -> Result<String> {
     let response = client
         .get(file_url)
@@ -155,17 +157,10 @@ async fn download_list(client: &Client, file_url: &str) -> Result<String> {
         .decode(file_content_as_bytes.as_ref(), DecoderTrap::Strict)
         .map_err(log_message_and_return("Wrong encoding: expected LATIN-1.", WrongEncoding))
 }
-
-fn write_list_to_file(members_file_folder: &OsStr, file_content: &str) -> Result<FileDetails> {
-    let date_time = Local::now().date_naive();
-    let filepath = PathBuf::from(members_file_folder)
-        .join(format!("memberships-{}.csv", date_time.format("%Y-%m-%d")));
-    std::fs::write(&filepath, file_content).map_err(log_error_and_return(CantWriteMembersFile))?;
-    Ok(FileDetails::new(date_time, OsString::from(filepath)))
-}
 // endregion
 
 // region Requests preparation
+#[cfg(not(feature = "demo"))]
 fn prepare_request_for_connection(client: &Client, domain: &str, credentials: &Credentials) -> RequestBuilder {
     let url = format!("{domain}/page.php");
     let arguments = [
@@ -180,6 +175,7 @@ fn prepare_request_for_connection(client: &Client, domain: &str, credentials: &C
         .body(body)
 }
 
+#[cfg(not(feature = "demo"))]
 fn prepare_request_for_loading_list_into_server_session(client: &Client, domain: &str) -> RequestBuilder {
     let url = format!("{domain}/page.php?P=bo/extranet/adhesion/annuaire/index");
     let arguments = [
@@ -216,6 +212,7 @@ fn prepare_request_for_loading_list_into_server_session(client: &Client, domain:
         .body(body)
 }
 
+#[cfg(not(feature = "demo"))]
 fn prepare_request_for_retrieving_download_link(client: &Client, domain: &str) -> RequestBuilder {
     let url = format!("{domain}/includer.php?inc=ajax/adherent/adherent_export");
     let arguments = [
@@ -242,6 +239,7 @@ fn prepare_request_for_retrieving_download_link(client: &Client, domain: &str) -
 }
 // endregion
 
+#[cfg(not(feature = "demo"))]
 fn format_arguments_into_body(args: &[(&str, &str)]) -> String {
     args.iter().map(|(key, value)| {
         match value {
@@ -249,6 +247,32 @@ fn format_arguments_into_body(args: &[(&str, &str)]) -> String {
             value => format!("{key}={value}")
         }
     }).collect::<Vec<_>>().join("&")
+}
+
+#[cfg(feature = "demo")]
+pub async fn download_memberships_list(memberships_provider_config: &MembershipsProviderConfig) -> Result<FileDetails> {
+    let folder = memberships_provider_config.folder();
+    create_memberships_file_dir(&folder)?;
+    write_list_to_file(folder, DEMO_FILE)
+}
+
+fn create_memberships_file_dir(memberships_file_folder: &OsStr) -> Result<()> {
+    let err_message = format!("Can't create `{memberships_file_folder:?}` folder.");
+    let err_mapper = log_message_and_return(
+        &err_message,
+        CantCreateMembershipsFileFolder,
+    );
+    std::fs::create_dir_all(memberships_file_folder).map_err(err_mapper)?;
+
+    Ok(())
+}
+
+fn write_list_to_file(members_file_folder: &OsStr, file_content: &str) -> Result<FileDetails> {
+    let date_time = Local::now().date_naive();
+    let filepath = PathBuf::from(members_file_folder)
+        .join(format!("memberships-{}.csv", date_time.format("%Y-%m-%d")));
+    std::fs::write(&filepath, file_content).map_err(log_error_and_return(CantWriteMembersFile))?;
+    Ok(FileDetails::new(date_time, OsString::from(filepath)))
 }
 
 #[cfg(test)]
