@@ -36,9 +36,19 @@ impl Server for ApiServer {
     }
 }
 
+#[cfg(not(feature = "demo"))]
 fn build_members_provider_config() -> MembershipsProviderConfig {
     MembershipsProviderConfig::new(
         "https://www.leolagrange-fileo.org".to_owned(),
+        Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv").unwrap(),
+        get_members_file_folder().to_os_string(),
+    )
+}
+
+#[cfg(feature = "demo")]
+fn build_members_provider_config() -> MembershipsProviderConfig {
+    MembershipsProviderConfig::new(
+        "https://localhost:8000".to_owned(),
         Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv").unwrap(),
         get_members_file_folder().to_os_string(),
     )

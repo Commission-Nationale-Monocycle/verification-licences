@@ -17,7 +17,10 @@ pub mod memberships;
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
+#[cfg(not(feature = "demo"))]
 const MEMBERS_FILE_FOLDER: &str = "data";
+#[cfg(feature = "demo")]
+const MEMBERS_FILE_FOLDER: &str = "demo_data";
 pub fn get_members_file_folder() -> &'static OsStr {
     MEMBERS_FILE_FOLDER.as_ref()
 }
