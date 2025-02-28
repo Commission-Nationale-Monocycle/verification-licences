@@ -2,7 +2,7 @@ use std::ffi::{OsStr, OsString};
 use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
 
-use chrono::{Local, Utc};
+use chrono::Local;
 use encoding::{DecoderTrap, Encoding};
 use encoding::all::ISO_8859_1;
 use log::{debug, error, warn};
@@ -11,7 +11,7 @@ use reqwest::{Client, RequestBuilder};
 use rocket::http::ContentType;
 use crate::member::config::MembershipsProviderConfig;
 
-use crate::member::{get_members_file_folder, Result};
+use crate::member::Result;
 use crate::member::error::Error::{CantCreateClient, CantCreateMembershipsFileFolder, CantLoadListOnServer, CantReadMembersDownloadResponse, CantReadPageContent, CantRetrieveDownloadLink, CantWriteMembersFile, ConnectionFailed, FileNotFoundOnServer, NoCredentials, NoDownloadLink, WrongEncoding};
 use crate::member::file_details::FileDetails;
 use crate::tools::{env_args, log_error_and_return, log_message_and_return};
