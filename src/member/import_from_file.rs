@@ -52,7 +52,7 @@ fn group_members_by_membership(members: Vec<MemberDto>) -> Members {
                 .or_insert(BTreeSet::from([member.clone(); 1]));
         });
 
-    map
+    Members::from(map)
 }
 
 pub fn find_file(members_file_folder: &OsStr) -> Result<FileDetails> {
@@ -124,7 +124,7 @@ fn build_members_file_regex() -> Result<Regex> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::collections::{BTreeSet, HashMap};
     use std::ffi::OsString;
     use std::fs;
     use std::fs::File;
@@ -235,10 +235,10 @@ mod tests {
             structure_code: "".to_string(),
         };
 
-        let expected_map: Members = [
+        let expected_map: Members = Members::from([
             ("1".to_owned(), BTreeSet::from([jean.clone(), michel.clone()])),
             ("2".to_owned(), BTreeSet::from([pierre.clone()])),
-        ].into_iter().collect();
+        ].into_iter().collect::<HashMap<String, BTreeSet<MemberDto>>>());
         let result = group_members_by_membership(vec![jean, pierre, michel]);
         assert_eq!(expected_map, result);
     }

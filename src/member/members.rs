@@ -1,7 +1,27 @@
 use std::collections::{BTreeSet, HashMap};
+use std::ops::Deref;
+use serde::{Deserialize, Serialize};
 use crate::member::MemberDto;
 
-pub type Members = HashMap<String, BTreeSet<MemberDto>>;
+#[derive(Debug, Serialize, Deserialize, Default, Eq, PartialEq)]
+pub struct Members {
+    members: HashMap<String, BTreeSet<MemberDto>>
+}
+
+impl Deref for Members {
+    type Target = HashMap<String, BTreeSet<MemberDto>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.members
+    }
+}
+
+impl From<HashMap<String, BTreeSet<MemberDto>>> for Members {
+    fn from(members: HashMap<String, BTreeSet<MemberDto>>) -> Self {
+        Members { members }
+    }
+}
+
 /// (membership_num, last_name, first_name)
 type MemberToCheck<'a> = (&'a str, &'a str, &'a str);
 
@@ -16,20 +36,20 @@ fn check_member<'a>(members: &Members, member_to_check: &'a MemberToCheck<'a>) -
     let membership_num = member_to_check.0;
 
     members.iter()
-        .any(|member| member.0 == &membership_num)
+        .any(|member| member.0 == membership_num)
 }
 
 #[cfg(test)]
 mod tests {
     use std::collections::{BTreeSet, HashMap};
-    use crate::member::members::{check_member, check_members};
+    use crate::member::members::{check_member, check_members, Members};
     use crate::member::tests::{get_expected_member, MEMBER_FIRSTNAME, MEMBER_NAME, MEMBERSHIP_NUMBER};
 
     // region check_members
     #[test]
     fn members_should_be_checked() {
         let member = get_expected_member();
-        let members = HashMap::from([(MEMBERSHIP_NUMBER.to_string(), BTreeSet::from([member]))]);
+        let members = Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_string(), BTreeSet::from([member]))]));
         let member_to_check = (MEMBERSHIP_NUMBER, MEMBER_NAME, MEMBER_FIRSTNAME);
 
         assert_eq!(vec![(&member_to_check, true)], check_members(&members, &[member_to_check]));
@@ -38,7 +58,7 @@ mod tests {
     #[test]
     fn members_should_not_be_checked() {
         let member = get_expected_member();
-        let members = HashMap::from([(MEMBERSHIP_NUMBER.to_string(), BTreeSet::from([member]))]);
+        let members = Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_string(), BTreeSet::from([member]))]));
         let membership_number = format!("{MEMBERSHIP_NUMBER} oops");
         let member_to_check = (membership_number.as_str(), MEMBER_NAME, MEMBER_FIRSTNAME);
 
@@ -50,7 +70,7 @@ mod tests {
     #[test]
     fn member_should_be_check() {
         let member = get_expected_member();
-        let members = HashMap::from([(MEMBERSHIP_NUMBER.to_string(), BTreeSet::from([member]))]);
+        let members = Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_string(), BTreeSet::from([member]))]));
         let member_to_check = (MEMBERSHIP_NUMBER, MEMBER_NAME, MEMBER_FIRSTNAME);
 
         assert!(check_member(&members, &member_to_check));
@@ -59,7 +79,7 @@ mod tests {
     #[test]
     fn member_should_not_be_check() {
         let member = get_expected_member();
-        let members = HashMap::from([(MEMBERSHIP_NUMBER.to_string(), BTreeSet::from([member]))]);
+        let members = Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_string(), BTreeSet::from([member]))]));
         let membership_number = format!("{MEMBERSHIP_NUMBER} oops");
         let member_to_check = (membership_number.as_str(), MEMBER_NAME, MEMBER_FIRSTNAME);
 
