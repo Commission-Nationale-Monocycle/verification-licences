@@ -4,15 +4,15 @@ use std::ops::{Deref, DerefMut};
 use derive_getters::Getters;
 use rocket::serde::{Deserialize, Serialize};
 
-use crate::member::MemberDto;
+use crate::member::MembershipDto;
 
 #[derive(Debug, Serialize, Deserialize, Default, Eq, PartialEq, Getters)]
 pub struct Memberships {
-    memberships: BTreeSet<MemberDto>,
+    memberships: BTreeSet<MembershipDto>,
 }
 
 impl Deref for Memberships {
-    type Target = BTreeSet<MemberDto>;
+    type Target = BTreeSet<MembershipDto>;
 
     fn deref(&self) -> &Self::Target {
         &self.memberships
@@ -25,14 +25,14 @@ impl DerefMut for Memberships {
     }
 }
 
-impl<const N: usize> From<[MemberDto; N]> for Memberships {
-    fn from(value: [MemberDto; N]) -> Self {
+impl<const N: usize> From<[MembershipDto; N]> for Memberships {
+    fn from(value: [MembershipDto; N]) -> Self {
         Memberships { memberships: BTreeSet::from(value)}
     }
 }
 
 impl Memberships {
-    pub fn find_last_membership(&self) -> Option<&MemberDto> {
+    pub fn find_last_membership(&self) -> Option<&MembershipDto> {
         self.memberships.iter().max()
     }
 }
@@ -44,14 +44,14 @@ mod tests {
     use chrono::NaiveDate;
 
     use crate::member::memberships::Memberships;
-    use crate::member::MemberDto;
+    use crate::member::MembershipDto;
 
     #[test]
     fn should_retrieve_last_membership() {
         let first_end_date = NaiveDate::from_ymd_opt(2024, 9, 30).unwrap();
         let second_end_date = NaiveDate::from_ymd_opt(2025, 9, 30).unwrap();
-        let first_membership = MemberDto::new_test(first_end_date);
-        let second_membership = MemberDto::new_test(second_end_date);
+        let first_membership = MembershipDto::new_test(first_end_date);
+        let second_membership = MembershipDto::new_test(second_end_date);
 
         let memberships = Memberships::from([first_membership.clone(), second_membership.clone()]);
         assert_eq!(Some(&second_membership), memberships.find_last_membership());

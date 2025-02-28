@@ -23,7 +23,7 @@ pub fn get_members_file_folder() -> &'static OsStr {
 }
 
 #[derive(Debug, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
-pub struct Licence {
+pub struct Membership {
     #[serde(alias = "Nom d'usage")]
     name: String,
     #[serde(alias = "Prénom")]
@@ -51,7 +51,7 @@ pub struct Licence {
 }
 
 #[derive(Debug, Serialize, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
-pub struct MemberDto {
+pub struct MembershipDto {
     name: String,
     firstname: String,
     gender: String,
@@ -66,13 +66,13 @@ pub struct MemberDto {
     structure_code: String,
 }
 
-impl PartialOrd for MemberDto {
+impl PartialOrd for MembershipDto {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for MemberDto {
+impl Ord for MembershipDto {
     fn cmp(&self, other: &Self) -> Ordering {
         self.membership_number.cmp(&other.membership_number)
             .then(self.name.cmp(&other.name))
@@ -81,9 +81,9 @@ impl Ord for MemberDto {
     }
 }
 
-impl From<Licence> for MemberDto {
-    fn from(member: Licence) -> Self {
-        MemberDto {
+impl From<Membership> for MembershipDto {
+    fn from(member: Membership) -> Self {
+        MembershipDto {
             name: member.name,
             firstname: member.firstname,
             gender: member.gender,
@@ -161,13 +161,13 @@ pub mod tests {
     use parameterized::ide;
     use parameterized::parameterized;
 
-    use crate::member::{Licence, MemberDto};
+    use crate::member::{Membership, MembershipDto};
 
     ide!();
 
-    impl MemberDto {
+    impl MembershipDto {
         pub fn new_test(end_date: NaiveDate) -> Self {
-            MemberDto {
+            MembershipDto {
                 name: "".to_string(),
                 firstname: "".to_string(),
                 gender: "".to_string(),
@@ -191,8 +191,8 @@ pub mod tests {
     pub const MEMBERSHIP_NUMBER: &str = "123456";
     const MALFORMED_MEMBER_AS_CSV: &str = "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oops;30-09-2025;Non;My club;Z01234";
 
-    pub fn get_expected_member() -> MemberDto {
-        MemberDto {
+    pub fn get_expected_member() -> MembershipDto {
+        MembershipDto {
             name: "Doe".to_string(),
             firstname: "Jon".to_string(),
             gender: "H".to_string(),
@@ -230,14 +230,14 @@ pub mod tests {
     )]
     fn should_sort_members(end_dates: ((i32, u32, u32), (i32, u32, u32)), expected_result: Ordering) {
         let ((y1, m1, d1), (y2, m2, d2)) = end_dates;
-        let member1 = MemberDto::new_test(NaiveDate::from_ymd_opt(y1, m1, d1).unwrap());
-        let member2 = MemberDto::new_test(NaiveDate::from_ymd_opt(y2, m2, d2).unwrap());
+        let member1 = MembershipDto::new_test(NaiveDate::from_ymd_opt(y1, m1, d1).unwrap());
+        let member2 = MembershipDto::new_test(NaiveDate::from_ymd_opt(y2, m2, d2).unwrap());
         assert_eq!(Some(expected_result), member1.partial_cmp(&member2));
     }
 
     #[test]
     fn should_deserialize_member() {
-        let member = Licence {
+        let member = Membership {
             name: "Doe".to_owned(),
             firstname: "John".to_owned(),
             gender: "M".to_string(),
@@ -260,7 +260,7 @@ pub mod tests {
 
     #[test]
     fn should_deserialize_when_empty_date() {
-        let member = Licence {
+        let member = Membership {
             name: "Doe".to_owned(),
             firstname: "John".to_owned(),
             gender: "M".to_string(),
@@ -287,7 +287,7 @@ pub mod tests {
     )]
     fn should_not_deserialize_member_as_wrong_bool(payed: &str) {
         let json = format!(r#"{{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"11-10-2000","Age":24,"Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"{payed}","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}}"#);
-        let result: Result<Licence, _> = serde_json::from_str(&json);
+        let result: Result<Membership, _> = serde_json::from_str(&json);
         assert!(result.is_err());
     }
 }

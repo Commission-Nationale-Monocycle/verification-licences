@@ -19,7 +19,7 @@ impl Server for FrontendServer {
         rocket_build.mount("/", routes![
             frontend_controller::index,
             frontend_controller::hello,
-            frontend_controller::list_members
+            frontend_controller::list_memberships
         ])
             .mount("/", FileServer::from("./public/static"))
             .register("/", catchers![frontend_controller::not_found])

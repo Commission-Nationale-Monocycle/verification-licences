@@ -3,8 +3,9 @@ use rocket::{Request, State};
 use rocket::response::Redirect;
 
 use rocket_dyn_templates::{context, Template};
-use crate::member::MemberDto;
+use crate::member::MembershipDto;
 use crate::member::members::Members;
+use crate::member::memberships::Memberships;
 use crate::web::api::members_state::MembersState;
 
 #[get("/")]
@@ -21,12 +22,12 @@ pub async fn hello(name: &str) -> Template {
     })
 }
 
-#[get("/members")]
-pub async fn list_members(members_state: &State<Mutex<MembersState>>) -> Template {
+#[get("/memberships")]
+pub async fn list_memberships(members_state: &State<Mutex<MembersState>>) -> Template {
     let members = members_state.lock().unwrap();
     let members: &Members = members.members();
-    let members: Vec<&MemberDto> = members.values()
-        .map(|member_licences| member_licences.iter().max().unwrap())
+    let members: Vec<&MembershipDto> = members.values()
+        .filter_map(Memberships::find_last_membership)
         .collect();
 
     Template::render("members", context! {

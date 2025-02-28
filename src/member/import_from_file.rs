@@ -8,7 +8,7 @@ use chrono::NaiveDate;
 use csv::Reader;
 use regex::bytes::{Captures, Regex};
 
-use crate::member::{Licence, MemberDto};
+use crate::member::{Membership, MembershipDto};
 use crate::member::error::Error::{CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile, CantOpenMembersFileFolder, InvalidDate, NoFileFound, WrongRegex};
 use crate::member::file_details::FileDetails;
 use crate::member::memberships::Memberships;
@@ -30,9 +30,9 @@ pub fn import_from_file(filepath: &OsStr) -> Result<Members> {
     Ok(group_members_by_membership(members))
 }
 
-fn load_members<T>(reader: &mut Reader<T>) -> Vec<MemberDto> where T: std::io::Read {
+fn load_members<T>(reader: &mut Reader<T>) -> Vec<MembershipDto> where T: std::io::Read {
     reader.deserialize()
-        .filter_map(|result: Result<Licence, _>| match result {
+        .filter_map(|result: Result<Membership, _>| match result {
             Ok(member) => Some(member.into()),
             Err(e) => {
                 log_message("Error while reading member")(e);
@@ -42,14 +42,14 @@ fn load_members<T>(reader: &mut Reader<T>) -> Vec<MemberDto> where T: std::io::R
         .collect::<Vec<_>>()
 }
 
-fn group_members_by_membership(members: Vec<MemberDto>) -> Members {
+fn group_members_by_membership(members: Vec<MembershipDto>) -> Members {
     let mut map = HashMap::new();
 
     members.into_iter()
         .for_each(|member| {
             let membership_number = member.membership_number().to_string();
             map.entry(membership_number)
-                .and_modify(|licences: &mut Memberships| { licences.insert(member.clone()); })
+                .and_modify(|memberships: &mut Memberships| { memberships.insert(member.clone()); })
                 .or_insert(Memberships::from([member.clone(); 1]));
         });
 
@@ -137,7 +137,7 @@ mod tests {
     use crate::member::error::Error::{CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound};
     use crate::member::import_from_file::{build_members_file_regex, check_folder, convert_captures_to_date, convert_match_to_integer, find_file, group_members_by_membership, import_from_file, load_members};
     use crate::member::memberships::Memberships;
-    use crate::member::MemberDto;
+    use crate::member::MembershipDto;
     use crate::member::members::Members;
     use crate::member::tests::{get_expected_member, get_malformed_member_as_csv, get_member_as_csv};
     use crate::tools::test::tests::temp_dir;
@@ -193,7 +193,7 @@ mod tests {
     // endregion
     #[test]
     fn should_group_members_by_membership() {
-        let jean = MemberDto {
+        let jean = MembershipDto {
             name: "1".to_string(),
             firstname: "Jean".to_string(),
             gender: "".to_string(),
@@ -208,7 +208,7 @@ mod tests {
             structure_code: "".to_string(),
         };
 
-        let michel = MemberDto {
+        let michel = MembershipDto {
             name: "1".to_string(),
             firstname: "Michel".to_string(),
             gender: "".to_string(),
@@ -222,7 +222,7 @@ mod tests {
             club: "".to_string(),
             structure_code: "".to_string(),
         };
-        let pierre = MemberDto {
+        let pierre = MembershipDto {
             name: "2".to_string(),
             firstname: "Pierre".to_string(),
             gender: "".to_string(),
