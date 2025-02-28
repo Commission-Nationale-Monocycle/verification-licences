@@ -1,0 +1,11 @@
+{% import "member" as macro %}
+
+{% extends "base" %}
+
+{% block content %}
+   <table>
+       {% for member in members %}
+           {{ macro::render_member(member=member) }}
+       {% endfor %}
+   </table>
+{% endblock content %}
