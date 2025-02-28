@@ -1,5 +1,6 @@
 use std::collections::{BTreeSet, HashMap};
 use std::ffi::OsStr;
+use std::fs;
 use std::fs::File;
 use std::str::FromStr;
 
@@ -53,7 +54,6 @@ fn group_members_by_membership(members: Vec<MemberDto>) -> Members {
     map
 }
 
-
 pub fn find_file(members_file_folder: &OsStr) -> Result<FileDetails> {
     check_folder(members_file_folder)?;
 
@@ -98,6 +98,29 @@ fn convert_match_to_integer<T: FromStr>(captures: &Captures, key: &str) -> Resul
         .or(Err(CantConvertDateFieldToString))
 }
 
+/// Clean all files in folder that aren't given file.
+pub fn clean_old_files(members_file_folder: &OsStr, file_update_date: &NaiveDate) -> Result<()> {
+    let regex = build_members_file_regex()?;
+    let paths = fs::read_dir(members_file_folder).or(Err(CantBrowseThroughFiles))?;
+    for path in paths {
+        let path = path.expect("Path should be valid.");
+        let filename = path.file_name();
+        let captures = regex.captures(filename.as_encoded_bytes());
+        if let Some(captures) = captures {
+            let date = convert_captures_to_date(&captures)?;
+            if &date != file_update_date {
+                fs::remove_file(path.path()).ok();
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn build_members_file_regex() -> Result<Regex> {
+    Regex::new("^members-(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})\\.csv$").or(Err(WrongRegex))
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
@@ -111,7 +134,7 @@ mod tests {
 
     use crate::member::{MemberDto, Members};
     use crate::member::error::Error::{CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound};
-    use crate::member::import_from_file::{check_folder, convert_captures_to_date, convert_match_to_integer, find_file, group_members_by_membership, import_from_file, load_members};
+    use crate::member::import_from_file::{build_members_file_regex, check_folder, convert_captures_to_date, convert_match_to_integer, find_file, group_members_by_membership, import_from_file, load_members};
     use crate::member::tests::{get_expected_member, get_malformed_member_as_csv, get_member_as_csv};
     use crate::tools::test::tests::temp_dir;
 
@@ -326,6 +349,21 @@ mod tests {
         let captures = regex.captures(message.as_encoded_bytes()).unwrap();
         let result: Result<u32, _> = convert_match_to_integer(&captures, "integer");
         assert_eq!(Err(CantConvertDateFieldToString), result);
+    }
+    // endregion
+
+    // region build_members_file_regex
+    #[test]
+    fn should_build_correct_members_file_regex() {
+        let correct_file_name = OsString::from("members-2025-01-02.csv");
+        let incorrect_file_name = OsString::from("2025-01-02.csv");
+        let regex = build_members_file_regex().unwrap();
+
+        let captures = regex.captures(correct_file_name.as_encoded_bytes()).unwrap();
+        assert_eq!(4, captures.len(),
+                   "Regex should have captured 4 elements: the whole name and the 3 parts of the date.");
+        let captures = regex.captures(incorrect_file_name.as_encoded_bytes());
+        assert!(captures.is_none(), "Regex should not have captured anything.");
     }
     // endregion
 }
