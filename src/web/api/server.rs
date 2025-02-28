@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 use regex::Regex;
 use rocket::{Build, Rocket};
-use crate::web::api::members_controller;
+use crate::web::api::memberships_controller;
 use crate::web::api::members_state::MembersState;
 use crate::member::config::MembershipsProviderConfig;
 use crate::member::get_members_file_folder;
@@ -30,7 +30,8 @@ impl Server for ApiServer {
             .manage(members_provider_config)
             .manage(Mutex::new(members_state))
             .mount("/api/", routes![
-                members_controller::download_memberships
+                memberships_controller::download_memberships,
+                memberships_controller::check_memberships,
             ])
     }
 }

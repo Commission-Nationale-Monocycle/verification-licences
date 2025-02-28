@@ -4,6 +4,7 @@ use serde_json::json;
 use crate::member::config::MembershipsProviderConfig;
 use crate::member::download::download_memberships_list;
 use crate::member::import_from_file::{clean_old_files, import_from_file};
+use crate::member::members::{Members, MemberToCheck};
 use crate::web::api::members_state::MembersState;
 use crate::tools::{log_message, log_message_and_return};
 
@@ -35,6 +36,31 @@ pub async fn download_memberships(
     Ok(json!(members_state.members()).to_string())
 }
 
+
+/// Check members as a CSV whose columns are:
+/// ```
+/// membership_number;lastname;firstname
+/// ```
+/// Return the result as JSON-encoded string,
+/// within which each member having a valid membership has its last occurrence associated,
+/// while each member having no valid membership has no element associated.
+#[post("/members/check", data = "<members_to_check>")]
+pub async fn check_memberships(
+    members_state: &State<Mutex<MembersState>>,
+    members_to_check: String,
+) -> Result<String, String> {
+    let members_to_check = MemberToCheck::load_members_to_check_from_csv_string(&members_to_check);
+    let members_state = members_state
+        .lock()
+        .map_err(log_message_and_return("Couldn't acquire lock", "Error while checking members."))?;
+
+    let members: &Members = members_state.members();
+    let vec = members.check_members(&members_to_check);
+
+    Ok(json!(vec).to_string())
+}
+
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -51,7 +77,7 @@ mod tests {
     use crate::member::tests::{get_expected_member, get_member_as_csv, MEMBERSHIP_NUMBER};
     use crate::tools::env_args::with_env_args;
     use crate::web::api::members_state::MembersState;
-    use crate::web::api::members_controller::download_memberships;
+    use crate::web::api::memberships_controller::download_memberships;
     use crate::tools::test::tests::temp_dir;
 
     // region download_members
