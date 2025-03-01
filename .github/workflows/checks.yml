@@ -1,4 +1,4 @@
-name: Tests
+name: checks.yml
 
 on:
   push:
@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  tests:
+  checks:
 
     runs-on: ubuntu-latest
 
@@ -34,14 +34,22 @@ jobs:
             target/
           key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}"
           restore-keys: ${{ runner.os }}-cargo-
-      - name: Install cargo-tarpaulin (coverage tool)
+      - name: Lint
         run: |
-          cargo install --locked cargo-tarpaulin || true
-      - name: Run tests
-        run: cargo tarpaulin -o Stdout -o Html
-      - name: Archive code coverage result
-        uses: actions/upload-artifact@v4
-        with:
-          name: code-coverage-report
-          path: tarpaulin-report.html
-
+          cargo fmt --all -- --check
+          cargo clippy -- -D warnings
+      - name: Install cargo check tools
+        run: |
+          cargo install --locked cargo-deny || true
+          cargo install --locked cargo-outdated || true
+          cargo install --locked cargo-udeps || true
+          cargo install --locked cargo-audit || true
+          cargo install --locked cargo-pants || true
+      - name: Check
+        run: |
+          cargo deny check
+          cargo outdated --exit-code 1
+          cargo udeps
+          rm -rf ~/.cargo/advisory-db
+          cargo audit
+          cargo pants
