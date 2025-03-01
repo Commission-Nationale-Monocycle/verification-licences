@@ -1,8 +1,8 @@
 #[cfg(test)]
 pub mod tests {
+    use rand::random;
     use std::fs;
     use std::path::PathBuf;
-    use rand::random;
 
     /// Create a new temp_dir with a random name.
     pub fn temp_dir() -> PathBuf {

@@ -12,4 +12,3 @@ fn rocket() -> _ {
     env_logger::init();
     start_servers()
 }
-

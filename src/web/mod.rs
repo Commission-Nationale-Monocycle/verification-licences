@@ -1,5 +1,5 @@
-use rocket::{Build, Rocket};
 use crate::web::server::build_server;
+use rocket::{Build, Rocket};
 
 mod api;
 mod frontend;

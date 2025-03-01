@@ -1,6 +1,6 @@
-use std::ffi::OsString;
 use derive_getters::Getters;
 use regex::Regex;
+use std::ffi::OsString;
 
 #[derive(Getters)]
 pub struct MembershipsProviderConfig {
@@ -11,6 +11,10 @@ pub struct MembershipsProviderConfig {
 
 impl MembershipsProviderConfig {
     pub fn new(host: String, download_link_regex: Regex, folder: OsString) -> Self {
-        Self { host, download_link_regex, folder }
+        Self {
+            host,
+            download_link_regex,
+            folder,
+        }
     }
 }

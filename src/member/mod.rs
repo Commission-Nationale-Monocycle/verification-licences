@@ -7,11 +7,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::member::error::Error;
 
-pub mod download;
-pub mod import_from_file;
-pub mod file_details;
-pub mod error;
 pub mod config;
+pub mod download;
+pub mod error;
+pub mod file_details;
+pub mod import_from_file;
 pub mod members;
 pub mod memberships;
 
@@ -33,7 +33,10 @@ pub struct Membership {
     firstname: String,
     #[serde(alias = "Sexe")]
     gender: String,
-    #[serde(alias = "Date de Naissance", deserialize_with = "date_format::deserialize_optional")]
+    #[serde(
+        alias = "Date de Naissance",
+        deserialize_with = "date_format::deserialize_optional"
+    )]
     birthdate: Option<NaiveDate>,
     #[serde(alias = "Age")]
     age: Option<u8>,
@@ -43,9 +46,15 @@ pub struct Membership {
     email_address: String,
     #[serde(alias = "Réglé", deserialize_with = "bool_format::deserialize")]
     payed: bool,
-    #[serde(alias = "Date Fin d'adhésion", deserialize_with = "date_format::deserialize_required")]
+    #[serde(
+        alias = "Date Fin d'adhésion",
+        deserialize_with = "date_format::deserialize_required"
+    )]
     end_date: NaiveDate,
-    #[serde(alias = "Adherent expiré", deserialize_with = "bool_format::deserialize")]
+    #[serde(
+        alias = "Adherent expiré",
+        deserialize_with = "bool_format::deserialize"
+    )]
     expired: bool,
     #[serde(alias = "Nom de structure")]
     club: String,
@@ -77,7 +86,8 @@ impl PartialOrd for MembershipDto {
 
 impl Ord for MembershipDto {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.membership_number.cmp(&other.membership_number)
+        self.membership_number
+            .cmp(&other.membership_number)
             .then(self.name.cmp(&other.name))
             .then(self.firstname.cmp(&other.firstname))
             .then(self.end_date.cmp(&other.end_date))
@@ -109,22 +119,18 @@ mod date_format {
 
     const FORMAT: &str = "%d-%m-%Y";
 
-    pub fn deserialize_required<'de, D>(
-        deserializer: D,
-    ) -> Result<NaiveDate, D::Error>
-        where
-            D: Deserializer<'de>,
+    pub fn deserialize_required<'de, D>(deserializer: D) -> Result<NaiveDate, D::Error>
+    where
+        D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
         let date = NaiveDate::parse_from_str(&s, FORMAT).map_err(serde::de::Error::custom)?;
         Ok(date)
     }
 
-    pub fn deserialize_optional<'de, D>(
-        deserializer: D,
-    ) -> Result<Option<NaiveDate>, D::Error>
-        where
-            D: Deserializer<'de>,
+    pub fn deserialize_optional<'de, D>(deserializer: D) -> Result<Option<NaiveDate>, D::Error>
+    where
+        D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
         if s.trim().is_empty() {
@@ -137,19 +143,17 @@ mod date_format {
 }
 
 mod bool_format {
-    use serde::{de, Deserialize, Deserializer};
+    use serde::{Deserialize, Deserializer, de};
 
-    pub fn deserialize<'de, D>(
-        deserializer: D,
-    ) -> Result<bool, D::Error>
-        where
-            D: Deserializer<'de>,
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<bool, D::Error>
+    where
+        D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
         let result = match s.as_str() {
             "Oui" => Ok(true),
             "Non" => Ok(false),
-            _ => Err(de::Error::unknown_variant(&s, &["Oui", "Non"]))
+            _ => Err(de::Error::unknown_variant(&s, &["Oui", "Non"])),
         };
 
         result
@@ -188,11 +192,13 @@ pub mod tests {
     }
 
     const HEADER: &str = "Nom d'usage;Prénom;Sexe;Date de Naissance;Age;Numéro d'adhérent;Email;Réglé;Date Fin d'adhésion;Adherent expiré;Nom de structure;Code de structure";
-    const MEMBER_AS_CSV: &str = "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oui;30-09-2025;Non;My club;Z01234";
+    const MEMBER_AS_CSV: &str =
+        "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oui;30-09-2025;Non;My club;Z01234";
     pub const MEMBER_NAME: &str = "Doe";
     pub const MEMBER_FIRSTNAME: &str = "Jon";
     pub const MEMBERSHIP_NUMBER: &str = "123456";
-    const MALFORMED_MEMBER_AS_CSV: &str = "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oops;30-09-2025;Non;My club;Z01234";
+    const MALFORMED_MEMBER_AS_CSV: &str =
+        "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oops;30-09-2025;Non;My club;Z01234";
 
     pub fn get_expected_member() -> MembershipDto {
         MembershipDto {
@@ -231,7 +237,10 @@ pub mod tests {
         Ordering::Equal,
         }
     )]
-    fn should_sort_members(end_dates: ((i32, u32, u32), (i32, u32, u32)), expected_result: Ordering) {
+    fn should_sort_members(
+        end_dates: ((i32, u32, u32), (i32, u32, u32)),
+        expected_result: Ordering,
+    ) {
         let ((y1, m1, d1), (y2, m2, d2)) = end_dates;
         let member1 = MembershipDto::new_test(NaiveDate::from_ymd_opt(y1, m1, d1).unwrap());
         let member2 = MembershipDto::new_test(NaiveDate::from_ymd_opt(y2, m2, d2).unwrap());
@@ -284,12 +293,13 @@ pub mod tests {
         assert_eq!(membership, result.unwrap())
     }
 
-
     #[parameterized(
         payed = {"Oops", ""}
     )]
     fn should_not_deserialize_member_as_wrong_bool(payed: &str) {
-        let json = format!(r#"{{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"11-10-2000","Age":24,"Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"{payed}","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}}"#);
+        let json = format!(
+            r#"{{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"11-10-2000","Age":24,"Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"{payed}","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}}"#
+        );
         let result: Result<Membership, _> = serde_json::from_str(&json);
         assert!(result.is_err());
     }

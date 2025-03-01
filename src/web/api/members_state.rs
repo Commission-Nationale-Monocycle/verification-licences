@@ -18,7 +18,10 @@ pub struct MembersState {
 
 impl MembersState {
     pub fn new(file_details: Option<FileDetails>, members: Members) -> Self {
-        Self { file_details, members }
+        Self {
+            file_details,
+            members,
+        }
     }
 
     pub fn set_file_details(&mut self, file_details: FileDetails) {
@@ -36,7 +39,7 @@ impl MembersState {
             Err(e) => {
                 log_message("Can't read members file.")(&e);
                 Err(e)
-            },
+            }
         }
     }
 
@@ -64,9 +67,9 @@ mod tests {
 
     use crate::member::error::Error::CantBrowseThroughFiles;
     use crate::member::file_details::FileDetails;
-    use crate::member::memberships::Memberships;
     use crate::member::members::Members;
-    use crate::member::tests::{get_expected_member, get_member_as_csv, MEMBERSHIP_NUMBER};
+    use crate::member::memberships::Memberships;
+    use crate::member::tests::{MEMBERSHIP_NUMBER, get_expected_member, get_member_as_csv};
     use crate::tools::test::tests::temp_dir;
     use crate::web::api::members_state::MembersState;
 
@@ -80,16 +83,22 @@ mod tests {
         let members_file = temp_dir.join(format!("memberships-{year}-{month:02}-{day:02}.csv"));
         File::create(&members_file).unwrap();
 
-        let file_details = MembersState::load_members_file_details(&temp_dir.into_os_string()).unwrap().unwrap();
+        let file_details = MembersState::load_members_file_details(&temp_dir.into_os_string())
+            .unwrap()
+            .unwrap();
         assert_eq!(&members_file.into_os_string(), file_details.filepath());
-        assert_eq!(&NaiveDate::from_ymd_opt(year, month, day).unwrap(), file_details.update_date());
+        assert_eq!(
+            &NaiveDate::from_ymd_opt(year, month, day).unwrap(),
+            file_details.update_date()
+        );
     }
 
     #[test]
     fn should_not_load_members_file_details_when_no_file_found() {
         let temp_dir = temp_dir();
 
-        let file_details = MembersState::load_members_file_details(&temp_dir.into_os_string()).unwrap();
+        let file_details =
+            MembersState::load_members_file_details(&temp_dir.into_os_string()).unwrap();
         assert_eq!(None, file_details);
     }
 
@@ -120,10 +129,19 @@ mod tests {
         fs::write(&members_file, get_member_as_csv()).unwrap();
 
         let state = MembersState::load_members(&temp_dir.into_os_string()).unwrap();
-        assert_eq!(MembersState::new(
-            Some(FileDetails::new(NaiveDate::from_ymd_opt(year, month, day).unwrap(), members_file.into_os_string())),
-            Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_owned(), Memberships::from([get_expected_member()]))]))
-        ), state);
+        assert_eq!(
+            MembersState::new(
+                Some(FileDetails::new(
+                    NaiveDate::from_ymd_opt(year, month, day).unwrap(),
+                    members_file.into_os_string()
+                )),
+                Members::from(HashMap::from([(
+                    MEMBERSHIP_NUMBER.to_owned(),
+                    Memberships::from([get_expected_member()])
+                )]))
+            ),
+            state
+        );
     }
 
     #[test]
@@ -145,9 +163,7 @@ mod tests {
 
         let result = MembersState::load_members(&members_file.into_os_string());
         dbg!(&result);
-        let error = result
-            .err()
-            .unwrap();
+        let error = result.err().unwrap();
         assert_eq!(CantBrowseThroughFiles, error);
     }
     // endregion

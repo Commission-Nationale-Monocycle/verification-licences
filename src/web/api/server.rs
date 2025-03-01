@@ -1,11 +1,11 @@
-use std::sync::Mutex;
-use regex::Regex;
-use rocket::{Build, Rocket};
-use crate::web::api::memberships_controller;
-use crate::web::api::members_state::MembersState;
 use crate::member::config::MembershipsProviderConfig;
 use crate::member::get_members_file_folder;
+use crate::web::api::members_state::MembersState;
+use crate::web::api::memberships_controller;
 use crate::web::server::Server;
+use regex::Regex;
+use rocket::{Build, Rocket};
+use std::sync::Mutex;
 
 pub struct ApiServer {}
 
@@ -29,10 +29,13 @@ impl Server for ApiServer {
         rocket_build
             .manage(members_provider_config)
             .manage(Mutex::new(members_state))
-            .mount("/api/", routes![
-                memberships_controller::download_memberships,
-                memberships_controller::check_memberships,
-            ])
+            .mount(
+                "/api/",
+                routes![
+                    memberships_controller::download_memberships,
+                    memberships_controller::check_memberships,
+                ],
+            )
     }
 }
 
@@ -40,7 +43,8 @@ impl Server for ApiServer {
 fn build_members_provider_config() -> MembershipsProviderConfig {
     MembershipsProviderConfig::new(
         "https://www.leolagrange-fileo.org".to_owned(),
-        Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv").unwrap(),
+        Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv")
+            .unwrap(),
         get_members_file_folder().to_os_string(),
     )
 }
@@ -49,7 +53,8 @@ fn build_members_provider_config() -> MembershipsProviderConfig {
 fn build_members_provider_config() -> MembershipsProviderConfig {
     MembershipsProviderConfig::new(
         "https://localhost:8000".to_owned(),
-        Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv").unwrap(),
+        Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv")
+            .unwrap(),
         get_members_file_folder().to_os_string(),
     )
 }

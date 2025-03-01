@@ -45,7 +45,8 @@ fn get_env_args() -> Vec<String> {
 /// When running tests, env args are sourced from within the app.
 /// You can set them up from there by wrapping your test with this function.
 pub fn with_env_args<F, T>(args: Vec<String>, function: F) -> T
-    where F: FnOnce() -> T
+where
+    F: FnOnce() -> T,
 {
     ENV_ARGS.with(|refcell| {
         let old_value = refcell.replace(args);
@@ -68,7 +69,11 @@ pub mod tests {
         arg_names = {& ["-l", "--login"], & ["-l", "--login"], & ["-p", "--password"], & ["-p", "--password"], & ["-p", "--password"]},
         expected_result = {Some("test_login".to_owned()), Some("test_login".to_owned()), Some("test_password".to_owned()), Some("test_password".to_owned()), None}
     )]
-    fn should_retrieve_arg_value(args: Vec<String>, arg_names: &[&str], expected_result: Option<String>) {
+    fn should_retrieve_arg_value(
+        args: Vec<String>,
+        arg_names: &[&str],
+        expected_result: Option<String>,
+    ) {
         let result = with_env_args(args, || retrieve_arg_value(arg_names));
         assert_eq!(expected_result, result);
     }
