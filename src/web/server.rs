@@ -13,15 +13,14 @@ pub trait Server {
 
 pub fn build_server() -> Rocket<Build> {
     let api_port = get_api_port();
-    let rocket_build = rocket::build()
-        .configure(rocket::Config::figment().merge(("port", api_port)));
+    let rocket_build =
+        rocket::build().configure(rocket::Config::figment().merge(("port", api_port)));
 
-    let servers: Vec<Box<dyn Server>> = vec![
-        Box::new(ApiServer::new()),
-        Box::new(FrontendServer::new())
-    ];
-    servers.iter()
-        .fold(rocket_build, |rocket_build, server| server.configure(rocket_build))
+    let servers: Vec<Box<dyn Server>> =
+        vec![Box::new(ApiServer::new()), Box::new(FrontendServer::new())];
+    servers.iter().fold(rocket_build, |rocket_build, server| {
+        server.configure(rocket_build)
+    })
 }
 
 fn get_api_port() -> i32 {
@@ -42,7 +41,10 @@ mod tests {
     #[test]
     fn should_get_custom_api_port() {
         let expected_api_port = 10;
-        let api_port = with_env_args(vec![format!("{PORT_ENV_ARG}={expected_api_port}")], get_api_port);
+        let api_port = with_env_args(
+            vec![format!("{PORT_ENV_ARG}={expected_api_port}")],
+            get_api_port,
+        );
 
         assert_eq!(expected_api_port, api_port);
     }

@@ -2,17 +2,22 @@ use std::ffi::{OsStr, OsString};
 use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
 
+use crate::member::config::MembershipsProviderConfig;
 use chrono::Local;
-use encoding::{DecoderTrap, Encoding};
 use encoding::all::ISO_8859_1;
+use encoding::{DecoderTrap, Encoding};
 use log::{debug, error, warn};
 use regex::Regex;
 use reqwest::{Client, RequestBuilder};
 use rocket::http::ContentType;
-use crate::member::config::MembershipsProviderConfig;
 
 use crate::member::Result;
-use crate::member::error::Error::{CantCreateClient, CantCreateMembershipsFileFolder, CantLoadListOnServer, CantReadMembersDownloadResponse, CantReadPageContent, CantRetrieveDownloadLink, CantWriteMembersFile, ConnectionFailed, FileNotFoundOnServer, NoCredentials, NoDownloadLink, WrongEncoding};
+use crate::member::error::Error::{
+    CantCreateClient, CantCreateMembershipsFileFolder, CantLoadListOnServer,
+    CantReadMembersDownloadResponse, CantReadPageContent, CantRetrieveDownloadLink,
+    CantWriteMembersFile, ConnectionFailed, FileNotFoundOnServer, NoCredentials, NoDownloadLink,
+    WrongEncoding,
+};
 use crate::member::file_details::FileDetails;
 use crate::tools::{env_args, log_error_and_return, log_message_and_return};
 
@@ -35,7 +40,9 @@ impl Debug for Credentials {
 }
 
 #[cfg(not(feature = "demo"))]
-pub async fn download_memberships_list(memberships_provider_config: &MembershipsProviderConfig) -> Result<FileDetails> {
+pub async fn download_memberships_list(
+    memberships_provider_config: &MembershipsProviderConfig,
+) -> Result<FileDetails> {
     let folder = memberships_provider_config.folder();
     let host = memberships_provider_config.host();
     let download_link_regex = memberships_provider_config.download_link_regex();
@@ -60,7 +67,10 @@ fn build_client() -> Result<Client> {
     reqwest::ClientBuilder::new()
         .cookie_store(true)
         .build()
-        .map_err(log_message_and_return("Can't build HTTP client.", CantCreateClient))
+        .map_err(log_message_and_return(
+            "Can't build HTTP client.",
+            CantCreateClient,
+        ))
 }
 
 // region Retrieve credentials
@@ -84,7 +94,9 @@ fn retrieve_credentials() -> Result<Credentials> {
     if let (Some(l), Some(p)) = (login, password) {
         Ok(Credentials::new(l, p))
     } else {
-        warn!("Args don't contain login or password. It won't be possible to retrieve the members list.");
+        warn!(
+            "Args don't contain login or password. It won't be possible to retrieve the members list."
+        );
         Err(NoCredentials)
     }
 }
@@ -94,7 +106,10 @@ fn retrieve_credentials() -> Result<Credentials> {
 #[cfg(not(feature = "demo"))]
 async fn connect(client: &Client, domain: &str, credentials: &Credentials) -> Result<()> {
     let request = prepare_request_for_connection(client, domain, credentials);
-    let response = request.send().await.map_err(log_message_and_return("Connection failed...", ConnectionFailed))?;
+    let response = request.send().await.map_err(log_message_and_return(
+        "Connection failed...",
+        ConnectionFailed,
+    ))?;
     let status = response.status();
     if status.is_success() || status.is_redirection() {
         Ok(())
@@ -107,7 +122,10 @@ async fn connect(client: &Client, domain: &str, credentials: &Credentials) -> Re
 #[cfg(not(feature = "demo"))]
 async fn load_list_into_server_session(client: &Client, domain: &str) -> Result<()> {
     let request = prepare_request_for_loading_list_into_server_session(client, domain);
-    let response = request.send().await.map_err(log_message_and_return("The server couldn't load the list.", CantLoadListOnServer))?;
+    let response = request.send().await.map_err(log_message_and_return(
+        "The server couldn't load the list.",
+        CantLoadListOnServer,
+    ))?;
     let status = response.status();
     if status.is_success() || status.is_redirection() {
         debug!("List loaded on server.");
@@ -119,19 +137,26 @@ async fn load_list_into_server_session(client: &Client, domain: &str) -> Result<
 }
 
 #[cfg(not(feature = "demo"))]
-async fn retrieve_download_link(client: &Client, host: &str, download_link_regex: &Regex) -> Result<String> {
+async fn retrieve_download_link(
+    client: &Client,
+    host: &str,
+    download_link_regex: &Regex,
+) -> Result<String> {
     let request = prepare_request_for_retrieving_download_link(client, host);
-    let response = request
-        .send()
-        .await
-        .map_err(log_message_and_return("Can't export list.", CantRetrieveDownloadLink))?;
+    let response = request.send().await.map_err(log_message_and_return(
+        "Can't export list.",
+        CantRetrieveDownloadLink,
+    ))?;
 
     let status = response.status();
     if !status.is_success() && !status.is_redirection() {
         return Err(CantRetrieveDownloadLink);
     }
 
-    let page_content = response.text().await.map_err(log_error_and_return(CantReadPageContent))?;
+    let page_content = response
+        .text()
+        .await
+        .map_err(log_error_and_return(CantReadPageContent))?;
     let regex = download_link_regex;
     let file_url = regex.find(&page_content).ok_or(NoDownloadLink)?.as_str();
     Ok(file_url.to_owned())
@@ -143,40 +168,55 @@ async fn download_list(client: &Client, file_url: &str) -> Result<String> {
         .get(file_url)
         .send()
         .await
-        .map_err(log_message_and_return("Can't download list.", FileNotFoundOnServer))?;
+        .map_err(log_message_and_return(
+            "Can't download list.",
+            FileNotFoundOnServer,
+        ))?;
 
     let status = response.status();
     if !status.is_success() && !status.is_redirection() {
         return Err(FileNotFoundOnServer);
     }
 
-    let file_content_as_bytes = response.bytes()
+    let file_content_as_bytes = response
+        .bytes()
         .await
         .map_err(log_error_and_return(CantReadMembersDownloadResponse))?;
     ISO_8859_1
         .decode(file_content_as_bytes.as_ref(), DecoderTrap::Strict)
-        .map_err(log_message_and_return("Wrong encoding: expected LATIN-1.", WrongEncoding))
+        .map_err(log_message_and_return(
+            "Wrong encoding: expected LATIN-1.",
+            WrongEncoding,
+        ))
 }
 // endregion
 
 // region Requests preparation
 #[cfg(not(feature = "demo"))]
-fn prepare_request_for_connection(client: &Client, domain: &str, credentials: &Credentials) -> RequestBuilder {
+fn prepare_request_for_connection(
+    client: &Client,
+    domain: &str,
+    credentials: &Credentials,
+) -> RequestBuilder {
     let url = format!("{domain}/page.php");
     let arguments = [
         ("Action", "connect_user"),
         ("requestForm", "formConnecter"),
         ("login", credentials.login.as_str()),
-        ("password", credentials.password.as_str())
+        ("password", credentials.password.as_str()),
     ];
     let body = format_arguments_into_body(&arguments);
-    client.post(&url)
+    client
+        .post(&url)
         .header("Content-Type", ContentType::Form.to_string())
         .body(body)
 }
 
 #[cfg(not(feature = "demo"))]
-fn prepare_request_for_loading_list_into_server_session(client: &Client, domain: &str) -> RequestBuilder {
+fn prepare_request_for_loading_list_into_server_session(
+    client: &Client,
+    domain: &str,
+) -> RequestBuilder {
     let url = format!("{domain}/page.php?P=bo/extranet/adhesion/annuaire/index");
     let arguments = [
         ("Action", "adherent_filtrer"),
@@ -207,7 +247,8 @@ fn prepare_request_for_loading_list_into_server_session(client: &Client, domain:
         ("affich_text_nomGroupe", ""),
     ];
     let body = format_arguments_into_body(&arguments);
-    client.post(url)
+    client
+        .post(url)
         .header("Content-Type", ContentType::Form.to_string())
         .body(body)
 }
@@ -233,7 +274,8 @@ fn prepare_request_for_retrieving_download_link(client: &Client, domain: &str) -
         ("generation", "2"),
     ];
     let body = format_arguments_into_body(&arguments);
-    client.post(url)
+    client
+        .post(url)
         .header("Content-Type", ContentType::Form.to_string())
         .body(body)
 }
@@ -241,16 +283,19 @@ fn prepare_request_for_retrieving_download_link(client: &Client, domain: &str) -
 
 #[cfg(not(feature = "demo"))]
 fn format_arguments_into_body(args: &[(&str, &str)]) -> String {
-    args.iter().map(|(key, value)| {
-        match value {
+    args.iter()
+        .map(|(key, value)| match value {
             &"" => key.to_string(),
-            value => format!("{key}={value}")
-        }
-    }).collect::<Vec<_>>().join("&")
+            value => format!("{key}={value}"),
+        })
+        .collect::<Vec<_>>()
+        .join("&")
 }
 
 #[cfg(feature = "demo")]
-pub async fn download_memberships_list(memberships_provider_config: &MembershipsProviderConfig) -> Result<FileDetails> {
+pub async fn download_memberships_list(
+    memberships_provider_config: &MembershipsProviderConfig,
+) -> Result<FileDetails> {
     let folder = memberships_provider_config.folder();
     create_memberships_file_dir(&folder)?;
     write_list_to_file(folder, DEMO_FILE)
@@ -258,10 +303,7 @@ pub async fn download_memberships_list(memberships_provider_config: &Memberships
 
 fn create_memberships_file_dir(memberships_file_folder: &OsStr) -> Result<()> {
     let err_message = format!("Can't create `{memberships_file_folder:?}` folder.");
-    let err_mapper = log_message_and_return(
-        &err_message,
-        CantCreateMembershipsFileFolder,
-    );
+    let err_mapper = log_message_and_return(&err_message, CantCreateMembershipsFileFolder);
     std::fs::create_dir_all(memberships_file_folder).map_err(err_mapper)?;
 
     Ok(())
@@ -285,14 +327,23 @@ mod tests {
     use regex::Regex;
     use rocket::futures::executor::block_on;
     use rocket::http::ContentType;
-    use wiremock::{Mock, MockServer, ResponseTemplate};
     use wiremock::matchers::{body_string_contains, method, path, query_param_contains};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    use crate::member::{get_members_file_folder, Result};
+    use crate::member::Error::{
+        CantLoadListOnServer, CantRetrieveDownloadLink, ConnectionFailed, FileNotFoundOnServer,
+        NoDownloadLink,
+    };
     use crate::member::config::MembershipsProviderConfig;
-    use crate::member::download::{build_client, connect, create_memberships_file_dir, Credentials, download_list, download_memberships_list, format_arguments_into_body, load_list_into_server_session, prepare_request_for_connection, prepare_request_for_loading_list_into_server_session, prepare_request_for_retrieving_download_link, retrieve_credentials, retrieve_download_link, retrieve_login_and_password, write_list_to_file};
-    use crate::member::Error::{CantLoadListOnServer, CantRetrieveDownloadLink, ConnectionFailed, FileNotFoundOnServer, NoDownloadLink};
+    use crate::member::download::{
+        Credentials, build_client, connect, create_memberships_file_dir, download_list,
+        download_memberships_list, format_arguments_into_body, load_list_into_server_session,
+        prepare_request_for_connection, prepare_request_for_loading_list_into_server_session,
+        prepare_request_for_retrieving_download_link, retrieve_credentials, retrieve_download_link,
+        retrieve_login_and_password, write_list_to_file,
+    };
     use crate::member::error::Error::CantWriteMembersFile;
+    use crate::member::{Result, get_members_file_folder};
     use crate::tools::env_args::with_env_args;
     use crate::tools::test::tests::temp_dir;
 
@@ -325,7 +376,10 @@ mod tests {
             .await;
         Mock::given(method("POST"))
             .and(path("/page.php"))
-            .and(query_param_contains("P", "bo/extranet/adhesion/annuaire/index"))
+            .and(query_param_contains(
+                "P",
+                "bo/extranet/adhesion/annuaire/index",
+            ))
             .and(body_string_contains("Action=adherent_filtrer"))
             .respond_with(ResponseTemplate::new(200))
             .mount(&mock_server)
@@ -333,10 +387,13 @@ mod tests {
         Mock::given(method("POST"))
             .and(path("/includer.php"))
             .and(query_param_contains("inc", "ajax/adherent/adherent_export"))
-            .respond_with(ResponseTemplate::new(200).set_body_raw(format!("<p>Here is the download link: {download_link}</p>"), "text/html"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(
+                format!("<p>Here is the download link: {download_link}</p>"),
+                "text/html",
+            ))
             .mount(&mock_server)
             .await;
-        let message_in_latin1: &[u8] = &[239];  // Represents the character `ï` in LATIN1/ISO_8859_1
+        let message_in_latin1: &[u8] = &[239]; // Represents the character `ï` in LATIN1/ISO_8859_1
         Mock::given(method("GET"))
             .and(path(format!("/{download_filename}").to_owned()))
             .respond_with(ResponseTemplate::new(200).set_body_raw(message_in_latin1, "text/csv"))
@@ -352,7 +409,13 @@ mod tests {
     #[test]
     fn should_create_members_file_dir() {
         let path = temp_dir();
-        let path = path.join(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis().to_string());
+        let path = path.join(
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+                .to_string(),
+        );
         fs::create_dir(&path).unwrap();
         let members_file_folder_path = path.join(get_members_file_folder());
         let result = create_memberships_file_dir(members_file_folder_path.as_ref());
@@ -384,7 +447,10 @@ mod tests {
         (None, None),
         }
     )]
-    fn should_retrieve_login_and_password(args: Vec<String>, expected_result: (Option<String>, Option<String>)) {
+    fn should_retrieve_login_and_password(
+        args: Vec<String>,
+        expected_result: (Option<String>, Option<String>),
+    ) {
         let result = with_env_args(args, retrieve_login_and_password);
         assert_eq!(expected_result, result);
     }
@@ -449,7 +515,10 @@ mod tests {
 
         Mock::given(method("POST"))
             .and(path("/page.php"))
-            .and(query_param_contains("P", "bo/extranet/adhesion/annuaire/index"))
+            .and(query_param_contains(
+                "P",
+                "bo/extranet/adhesion/annuaire/index",
+            ))
             .and(body_string_contains("Action=adherent_filtrer"))
             .respond_with(ResponseTemplate::new(200))
             .mount(&mock_server)
@@ -467,7 +536,10 @@ mod tests {
 
         Mock::given(method("POST"))
             .and(path("/page.php"))
-            .and(query_param_contains("P", "bo/extranet/adhesion/annuaire/index"))
+            .and(query_param_contains(
+                "P",
+                "bo/extranet/adhesion/annuaire/index",
+            ))
             .and(body_string_contains("Action=adherent_filtrer"))
             .respond_with(ResponseTemplate::new(500))
             .mount(&mock_server)
@@ -483,25 +555,31 @@ mod tests {
     async fn should_retrieve_download_link() {
         let mock_server = MockServer::start().await;
         let expected_link = format!("{}/download.csv", mock_server.uri());
-        let download_link_regex = Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap();
+        let download_link_regex =
+            Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap();
 
         Mock::given(method("POST"))
             .and(path("/includer.php"))
             .and(query_param_contains("inc", "ajax/adherent/adherent_export"))
-            .respond_with(ResponseTemplate::new(200).set_body_raw(format!("<p>Here is the download link: {expected_link}</p>"), "text/html"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(
+                format!("<p>Here is the download link: {expected_link}</p>"),
+                "text/html",
+            ))
             .mount(&mock_server)
             .await;
 
         let client = build_client().unwrap();
 
-        let result = retrieve_download_link(&client, &mock_server.uri(), &download_link_regex).await;
+        let result =
+            retrieve_download_link(&client, &mock_server.uri(), &download_link_regex).await;
         assert!(result.is_ok_and(|link| link == expected_link));
     }
 
     #[async_test]
     async fn should_not_retrieve_download_link_when_internal_server_error() {
         let mock_server = MockServer::start().await;
-        let download_link_regex = Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap();
+        let download_link_regex =
+            Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap();
 
         Mock::given(method("POST"))
             .and(path("/includer.php"))
@@ -512,31 +590,37 @@ mod tests {
 
         let client = build_client().unwrap();
 
-        let result = retrieve_download_link(&client, &mock_server.uri(), &download_link_regex).await;
+        let result =
+            retrieve_download_link(&client, &mock_server.uri(), &download_link_regex).await;
         assert!(result.is_err_and(|e| e == CantRetrieveDownloadLink));
     }
 
     #[async_test]
     async fn should_not_retrieve_download_link_when_no_link_in_page() {
         let mock_server = MockServer::start().await;
-        let download_link_regex = Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap();
+        let download_link_regex =
+            Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap();
 
         Mock::given(method("POST"))
             .and(path("/includer.php"))
             .and(query_param_contains("inc", "ajax/adherent/adherent_export"))
-            .respond_with(ResponseTemplate::new(200).set_body_raw("Are ya lookin' for a link?".to_string(), "text/html"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_raw("Are ya lookin' for a link?".to_string(), "text/html"),
+            )
             .mount(&mock_server)
             .await;
 
         let client = build_client().unwrap();
 
-        let result = retrieve_download_link(&client, &mock_server.uri(), &download_link_regex).await;
+        let result =
+            retrieve_download_link(&client, &mock_server.uri(), &download_link_regex).await;
         assert!(result.is_err_and(|e| e == NoDownloadLink));
     }
 
     #[async_test]
     async fn should_download_list() {
-        let message_in_latin1: &[u8] = &[239];  // Represents the character `ï` in LATIN1/ISO_8859_1
+        let message_in_latin1: &[u8] = &[239]; // Represents the character `ï` in LATIN1/ISO_8859_1
 
         let mock_server = MockServer::start().await;
         Mock::given(method("GET"))
@@ -596,15 +680,28 @@ mod tests {
         let password = "password";
         let credentials = Credentials::new(login.to_owned(), password.to_owned());
 
-        let expected_body = format!("Action=connect_user&requestForm=formConnecter&login={login}&password={password}");
+        let expected_body = format!(
+            "Action=connect_user&requestForm=formConnecter&login={login}&password={password}"
+        );
 
         let result = prepare_request_for_connection(&client, domain, &credentials);
 
         let result_request = result.build();
         assert!(result_request.is_ok());
         let request = result_request.unwrap();
-        assert_eq!(expected_body, String::from_utf8_lossy(request.body().unwrap().as_bytes().unwrap()));
-        assert_eq!(&ContentType::Form.to_string(), request.headers().get("Content-Type").unwrap().to_str().unwrap());
+        assert_eq!(
+            expected_body,
+            String::from_utf8_lossy(request.body().unwrap().as_bytes().unwrap())
+        );
+        assert_eq!(
+            &ContentType::Form.to_string(),
+            request
+                .headers()
+                .get("Content-Type")
+                .unwrap()
+                .to_str()
+                .unwrap()
+        );
     }
 
     #[test]
@@ -619,8 +716,19 @@ mod tests {
         let result_request = result.build();
         assert!(result_request.is_ok());
         let request = result_request.unwrap();
-        assert_eq!(expected_body, String::from_utf8_lossy(request.body().unwrap().as_bytes().unwrap()));
-        assert_eq!(&ContentType::Form.to_string(), request.headers().get("Content-Type").unwrap().to_str().unwrap());
+        assert_eq!(
+            expected_body,
+            String::from_utf8_lossy(request.body().unwrap().as_bytes().unwrap())
+        );
+        assert_eq!(
+            &ContentType::Form.to_string(),
+            request
+                .headers()
+                .get("Content-Type")
+                .unwrap()
+                .to_str()
+                .unwrap()
+        );
     }
 
     #[test]
@@ -635,20 +743,37 @@ mod tests {
         let result_request = result.build();
         assert!(result_request.is_ok());
         let request = result_request.unwrap();
-        assert_eq!(expected_body, String::from_utf8_lossy(request.body().unwrap().as_bytes().unwrap()));
-        assert_eq!(&ContentType::Form.to_string(), request.headers().get("Content-Type").unwrap().to_str().unwrap());
+        assert_eq!(
+            expected_body,
+            String::from_utf8_lossy(request.body().unwrap().as_bytes().unwrap())
+        );
+        assert_eq!(
+            &ContentType::Form.to_string(),
+            request
+                .headers()
+                .get("Content-Type")
+                .unwrap()
+                .to_str()
+                .unwrap()
+        );
     }
     // endregion
 
     #[test]
     fn should_format_arguments_into_body() {
         let arguments = [("key1", "value1"), ("key2", "value2"), ("key3", "")];
-        assert_eq!("key1=value1&key2=value2&key3", format_arguments_into_body(&arguments))
+        assert_eq!(
+            "key1=value1&key2=value2&key3",
+            format_arguments_into_body(&arguments)
+        )
     }
 
     #[test]
     fn debug_credentials() {
         let credentials = Credentials::new("login".to_owned(), "password".to_owned());
-        assert_eq!("Credentials {login=login, password=MASKED}", format!("{credentials:?}"));
+        assert_eq!(
+            "Credentials {login=login, password=MASKED}",
+            format!("{credentials:?}")
+        );
     }
 }

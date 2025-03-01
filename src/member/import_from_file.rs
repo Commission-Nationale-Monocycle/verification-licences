@@ -8,30 +8,32 @@ use chrono::NaiveDate;
 use csv::Reader;
 use regex::bytes::{Captures, Regex};
 
-use crate::member::{Membership, MembershipDto};
-use crate::member::error::Error::{CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile, CantOpenMembersFileFolder, InvalidDate, NoFileFound, WrongRegex};
-use crate::member::file_details::FileDetails;
-use crate::member::memberships::Memberships;
-use crate::member::members::Members;
 use crate::member::Result;
+use crate::member::error::Error::{
+    CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile,
+    CantOpenMembersFileFolder, InvalidDate, NoFileFound, WrongRegex,
+};
+use crate::member::file_details::FileDetails;
+use crate::member::members::Members;
+use crate::member::memberships::Memberships;
+use crate::member::{Membership, MembershipDto};
 use crate::tools::{log_message, log_message_and_return};
 
 pub fn import_from_file(filepath: &OsStr) -> Result<Members> {
     let error_message = format!("Can't open members file `{:?}`.", filepath.to_str());
-    let error_mapping = log_message_and_return(
-        &error_message,
-        CantOpenMembersFile,
-    );
+    let error_mapping = log_message_and_return(&error_message, CantOpenMembersFile);
     let file = File::open(filepath).map_err(error_mapping)?;
-    let mut reader = csv::ReaderBuilder::new()
-        .delimiter(b';')
-        .from_reader(file);
+    let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_reader(file);
     let members = load_memberships(&mut reader);
     Ok(group_members_by_membership(members))
 }
 
-fn load_memberships<T>(reader: &mut Reader<T>) -> Vec<MembershipDto> where T: std::io::Read {
-    reader.deserialize()
+fn load_memberships<T>(reader: &mut Reader<T>) -> Vec<MembershipDto>
+where
+    T: std::io::Read,
+{
+    reader
+        .deserialize()
         .filter_map(|result: Result<Membership, _>| match result {
             Ok(membership) => Some(membership.into()),
             Err(e) => {
@@ -45,13 +47,14 @@ fn load_memberships<T>(reader: &mut Reader<T>) -> Vec<MembershipDto> where T: st
 fn group_members_by_membership(memberships: Vec<MembershipDto>) -> Members {
     let mut map = HashMap::new();
 
-    memberships.into_iter()
-        .for_each(|membership| {
-            let membership_number = membership.membership_number().to_string();
-            map.entry(membership_number)
-                .and_modify(|memberships: &mut Memberships| { memberships.insert(membership.clone()); })
-                .or_insert(Memberships::from([membership.clone(); 1]));
-        });
+    memberships.into_iter().for_each(|membership| {
+        let membership_number = membership.membership_number().to_string();
+        map.entry(membership_number)
+            .and_modify(|memberships: &mut Memberships| {
+                memberships.insert(membership.clone());
+            })
+            .or_insert(Memberships::from([membership.clone(); 1]));
+    });
 
     Members::from(map)
 }
@@ -80,7 +83,9 @@ fn check_folder(members_file_folder: &OsStr) -> Result<()> {
         Ok(true) => Ok(()),
         Ok(false) => Err(NoFileFound),
         Err(e) => {
-            log_message(&format!("`{members_file_folder:?}` folder is inaccessible."))(e);
+            log_message(&format!(
+                "`{members_file_folder:?}` folder is inaccessible."
+            ))(e);
             Err(CantOpenMembersFileFolder)
         }
     }
@@ -91,7 +96,8 @@ fn convert_captures_to_date(captures: &Captures) -> Result<NaiveDate> {
         convert_match_to_integer(captures, "year")?,
         convert_match_to_integer(captures, "month")?,
         convert_match_to_integer(captures, "day")?,
-    ).ok_or(InvalidDate)
+    )
+    .ok_or(InvalidDate)
 }
 
 fn convert_match_to_integer<T: FromStr>(captures: &Captures, key: &str) -> Result<T> {
@@ -120,7 +126,8 @@ pub fn clean_old_files(members_file_folder: &OsStr, file_update_date: &NaiveDate
 }
 
 fn build_members_file_regex() -> Result<Regex> {
-    Regex::new("^memberships-(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})\\.csv$").or(Err(WrongRegex))
+    Regex::new("^memberships-(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})\\.csv$")
+        .or(Err(WrongRegex))
 }
 
 #[cfg(test)]
@@ -134,12 +141,19 @@ mod tests {
     use chrono::NaiveDate;
     use regex::bytes::Regex;
 
-    use crate::member::error::Error::{CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound};
-    use crate::member::import_from_file::{build_members_file_regex, check_folder, convert_captures_to_date, convert_match_to_integer, find_file, group_members_by_membership, import_from_file, load_memberships};
-    use crate::member::memberships::Memberships;
     use crate::member::MembershipDto;
+    use crate::member::error::Error::{
+        CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound,
+    };
+    use crate::member::import_from_file::{
+        build_members_file_regex, check_folder, convert_captures_to_date, convert_match_to_integer,
+        find_file, group_members_by_membership, import_from_file, load_memberships,
+    };
     use crate::member::members::Members;
-    use crate::member::tests::{get_expected_member, get_malformed_member_as_csv, get_member_as_csv};
+    use crate::member::memberships::Memberships;
+    use crate::member::tests::{
+        get_expected_member, get_malformed_member_as_csv, get_member_as_csv,
+    };
     use crate::tools::test::tests::temp_dir;
 
     // region import_from_file
@@ -152,7 +166,10 @@ mod tests {
         fs::write(&file_path, get_member_as_csv()).unwrap();
 
         let result = import_from_file(file_path.as_ref()).unwrap();
-        assert_eq!(&Memberships::from([get_expected_member()]), result.get("123456").unwrap())
+        assert_eq!(
+            &Memberships::from([get_expected_member()]),
+            result.get("123456").unwrap()
+        )
     }
 
     #[test]
@@ -237,10 +254,17 @@ mod tests {
             structure_code: "".to_string(),
         };
 
-        let expected_map: Members = Members::from([
-            ("1".to_owned(), Memberships::from([jean.clone(), michel.clone()])),
-            ("2".to_owned(), Memberships::from([pierre.clone()])),
-        ].into_iter().collect::<HashMap<String, Memberships>>());
+        let expected_map: Members = Members::from(
+            [
+                (
+                    "1".to_owned(),
+                    Memberships::from([jean.clone(), michel.clone()]),
+                ),
+                ("2".to_owned(), Memberships::from([pierre.clone()])),
+            ]
+            .into_iter()
+            .collect::<HashMap<String, Memberships>>(),
+        );
         let result = group_members_by_membership(vec![jean, pierre, michel]);
         assert_eq!(expected_map, result);
     }
@@ -257,7 +281,10 @@ mod tests {
 
         let file_details = find_file(&temp_dir.into_os_string()).unwrap();
         assert_eq!(&members_file.into_os_string(), file_details.filepath());
-        assert_eq!(&NaiveDate::from_ymd_opt(year, month, day).unwrap(), file_details.update_date());
+        assert_eq!(
+            &NaiveDate::from_ymd_opt(year, month, day).unwrap(),
+            file_details.update_date()
+        );
     }
 
     #[test]
@@ -363,11 +390,19 @@ mod tests {
         let incorrect_file_name = OsString::from("2025-01-02.csv");
         let regex = build_members_file_regex().unwrap();
 
-        let captures = regex.captures(correct_file_name.as_encoded_bytes()).unwrap();
-        assert_eq!(4, captures.len(),
-                   "Regex should have captured 4 elements: the whole name and the 3 parts of the date.");
+        let captures = regex
+            .captures(correct_file_name.as_encoded_bytes())
+            .unwrap();
+        assert_eq!(
+            4,
+            captures.len(),
+            "Regex should have captured 4 elements: the whole name and the 3 parts of the date."
+        );
         let captures = regex.captures(incorrect_file_name.as_encoded_bytes());
-        assert!(captures.is_none(), "Regex should not have captured anything.");
+        assert!(
+            captures.is_none(),
+            "Regex should not have captured anything."
+        );
     }
     // endregion
 }

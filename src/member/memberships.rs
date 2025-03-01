@@ -27,7 +27,9 @@ impl DerefMut for Memberships {
 
 impl<const N: usize> From<[MembershipDto; N]> for Memberships {
     fn from(value: [MembershipDto; N]) -> Self {
-        Memberships { memberships: BTreeSet::from(value)}
+        Memberships {
+            memberships: BTreeSet::from(value),
+        }
     }
 }
 
@@ -43,8 +45,8 @@ mod tests {
 
     use chrono::NaiveDate;
 
-    use crate::member::memberships::Memberships;
     use crate::member::MembershipDto;
+    use crate::member::memberships::Memberships;
 
     #[test]
     fn should_retrieve_last_membership() {

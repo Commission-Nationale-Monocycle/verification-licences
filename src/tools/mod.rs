@@ -1,5 +1,5 @@
-pub mod test;
 pub mod env_args;
+pub mod test;
 
 use std::fmt::Debug;
 
@@ -16,7 +16,10 @@ pub fn log_error_and_return<E: Debug, T>(value_to_return: T) -> impl FnOnce(E) -
     }
 }
 
-pub fn log_message_and_return<E: Debug, T>(message: &str, value_to_return: T) -> impl FnOnce(E) -> T {
+pub fn log_message_and_return<E: Debug, T>(
+    message: &str,
+    value_to_return: T,
+) -> impl FnOnce(E) -> T {
     move |e| {
         error!("{message}\n{e:#?}");
         value_to_return
@@ -55,7 +58,8 @@ mod tests {
 
         let expected_message = "This is a test message";
         let expected_return_value = "This is a test return value";
-        let result = log_message_and_return(expected_message, expected_return_value)("This is an error.");
+        let result =
+            log_message_and_return(expected_message, expected_return_value)("This is an error.");
 
         assert_eq!(expected_return_value, result);
     }

@@ -1,10 +1,10 @@
-use std::collections::HashMap;
-use std::ops::Deref;
 use csv::Reader;
 use derive_getters::Getters;
+use std::collections::HashMap;
+use std::ops::Deref;
 
-use serde::{Deserialize, Serialize};
 use crate::member::MembershipDto;
+use serde::{Deserialize, Serialize};
 
 use crate::member::memberships::Memberships;
 use crate::tools::log_message;
@@ -29,7 +29,10 @@ impl From<HashMap<String, Memberships>> for Members {
 }
 
 impl Members {
-    pub fn check_members<'a>(&self, members_to_check: &'a [MemberToCheck]) -> Vec<(&'a MemberToCheck, Option<&MembershipDto>)> {
+    pub fn check_members<'a>(
+        &self,
+        members_to_check: &'a [MemberToCheck],
+    ) -> Vec<(&'a MemberToCheck, Option<&MembershipDto>)> {
         members_to_check
             .iter()
             .map(|member_to_check| (member_to_check, self.check_member(member_to_check)))
@@ -54,14 +57,14 @@ impl Members {
 pub struct MemberToCheck {
     membership_num: String,
     name: String,
-    firstname: String
+    firstname: String,
 }
 
 impl MemberToCheck {
     /// Load members to check rom a CSV-formatted String, such as:
     /// `membership_num;name;firstname`
     /// Ignore malformed rows.
-    pub fn load_members_to_check_from_csv_string(members_to_check: &str) ->Vec<Self> {
+    pub fn load_members_to_check_from_csv_string(members_to_check: &str) -> Vec<Self> {
         let mut reader = csv::ReaderBuilder::new()
             .delimiter(b';')
             .has_headers(false)
@@ -73,15 +76,17 @@ impl MemberToCheck {
     /// Load members to check rom a CSV-formatted Reader, such as:
     /// `membership_num;name;firstname`
     /// Ignore malformed rows.
-    fn load_members_to_check_from_csv<T>(reader: &mut Reader<T>) -> Vec<Self> where T: std::io::Read {
-        reader.deserialize()
-            .filter_map(|result: Result<MemberToCheck, _>| {
-                match result {
-                    Ok(membership) => Some(membership),
-                    Err(e) => {
-                        log_message("Error while reading members to check")(e);
-                        None
-                    }
+    fn load_members_to_check_from_csv<T>(reader: &mut Reader<T>) -> Vec<Self>
+    where
+        T: std::io::Read,
+    {
+        reader
+            .deserialize()
+            .filter_map(|result: Result<MemberToCheck, _>| match result {
+                Ok(membership) => Some(membership),
+                Err(e) => {
+                    log_message("Error while reading members to check")(e);
+                    None
                 }
             })
             .collect::<Vec<_>>()
@@ -92,28 +97,39 @@ impl MemberToCheck {
 mod tests {
     use std::collections::HashMap;
 
+    use crate::member::members::{MemberToCheck, Members};
     use crate::member::memberships::Memberships;
-    use crate::member::members::{Members, MemberToCheck};
-    use crate::member::tests::{get_expected_member, MEMBER_FIRSTNAME, MEMBER_NAME, MEMBERSHIP_NUMBER};
+    use crate::member::tests::{
+        MEMBER_FIRSTNAME, MEMBER_NAME, MEMBERSHIP_NUMBER, get_expected_member,
+    };
 
     // region check_members
     #[test]
     fn members_should_be_checked() {
         let membership = get_expected_member();
-        let members = Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_string(), Memberships::from([membership.clone()]))]));
+        let members = Members::from(HashMap::from([(
+            MEMBERSHIP_NUMBER.to_string(),
+            Memberships::from([membership.clone()]),
+        )]));
         let member_to_check = MemberToCheck {
             membership_num: MEMBERSHIP_NUMBER.to_owned(),
             name: MEMBER_NAME.to_owned(),
             firstname: MEMBER_FIRSTNAME.to_owned(),
         };
 
-        assert_eq!(vec![(&member_to_check.clone(), Some(&membership))], members.check_members(&[member_to_check]));
+        assert_eq!(
+            vec![(&member_to_check.clone(), Some(&membership))],
+            members.check_members(&[member_to_check])
+        );
     }
 
     #[test]
     fn members_should_not_be_checked() {
         let membership = get_expected_member();
-        let members = Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_string(), Memberships::from([membership]))]));
+        let members = Members::from(HashMap::from([(
+            MEMBERSHIP_NUMBER.to_string(),
+            Memberships::from([membership]),
+        )]));
         let invalid_membership_number = format!("{MEMBERSHIP_NUMBER} oops");
         let member_to_check = MemberToCheck {
             membership_num: invalid_membership_number,
@@ -121,7 +137,10 @@ mod tests {
             firstname: MEMBER_FIRSTNAME.to_owned(),
         };
 
-        assert_eq!(vec![(&member_to_check.clone(), None)], members.check_members(&[member_to_check]));
+        assert_eq!(
+            vec![(&member_to_check.clone(), None)],
+            members.check_members(&[member_to_check])
+        );
     }
     // endregion
 
@@ -129,7 +148,10 @@ mod tests {
     #[test]
     fn member_should_be_check() {
         let membership = get_expected_member();
-        let members = Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_string(), Memberships::from([membership.clone()]))]));
+        let members = Members::from(HashMap::from([(
+            MEMBERSHIP_NUMBER.to_string(),
+            Memberships::from([membership.clone()]),
+        )]));
         let member_to_check = MemberToCheck {
             membership_num: MEMBERSHIP_NUMBER.to_owned(),
             name: MEMBER_NAME.to_owned(),
@@ -142,7 +164,10 @@ mod tests {
     #[test]
     fn member_should_not_be_check() {
         let membership = get_expected_member();
-        let members = Members::from(HashMap::from([(MEMBERSHIP_NUMBER.to_string(), Memberships::from([membership]))]));
+        let members = Members::from(HashMap::from([(
+            MEMBERSHIP_NUMBER.to_string(),
+            Memberships::from([membership]),
+        )]));
         let invalid_membership_number = format!("{MEMBERSHIP_NUMBER} oops");
         let member_to_check = MemberToCheck {
             membership_num: invalid_membership_number,
@@ -162,7 +187,14 @@ mod tests {
         let firstname = "John".to_owned();
         let csv = format!("{membership_num};{name};{firstname}");
         let result = MemberToCheck::load_members_to_check_from_csv_string(&csv);
-        assert_eq!(vec![MemberToCheck {membership_num, name, firstname}], result)
+        assert_eq!(
+            vec![MemberToCheck {
+                membership_num,
+                name,
+                firstname
+            }],
+            result
+        )
     }
 
     #[test]

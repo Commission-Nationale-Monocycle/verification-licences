@@ -1,6 +1,6 @@
-use std::ffi::OsString;
 use chrono::NaiveDate;
 use derive_getters::Getters;
+use std::ffi::OsString;
 
 #[derive(Debug, Default, Getters, Eq, PartialEq)]
 pub struct FileDetails {
@@ -10,15 +10,18 @@ pub struct FileDetails {
 
 impl FileDetails {
     pub fn new(update_date: NaiveDate, filepath: OsString) -> Self {
-        Self { update_date, filepath }
+        Self {
+            update_date,
+            filepath,
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::ffi::OsString;
-    use chrono::NaiveDate;
     use crate::member::file_details::FileDetails;
+    use chrono::NaiveDate;
+    use std::ffi::OsString;
 
     #[test]
     fn test_new_file_details() {
