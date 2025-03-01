@@ -16,10 +16,25 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Update Cargo
-        run: rustup update
-      - name: Install coverage tool
-        run: cargo install cargo-tarpaulin
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-tests"
+      - name: Install cargo-tarpaulin (coverage tool)
+        run: |
+          cargo install --locked cargo-tarpaulin || true
       - name: Run tests
         run: cargo tarpaulin -o Stdout -o Html
       - name: Archive code coverage result
@@ -27,3 +42,4 @@ jobs:
         with:
           name: code-coverage-report
           path: tarpaulin-report.html
+
