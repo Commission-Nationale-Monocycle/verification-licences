@@ -20,7 +20,8 @@ impl Server for FrontendServer {
                 routes![
                     frontend_controller::index,
                     frontend_controller::hello,
-                    frontend_controller::list_memberships
+                    frontend_controller::list_memberships,
+                    frontend_controller::check_memberships,
                 ],
             )
             .mount("/", FileServer::from("./public/static"))
