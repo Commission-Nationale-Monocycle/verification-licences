@@ -43,6 +43,16 @@ pub async fn list_memberships(members_state: &State<Mutex<MembersState>>) -> Tem
     )
 }
 
+#[get("/check-memberships")]
+pub async fn check_memberships() -> Template {
+    Template::render(
+        "check-memberships",
+        context! {
+            title: "Vérifier les licences"
+        },
+    )
+}
+
 #[catch(404)]
 pub async fn not_found(req: &Request<'_>) -> Template {
     Template::render(

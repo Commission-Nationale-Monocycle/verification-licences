@@ -1,0 +1,10 @@
+{% extends "base" %}
+
+{% block content %}
+    <form action="/api/check_memberships">
+        <label></label>
+        <input name="members_to_check" type="file" accept=".text/csv,.csv"/>
+        <p></p>
+        <input type="submit" value="Vérifier les licences">
+    </form>
+{% endblock content %}
