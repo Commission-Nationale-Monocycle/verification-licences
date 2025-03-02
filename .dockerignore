@@ -3,6 +3,8 @@
 .idea/
 data/
 demo_data/
+public/static/pkg
+src/web/frontend/wasm/target
 target/
 .dockerignore
 .gitignore

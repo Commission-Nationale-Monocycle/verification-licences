@@ -1,6 +1,7 @@
 [package]
 name = "verification-licences"
 version = "0.1.0"
+authors = ["Maxence Cornaton <maxence.cornaton+git@proton.me>"]
 edition = "2024"
 
 [features]
