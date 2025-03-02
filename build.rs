@@ -15,8 +15,7 @@ fn main() {
     Command::new("cargo")
         .args(build_args)
         .output()
-        .expect("Failed to compile frontend.")
-        .stderr;
+        .expect("Failed to compile frontend.");
 
     let wasm_file_path =
         format!("target-wasm/wasm32-unknown-unknown/{profile}/wasm_verification_licences.wasm");
