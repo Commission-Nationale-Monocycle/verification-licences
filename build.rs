@@ -2,7 +2,7 @@ use std::fs;
 use std::process::Command;
 
 fn main() {
-    println!("cargo::rerun-if-changed=src/web/frontend/wasm/src");
+    println!("cargo::rerun-if-changed=src/web/frontend/wasm/src/lib.rs");
     let compilation_path = "target-wasm";
     let pkg_path = "public/static/pkg";
     delete_entity(compilation_path);
@@ -27,10 +27,17 @@ fn compile_wasm(compilation_path: &str, profile: &str) {
     if profile == "release" {
         build_args.push("--release");
     }
-    Command::new("cargo")
+    let output = Command::new("cargo")
         .args(build_args)
         .output()
         .expect("Failed to compile frontend.");
+
+    assert!(
+        !String::from_utf8(output.stderr).unwrap().contains(
+            "error: could not compile `wasm-verification-licences` (lib) due to 1 previous error"
+        ),
+        "Are you sure your WASM lib is correct?"
+    )
 }
 
 /// Generate JS & TS bindings
