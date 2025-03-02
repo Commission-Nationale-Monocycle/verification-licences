@@ -16,13 +16,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-          components: rustfmt, clippy
       - name: Set up cargo cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         continue-on-error: false
         with:
           path: |
@@ -31,7 +26,14 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-tests"
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build"
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli || true
       - name: Install cargo-tarpaulin (coverage tool)
         run: |
           cargo install --locked cargo-tarpaulin || true
