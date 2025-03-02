@@ -22,7 +22,7 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
       - name: Install wasm-bindgen-cli
-        uses: cargo install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
