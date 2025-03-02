@@ -34,7 +34,7 @@ fn compile_wasm(compilation_path: &str, profile: &str) {
 
     let stderr = String::from_utf8(output.stderr).unwrap();
     if stderr.contains(
-        "error: could not compile `wasm-verification-licences` (lib) due to 1 previous error",
+        "error: could not compile `wasm-verification-licences` (lib)",
     ) {
         println!("{}", &stderr);
         panic!("Are you sure your WASM lib is correct?");
