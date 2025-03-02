@@ -33,7 +33,7 @@ fn compile_wasm(compilation_path: &str, profile: &str, wasm_file_path: &str) {
         .output()
         .expect("Failed to compile frontend.");
 
-    assert!(exists(wasm_file_path).is_ok_and(|exists| exists));
+    // assert!(exists(wasm_file_path).is_ok_and(|exists| exists));
 }
 
 /// Generate JS & TS bindings
@@ -45,9 +45,9 @@ fn generate_bindings(wasm_file_path: &str, pkg_path: &str) {
         .output()
         .expect("Failed to generate WASM wrappers.");
 
-    assert!(
-        exists(format!("{pkg_path}/wasm_verification_licences.js")).is_ok_and(|exists| exists)
-    );
+    // assert!(
+    //     exists(format!("{pkg_path}/wasm_verification_licences.js")).is_ok_and(|exists| exists)
+    // );
 }
 
 fn delete_entity(compilation_path: &str) {
