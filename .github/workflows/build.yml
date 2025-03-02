@@ -20,7 +20,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          components: rustfmt, clippy
+          components: rustfmt, clippy, wasm-bindgen-cli
       - name: Set up cargo cache
         uses: actions/cache@v3
         continue-on-error: false
