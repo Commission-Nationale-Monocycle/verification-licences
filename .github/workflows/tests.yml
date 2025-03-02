@@ -33,7 +33,7 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
       - name: Install wasm-bindgen-cli
-        run: cargo install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli || true
       - name: Install cargo-tarpaulin (coverage tool)
         run: |
           cargo install --locked cargo-tarpaulin || true

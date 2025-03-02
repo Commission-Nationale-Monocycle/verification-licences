@@ -33,6 +33,6 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
       - name: Install wasm-bindgen-cli
-        run: cargo install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli || true
       - name: Build
         run: cargo build --verbose
