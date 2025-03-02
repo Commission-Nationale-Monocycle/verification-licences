@@ -1,5 +1,4 @@
 use std::fs;
-use std::fs::exists;
 use std::process::Command;
 
 fn main() {
@@ -13,11 +12,11 @@ fn main() {
     let wasm_file_path = &format!(
         "{compilation_path}/wasm32-unknown-unknown/{profile}/wasm_verification_licences.wasm"
     );
-    compile_wasm(compilation_path, profile, wasm_file_path);
+    compile_wasm(compilation_path, profile);
     generate_bindings(wasm_file_path, pkg_path);
 }
 
-fn compile_wasm(compilation_path: &str, profile: &str, wasm_file_path: &str) {
+fn compile_wasm(compilation_path: &str, profile: &str) {
     let target_dir = format!("--target-dir={compilation_path}");
     let mut build_args = vec![
         "build",
@@ -32,8 +31,6 @@ fn compile_wasm(compilation_path: &str, profile: &str, wasm_file_path: &str) {
         .args(build_args)
         .output()
         .expect("Failed to compile frontend.");
-
-    // assert!(exists(wasm_file_path).is_ok_and(|exists| exists));
 }
 
 /// Generate JS & TS bindings
@@ -44,10 +41,6 @@ fn generate_bindings(wasm_file_path: &str, pkg_path: &str) {
         .args(wasm_bindgen_args)
         .output()
         .expect("Failed to generate WASM wrappers.");
-
-    // assert!(
-    //     exists(format!("{pkg_path}/wasm_verification_licences.js")).is_ok_and(|exists| exists)
-    // );
 }
 
 fn delete_entity(compilation_path: &str) {
