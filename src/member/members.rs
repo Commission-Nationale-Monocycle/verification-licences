@@ -1,8 +1,7 @@
 use csv::Reader;
 use derive_getters::Getters;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::ops::Deref;
-
 use crate::member::MembershipDto;
 use serde::{Deserialize, Serialize};
 
@@ -53,7 +52,7 @@ impl Members {
     }
 }
 
-#[derive(Debug, Getters, Serialize, Deserialize, Clone, Eq, PartialEq)]
+#[derive(Debug, Getters, Serialize, Deserialize, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct MemberToCheck {
     membership_num: String,
     name: String,
@@ -64,7 +63,7 @@ impl MemberToCheck {
     /// Load members to check rom a CSV-formatted String, such as:
     /// `membership_num;name;firstname`
     /// Ignore malformed rows.
-    pub fn load_members_to_check_from_csv_string(members_to_check: &str) -> Vec<Self> {
+    pub fn load_members_to_check_from_csv_string(members_to_check: &str) -> BTreeSet<Self> {
         let mut reader = csv::ReaderBuilder::new()
             .delimiter(b';')
             .has_headers(false)
@@ -76,7 +75,7 @@ impl MemberToCheck {
     /// Load members to check rom a CSV-formatted Reader, such as:
     /// `membership_num;name;firstname`
     /// Ignore malformed rows.
-    fn load_members_to_check_from_csv<T>(reader: &mut Reader<T>) -> Vec<Self>
+    fn load_members_to_check_from_csv<T>(reader: &mut Reader<T>) -> BTreeSet<Self>
     where
         T: std::io::Read,
     {
@@ -89,13 +88,13 @@ impl MemberToCheck {
                     None
                 }
             })
-            .collect::<Vec<_>>()
+            .collect::<BTreeSet<_>>()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::{BTreeSet, HashMap};
 
     use crate::member::members::{MemberToCheck, Members};
     use crate::member::memberships::Memberships;
@@ -188,11 +187,11 @@ mod tests {
         let csv = format!("{membership_num};{name};{firstname}");
         let result = MemberToCheck::load_members_to_check_from_csv_string(&csv);
         assert_eq!(
-            vec![MemberToCheck {
+            BTreeSet::from(vec![MemberToCheck {
                 membership_num,
                 name,
                 firstname
-            }],
+            }]),
             result
         )
     }
@@ -203,7 +202,7 @@ mod tests {
         let name = "Doe".to_owned();
         let csv = format!("{membership_num};{name}");
         let result = MemberToCheck::load_members_to_check_from_csv_string(&csv);
-        let expected_result: Vec<MemberToCheck> = vec![];
+        let expected_result = BTreeSet::new();
         assert_eq!(expected_result, result)
     }
     // endregion

@@ -7,6 +7,7 @@ use crate::web::api::members_state::MembersState;
 use rocket::State;
 use serde_json::json;
 use std::sync::Mutex;
+use rocket::form::Form;
 
 /// Download memberships csv file from remote provided in config,
 /// write said file into filesystem
@@ -52,7 +53,7 @@ pub async fn download_memberships(
 #[post("/members/check", data = "<members_to_check>")]
 pub async fn check_memberships(
     members_state: &State<Mutex<MembersState>>,
-    members_to_check: String,
+    members_to_check: Form<String>,
 ) -> Result<String, String> {
     let members_to_check = MemberToCheck::load_members_to_check_from_csv_string(&members_to_check);
     let members_state = members_state.lock().map_err(log_message_and_return(
@@ -61,6 +62,7 @@ pub async fn check_memberships(
     ))?;
 
     let members: &Members = members_state.members();
+    let members_to_check = members_to_check.into_iter().collect::<Vec<_>>();
     let vec = members.check_members(&members_to_check);
 
     Ok(json!(vec).to_string())

@@ -1,10 +1,32 @@
 {% extends "base" %}
 
 {% block content %}
-    <form action="/api/check_memberships">
-        <label></label>
-        <input name="members_to_check" type="file" accept=".text/csv,.csv"/>
+    <div>
+        <label for="members_to_check_picker">Sélectionnez le fichier contenant les licences à vérifier</label>
+        <input id="members_to_check_picker"
+               name="members_to_check_picker"
+               type="file"
+               accept=".text/csv,.csv"
+               oninput="app.handle_members_to_check_file(this)"/>
+    </div>
+    <form id="check_members_form"
+          action="/api/members/check"
+          method="post">
+        <input id="members_to_check"
+               name="members_to_check"
+               type="hidden"
+               required>
+        <div id="members_to_check_table" class="flex flex-col md:flex-row flex-wrap">
+
+        </div>
+        <div id="wrong_lines_paragraph">
+
+        </div>
         <p></p>
-        <input type="submit" value="Vérifier les licences">
+        <input id="submit_members" type="submit" value="Vérifier les licences" disabled>
     </form>
+
+    <div id="checked_members" class="flex flex-col md:flex-row flex-wrap">
+
+    </div>
 {% endblock content %}
