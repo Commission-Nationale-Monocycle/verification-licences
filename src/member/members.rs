@@ -187,7 +187,7 @@ mod tests {
         let csv = format!("{membership_num};{name};{firstname}");
         let result = MemberToCheck::load_members_to_check_from_csv_string(&csv);
         assert_eq!(
-            BTreeSet::from(vec![MemberToCheck {
+            BTreeSet::from_iter(vec![MemberToCheck {
                 membership_num,
                 name,
                 firstname
