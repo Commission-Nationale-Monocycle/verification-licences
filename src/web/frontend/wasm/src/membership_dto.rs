@@ -24,7 +24,7 @@ pub struct MembershipDto {
 impl OptionalCardCreator for MembershipDto {
     fn create_card_from_optional(element: &Option<&Self>, document: &Document) -> Element {
         let container = create_element_with_classes(
-            &document,
+            document,
             "div",
             None,
             None,
@@ -35,24 +35,24 @@ impl OptionalCardCreator for MembershipDto {
             let firstname = format!("Prénom : {}", membership_dto.firstname());
             let end_date = format!(
                 "Fin de l'adhésion : {}",
-                membership_dto.end_date().format("%d/%m/%Y").to_string()
+                membership_dto.end_date().format("%d/%m/%Y")
             );
             let email_address = format!("Adresse mail : {}", membership_dto.email_address());
 
             create_element_with_class(
-                &document,
+                document,
                 "div",
                 Some(&container),
                 Some("Membre associé au numéro d'adhésion fourni"),
                 "font-semibold",
             );
-            create_element(&document, "div", Some(&container), Some(&name));
-            create_element(&document, "div", Some(&container), Some(&firstname));
-            create_element(&document, "div", Some(&container), Some(&end_date));
-            create_element(&document, "div", Some(&container), Some(&email_address));
+            create_element(document, "div", Some(&container), Some(&name));
+            create_element(document, "div", Some(&container), Some(&firstname));
+            create_element(document, "div", Some(&container), Some(&end_date));
+            create_element(document, "div", Some(&container), Some(&email_address));
         } else {
             create_element_with_class(
-                &document,
+                document,
                 "div",
                 Some(&container),
                 Some("Aucune adhésion trouvée"),

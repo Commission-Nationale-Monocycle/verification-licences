@@ -16,7 +16,7 @@ pub struct CheckedMember {
 impl CardCreator for CheckedMember {
     fn create_card(&self, document: &Document) -> Element {
         let container = create_element_with_classes(
-            &document,
+            document,
             "div",
             None,
             None,
@@ -34,11 +34,11 @@ impl CardCreator for CheckedMember {
             ],
         );
 
-        let member_to_check_card = self.member_to_check.create_card(&document);
+        let member_to_check_card = self.member_to_check.create_card(document);
         append_child(&container, &member_to_check_card);
 
         let membership_card =
-            MembershipDto::create_card_from_optional(&self.membership_dto.as_ref(), &document);
+            MembershipDto::create_card_from_optional(&self.membership_dto.as_ref(), document);
         append_child(&container, &membership_card);
 
         {

@@ -71,7 +71,7 @@ pub fn get_document() -> Document {
 pub fn get_element_by_id(document: &Document, id: &str) -> Element {
     document
         .get_element_by_id(id)
-        .expect(&format!("`{id}` element does not exist"))
+        .unwrap_or_else(|| panic!("`{id}` element does not exist"))
 }
 
 pub fn get_element_by_id_dyn<T: JsCast>(document: &Document, id: &str) -> T {
@@ -79,13 +79,13 @@ pub fn get_element_by_id_dyn<T: JsCast>(document: &Document, id: &str) -> T {
 }
 
 pub fn get_value_from_input(document: &Document, id: &str) -> String {
-    get_element_by_id(&document, id)
+    get_element_by_id(document, id)
         .get_attribute("value")
-        .expect(&format!("`{id}` input does not contain text"))
+        .unwrap_or_else(|| panic!("`{id}` input does not contain text"))
 }
 
 pub fn append_child(container: &Element, child: &Element) {
-    container.append_child(&child).expect("can't append child");
+    container.append_child(child).expect("can't append child");
 }
 
 pub fn clear_element(element: &Element) {

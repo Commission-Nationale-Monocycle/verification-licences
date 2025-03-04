@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use web_sys::{Document, Element};
 
-#[derive(Debug, Getters, Deserialize, Serialize, Clone, Eq, PartialEq, Ord)]
+#[derive(Debug, Getters, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct MemberToCheck {
     membership_num: String,
     name: String,
@@ -29,17 +29,17 @@ impl CardCreator for MemberToCheck {
         let firstname = format!("Prénom : {}", self.firstname());
 
         let container =
-            create_element_with_classes(&document, "div", None, None, &["flex-shrink-0", "m-2"]);
+            create_element_with_classes(document, "div", None, None, &["flex-shrink-0", "m-2"]);
         create_element_with_class(
-            &document,
+            document,
             "div",
             Some(&container),
             Some("Membre à vérifier"),
             "font-semibold",
         );
-        create_element(&document, "div", Some(&container), Some(&membership_num));
-        create_element(&document, "div", Some(&container), Some(&name));
-        create_element(&document, "div", Some(&container), Some(&firstname));
+        create_element(document, "div", Some(&container), Some(&membership_num));
+        create_element(document, "div", Some(&container), Some(&name));
+        create_element(document, "div", Some(&container), Some(&firstname));
 
         container
     }
@@ -47,12 +47,18 @@ impl CardCreator for MemberToCheck {
 
 impl PartialOrd for MemberToCheck {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for MemberToCheck {
+    fn cmp(&self, other: &Self) -> Ordering {
         if self.name != other.name {
-            self.name.partial_cmp(other.name())
+            self.name.cmp(other.name())
         } else if self.firstname != other.firstname {
-            self.firstname().partial_cmp(other.firstname())
+            self.firstname().cmp(other.firstname())
         } else {
-            self.membership_num.partial_cmp(&other.membership_num)
+            self.membership_num.cmp(&other.membership_num)
         }
     }
 }
