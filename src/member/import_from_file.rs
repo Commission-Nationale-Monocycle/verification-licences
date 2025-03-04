@@ -141,7 +141,6 @@ mod tests {
     use chrono::NaiveDate;
     use regex::bytes::Regex;
 
-    use crate::member::MembershipDto;
     use crate::member::error::Error::{
         CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound,
     };
@@ -150,6 +149,7 @@ mod tests {
         find_file, group_members_by_membership, import_from_file, load_memberships,
     };
     use crate::member::members::Members;
+    use crate::member::MembershipDto;
     use crate::member::memberships::Memberships;
     use crate::member::tests::{
         get_expected_member, get_malformed_member_as_csv, get_member_as_csv,
