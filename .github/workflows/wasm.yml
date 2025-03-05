@@ -34,7 +34,6 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          components: rustfmt, clippy
       - name: Install wasm32 target
         run: rustup target add wasm32-unknown-unknown
       - name: Install wasm-bindgen-cli
@@ -62,11 +61,11 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build-wasm"
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-clippy-wasm"
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          components: rustfmt, clippy
+          components: clippy
       - name: Clippy
         run: cargo clippy

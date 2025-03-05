@@ -1,4 +1,4 @@
-name: Bin
+name: DTO
 
 on:
   push:
@@ -13,6 +13,9 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./dto
 
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +29,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build-bin"
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build-dto"
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
@@ -36,6 +39,9 @@ jobs:
 
   clippy:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./dto
 
     steps:
       - uses: actions/checkout@v4
@@ -49,7 +55,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-clippy-bin"
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-clippy-dto"
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
@@ -60,6 +66,9 @@ jobs:
 
   tests:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./dto
 
     steps:
       - uses: actions/checkout@v4
@@ -73,7 +82,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-tests-bin"
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-tests-dto"
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
