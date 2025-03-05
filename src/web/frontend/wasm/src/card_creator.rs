@@ -1,5 +1,5 @@
 use web_sys::{Document, Element};
-use dto::membership::MembershipDto;
+use dto::membership::Membership;
 use crate::utils::{create_element, create_element_with_class, create_element_with_classes};
 
 pub trait CardCreator {
@@ -10,7 +10,7 @@ pub trait OptionalCardCreator {
     fn create_card_from_optional(element: &Option<&Self>, document: &Document) -> Element;
 }
 
-impl OptionalCardCreator for MembershipDto {
+impl OptionalCardCreator for Membership {
     fn create_card_from_optional(element: &Option<&Self>, document: &Document) -> Element {
         let container = create_element_with_classes(
             document,

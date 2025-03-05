@@ -2,7 +2,7 @@ use crate::card_creator::{CardCreator, OptionalCardCreator};
 use crate::member_to_check::MemberToCheck;
 use crate::utils::{append_child, create_element_with_classes};
 use chrono::Utc;
-use dto::membership::MembershipDto;
+use dto::membership::Membership;
 use serde::Deserialize;
 use std::cmp::Ordering;
 use web_sys::{Document, Element};
@@ -10,7 +10,7 @@ use web_sys::{Document, Element};
 #[derive(Deserialize, PartialEq)]
 pub struct CheckedMember {
     member_to_check: MemberToCheck,
-    membership_dto: Option<MembershipDto>,
+    membership_dto: Option<Membership>,
 }
 
 impl CardCreator for CheckedMember {
@@ -38,7 +38,7 @@ impl CardCreator for CheckedMember {
         append_child(&container, &member_to_check_card);
 
         let membership_card =
-            MembershipDto::create_card_from_optional(&self.membership_dto.as_ref(), document);
+            Membership::create_card_from_optional(&self.membership_dto.as_ref(), document);
         append_child(&container, &membership_card);
 
         {

@@ -5,7 +5,7 @@ use std::sync::Mutex;
 use crate::member::members::Members;
 use crate::member::memberships::Memberships;
 use crate::web::api::members_state::MembersState;
-use dto::membership::MembershipDto;
+use dto::membership::Membership;
 use rocket_dyn_templates::{Template, context};
 
 #[get("/")]
@@ -29,7 +29,7 @@ pub async fn hello(name: &str) -> Template {
 pub async fn list_memberships(members_state: &State<Mutex<MembersState>>) -> Template {
     let members = members_state.lock().unwrap();
     let members: &Members = members.members();
-    let memberships: Vec<&MembershipDto> = members
+    let memberships: Vec<&Membership> = members
         .values()
         .filter_map(Memberships::find_last_membership)
         .collect();

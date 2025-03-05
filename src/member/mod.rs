@@ -3,7 +3,7 @@ use std::ffi::OsStr;
 use crate::member::error::Error;
 use chrono::NaiveDate;
 use derive_getters::Getters;
-use dto::membership::MembershipDto;
+use dto::membership::Membership;
 use serde::Deserialize;
 
 pub mod config;
@@ -25,7 +25,7 @@ pub fn get_members_file_folder() -> &'static OsStr {
 }
 
 #[derive(Debug, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
-pub struct Membership {
+pub struct ImportedMembership {
     #[serde(alias = "Nom d'usage")]
     name: String,
     #[serde(alias = "Prénom")]
@@ -61,9 +61,9 @@ pub struct Membership {
     structure_code: String,
 }
 
-impl From<Membership> for MembershipDto {
-    fn from(membership: Membership) -> Self {
-        MembershipDto::new(
+impl From<ImportedMembership> for Membership {
+    fn from(membership: ImportedMembership) -> Self {
+        Membership::new(
             membership.name,
             membership.firstname,
             membership.gender,
@@ -133,13 +133,13 @@ pub mod tests {
     use parameterized::ide;
     use parameterized::parameterized;
 
-    use crate::member::Membership;
+    use crate::member::ImportedMembership;
 
     ide!();
 
     #[test]
     fn should_deserialize_member() {
-        let membership = Membership {
+        let membership = ImportedMembership {
             name: "Doe".to_owned(),
             firstname: "John".to_owned(),
             gender: "M".to_string(),
@@ -162,7 +162,7 @@ pub mod tests {
 
     #[test]
     fn should_deserialize_when_empty_date() {
-        let membership = Membership {
+        let membership = ImportedMembership {
             name: "Doe".to_owned(),
             firstname: "John".to_owned(),
             gender: "M".to_string(),
@@ -190,7 +190,7 @@ pub mod tests {
         let json = format!(
             r#"{{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"11-10-2000","Age":24,"Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"{payed}","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}}"#
         );
-        let result: Result<Membership, _> = serde_json::from_str(&json);
+        let result: Result<ImportedMembership, _> = serde_json::from_str(&json);
         assert!(result.is_err());
     }
 }

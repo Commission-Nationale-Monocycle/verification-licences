@@ -16,7 +16,7 @@ use crate::member::error::Error::{
 use crate::member::file_details::FileDetails;
 use crate::member::members::Members;
 use crate::member::memberships::Memberships;
-use crate::member::{Membership, MembershipDto};
+use crate::member::{ImportedMembership, Membership};
 use crate::tools::{log_message, log_message_and_return};
 
 pub fn import_from_file(filepath: &OsStr) -> Result<Members> {
@@ -28,13 +28,13 @@ pub fn import_from_file(filepath: &OsStr) -> Result<Members> {
     Ok(group_members_by_membership(members))
 }
 
-fn load_memberships<T>(reader: &mut Reader<T>) -> Vec<MembershipDto>
+fn load_memberships<T>(reader: &mut Reader<T>) -> Vec<Membership>
 where
     T: std::io::Read,
 {
     reader
         .deserialize()
-        .filter_map(|result: Result<Membership, _>| match result {
+        .filter_map(|result: Result<ImportedMembership, _>| match result {
             Ok(membership) => Some(membership.into()),
             Err(e) => {
                 log_message("Error while reading membership")(e);
@@ -44,7 +44,7 @@ where
         .collect::<Vec<_>>()
 }
 
-fn group_members_by_membership(memberships: Vec<MembershipDto>) -> Members {
+fn group_members_by_membership(memberships: Vec<Membership>) -> Members {
     let mut map = HashMap::new();
 
     memberships.into_iter().for_each(|membership| {
@@ -138,7 +138,7 @@ mod tests {
     use std::fs::File;
     use std::io::BufReader;
 
-    use crate::member::MembershipDto;
+    use crate::member::Membership;
     use crate::member::error::Error::{
         CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound,
     };
@@ -209,7 +209,7 @@ mod tests {
     // endregion
     #[test]
     fn should_group_members_by_membership() {
-        let jean = MembershipDto::new(
+        let jean = Membership::new(
             "1".to_string(),
             "Jean".to_string(),
             "".to_string(),
@@ -224,7 +224,7 @@ mod tests {
             "".to_string(),
         );
 
-        let michel = MembershipDto::new(
+        let michel = Membership::new(
             "1".to_string(),
             "Michel".to_string(),
             "".to_string(),
@@ -236,9 +236,9 @@ mod tests {
             Default::default(),
             false,
             "".to_string(),
-            "".to_string()
+            "".to_string(),
         );
-        let pierre = MembershipDto::new(
+        let pierre = Membership::new(
             "2".to_string(),
             "Pierre".to_string(),
             "".to_string(),
@@ -250,7 +250,7 @@ mod tests {
             Default::default(),
             false,
             "".to_string(),
-            "".to_string()
+            "".to_string(),
         );
 
         let expected_map: Members = Members::from(

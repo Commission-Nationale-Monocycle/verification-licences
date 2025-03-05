@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
 #[derive(Debug, Serialize, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
-pub struct MembershipDto {
+pub struct Membership {
     name: String,
     firstname: String,
     gender: String,
@@ -19,7 +19,7 @@ pub struct MembershipDto {
     structure_code: String,
 }
 
-impl MembershipDto {
+impl Membership {
     pub fn new(
         name: String,
         firstname: String,
@@ -51,13 +51,13 @@ impl MembershipDto {
     }
 }
 
-impl PartialOrd for MembershipDto {
+impl PartialOrd for Membership {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for MembershipDto {
+impl Ord for Membership {
     fn cmp(&self, other: &Self) -> Ordering {
         self.membership_number
             .cmp(&other.membership_number)
@@ -74,9 +74,9 @@ pub mod tests {
 
     ide!();
 
-    impl MembershipDto {
+    impl Membership {
         pub fn new_test(end_date: NaiveDate) -> Self {
-            MembershipDto {
+            Membership {
                 name: "".to_string(),
                 firstname: "".to_string(),
                 gender: "".to_string(),
@@ -102,8 +102,8 @@ pub mod tests {
     const MALFORMED_MEMBER_AS_CSV: &str =
         "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oops;30-09-2025;Non;My club;Z01234";
 
-    pub fn get_expected_member() -> MembershipDto {
-        MembershipDto {
+    pub fn get_expected_member() -> Membership {
+        Membership {
             name: "Doe".to_string(),
             firstname: "Jon".to_string(),
             gender: "H".to_string(),
@@ -144,8 +144,8 @@ pub mod tests {
         expected_result: Ordering,
     ) {
         let ((y1, m1, d1), (y2, m2, d2)) = end_dates;
-        let member1 = MembershipDto::new_test(NaiveDate::from_ymd_opt(y1, m1, d1).unwrap());
-        let member2 = MembershipDto::new_test(NaiveDate::from_ymd_opt(y2, m2, d2).unwrap());
+        let member1 = Membership::new_test(NaiveDate::from_ymd_opt(y1, m1, d1).unwrap());
+        let member2 = Membership::new_test(NaiveDate::from_ymd_opt(y2, m2, d2).unwrap());
         assert_eq!(Some(expected_result), member1.partial_cmp(&member2));
     }
 }
