@@ -1,16 +1,14 @@
 mod card_creator;
 mod checked_member;
-mod member_to_check;
 mod utils;
 
 use crate::card_creator::CardCreator;
 use crate::checked_member::CheckedMember;
-use crate::member_to_check::MemberToCheck;
 use crate::utils::{
     append_child, clear_element, get_document, get_element_by_id, get_element_by_id_dyn,
     get_value_from_input, get_window, remove_attribute, set_attribute,
 };
-use csv::StringRecord;
+use dto::member_to_check::MemberToCheck;
 use reqwest::Client;
 use std::collections::BTreeSet;
 use utils::create_element;
@@ -42,7 +40,8 @@ pub async fn handle_members_to_check_file(input: HtmlInputElement) -> Result<(),
         .as_string()
         .expect("csv file should contain only valid UTF-8 characters");
 
-    let (members_to_check, wrong_lines) = parse_csv(&csv_content).await?;
+    let (members_to_check, wrong_lines) =
+        MemberToCheck::load_members_to_check_from_csv_string(&csv_content);
 
     render_lines(&document, &csv_content, &members_to_check, &wrong_lines);
 
@@ -53,7 +52,7 @@ fn render_lines(
     document: &Document,
     csv_content: &str,
     members_to_check: &BTreeSet<MemberToCheck>,
-    wrong_lines: &[StringRecord],
+    wrong_lines: &[String],
 ) {
     let members_to_check_hidden_input = get_members_to_check_hidden_input(document);
     let members_to_check_table = get_members_to_check_table(document);
@@ -80,36 +79,6 @@ fn render_lines(
     }
 }
 
-async fn parse_csv(
-    csv_content: &str,
-) -> Result<(BTreeSet<MemberToCheck>, Vec<StringRecord>), JsValue> {
-    let mut reader = csv::ReaderBuilder::new()
-        .delimiter(b';')
-        .has_headers(false)
-        .from_reader(csv_content.as_bytes());
-
-    let mut members_to_check = BTreeSet::new();
-    let mut wrong_lines = vec![];
-
-    reader.records().for_each(|record| {
-        if let Ok(record) = record {
-            if record.len() != 3 {
-                wrong_lines.push(record);
-            } else {
-                members_to_check.insert(MemberToCheck::new(
-                    record.get(0).unwrap().to_owned(),
-                    record.get(1).unwrap().to_owned(),
-                    record.get(2).unwrap().to_owned(),
-                ));
-            }
-        } else {
-            println!("Error while reading member");
-        };
-    });
-
-    Ok((members_to_check, wrong_lines))
-}
-
 fn create_members_to_check_lines(
     document: &Document,
     members_to_check: &[&MemberToCheck],
@@ -120,7 +89,7 @@ fn create_members_to_check_lines(
         .collect()
 }
 
-fn create_wrong_lines(document: &Document, wrong_lines: &[StringRecord]) -> Element {
+fn create_wrong_lines(document: &Document, wrong_lines: &[String]) -> Element {
     let parent_text = if wrong_lines.len() == 1 {
         "La ligne suivante contient une ou des erreurs :"
     } else {
@@ -129,8 +98,7 @@ fn create_wrong_lines(document: &Document, wrong_lines: &[StringRecord]) -> Elem
     let parent = create_element(document, "div", None, Some(parent_text));
 
     wrong_lines.iter().for_each(|wrong_line| {
-        let line = wrong_line.iter().collect::<Vec<&str>>().join(";");
-        create_element(document, "p", Some(&parent), Some(&line));
+        create_element(document, "p", Some(&parent), Some(&wrong_line));
     });
 
     parent
@@ -142,11 +110,9 @@ fn add_submit_event_listener_to_form() {
     let document = get_document();
     let form = get_element_by_id_dyn::<HtmlFormElement>(&document, "check_members_form");
     let closure = Closure::wrap(Box::new(|e: Event| {
-        {
-            spawn_local(async move {
-                handle_form_submission(e).await;
-            });
-        }
+        spawn_local(async move {
+            handle_form_submission(e).await;
+        });
     }) as Box<dyn Fn(_)>);
     form.add_event_listener_with_event_listener("submit", closure.as_ref().unchecked_ref())
         .unwrap();

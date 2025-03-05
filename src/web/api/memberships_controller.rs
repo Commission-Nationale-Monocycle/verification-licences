@@ -1,9 +1,10 @@
 use crate::member::config::MembershipsProviderConfig;
 use crate::member::download::download_memberships_list;
 use crate::member::import_from_file::{clean_old_files, import_from_file};
-use crate::member::members::{MemberToCheck, Members};
+use crate::member::members::Members;
 use crate::tools::{log_message, log_message_and_return};
 use crate::web::api::members_state::MembersState;
+use dto::member_to_check::MemberToCheck;
 use rocket::State;
 use rocket::form::Form;
 use serde_json::json;
@@ -55,7 +56,16 @@ pub async fn check_memberships(
     members_state: &State<Mutex<MembersState>>,
     members_to_check: Form<String>,
 ) -> Result<String, String> {
-    let members_to_check = MemberToCheck::load_members_to_check_from_csv_string(&members_to_check);
+    let members_to_check =
+        match MemberToCheck::load_members_to_check_from_csv_string(&members_to_check) {
+            (members_to_check, wrong_lines) if wrong_lines.is_empty() => members_to_check,
+            (members_to_check, wrong_lines) => {
+                wrong_lines.iter().for_each(|wrong_line| {
+                    error!("Line couldn't be read: {wrong_line}");
+                });
+                members_to_check
+            }
+        };
     let members_state = members_state.lock().map_err(log_message_and_return(
         "Couldn't acquire lock",
         "Error while checking members.",

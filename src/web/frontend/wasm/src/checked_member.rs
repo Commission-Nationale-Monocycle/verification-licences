@@ -1,11 +1,11 @@
 use crate::card_creator::{CardCreator, OptionalCardCreator};
-use crate::member_to_check::MemberToCheck;
 use crate::utils::{append_child, create_element_with_classes};
 use chrono::Utc;
 use dto::membership::Membership;
 use serde::Deserialize;
 use std::cmp::Ordering;
 use web_sys::{Document, Element};
+use dto::member_to_check::MemberToCheck;
 
 #[derive(Deserialize, PartialEq)]
 pub struct CheckedMember {
