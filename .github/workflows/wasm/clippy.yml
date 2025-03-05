@@ -1,4 +1,4 @@
-name: Build
+name: Clippy
 
 on:
   push:
@@ -10,9 +10,11 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  clippy:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./wasm
 
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +28,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build"
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build-wasm"
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
@@ -34,5 +36,5 @@ jobs:
           components: rustfmt, clippy
       - name: Install wasm-bindgen-cli
         run: cargo install wasm-bindgen-cli || true
-      - name: Build
-        run: cargo build --verbose
+      - name: Clippy
+        run: cargo clippy

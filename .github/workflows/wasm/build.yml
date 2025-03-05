@@ -1,0 +1,42 @@
+name: Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./wasm
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up cargo cache
+        uses: actions/cache@v4
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build-wasm"
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli || true
+      - name: Build
+        run: cargo build --verbose
+      - name: Generate bindings
+        run: wasm-bindgen --target=web --out-dir=pkg target/wasm32-unknown-unknown/debug/wasm.wasm
