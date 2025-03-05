@@ -1,13 +1,12 @@
 mod card_creator;
-mod checked_member;
 mod utils;
 
 use crate::card_creator::CardCreator;
-use crate::checked_member::CheckedMember;
 use crate::utils::{
     append_child, clear_element, get_document, get_element_by_id, get_element_by_id_dyn,
     get_value_from_input, get_window, remove_attribute, set_attribute,
 };
+use dto::checked_member::CheckedMember;
 use dto::member_to_check::MemberToCheck;
 use reqwest::Client;
 use std::collections::BTreeSet;
