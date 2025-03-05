@@ -38,5 +38,9 @@ jobs:
         run: cargo install wasm-bindgen-cli || true
       - name: Build
         run: cargo build --verbose
+      - name: Install tree
+        run: apt install tree
+      - name: Run tree
+        run: tree
       - name: Generate bindings
         run: wasm-bindgen --target=web --out-dir=pkg target/wasm32-unknown-unknown/debug/wasm.wasm
