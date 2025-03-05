@@ -1,4 +1,4 @@
-name: Wasm - Build
+name: Wasm
 
 on:
   push:
@@ -42,3 +42,30 @@ jobs:
         run: cargo build --target=wasm32-unknown-unknown --verbose
       - name: Generate bindings
         run: wasm-bindgen --target=web --out-dir=pkg target/wasm32-unknown-unknown/debug/wasm.wasm
+
+  clippy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./wasm
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up cargo cache
+        uses: actions/cache@v4
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build-wasm"
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - name: Clippy
+        run: cargo clippy
