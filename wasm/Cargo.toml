@@ -34,6 +34,9 @@ reqwest = "0.12.12"
 chrono = { version = "0.4.39", features = ["serde"] }
 serde_json = "1.0.139"
 
+[dev-dependencies]
+wasm-bindgen-test = "0.3.50"
+
 [profile.release]
 # Tell `rustc` to optimize for small code size.
 opt-level = "s"

@@ -103,3 +103,16 @@ pub fn remove_attribute(element: &Element, name: &str) {
         .remove_attribute(name)
         .expect("can't remove attribute");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wasm_bindgen_test::*;
+
+    wasm_bindgen_test_configure!(run_in_browser);
+
+    #[wasm_bindgen_test]
+    fn should_get_window() {
+        get_window();
+    }
+}
