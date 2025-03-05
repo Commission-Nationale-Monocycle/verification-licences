@@ -20,6 +20,7 @@ pub struct Membership {
 }
 
 impl Membership {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: String,
         firstname: String,
