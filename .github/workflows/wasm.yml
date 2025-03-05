@@ -69,3 +69,31 @@ jobs:
           components: clippy
       - name: Clippy
         run: cargo clippy
+
+  tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./wasm
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up cargo cache
+        uses: actions/cache@v4
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-tests-wasm"
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Install wasm-bindgen-cli & wasm-pack
+        run: cargo install wasm-bindgen-cli wasm-pack || true
+      - name: Run tests
+        run: wasm-pack test --headless --firefox
