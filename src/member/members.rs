@@ -1,5 +1,6 @@
 use crate::member::Membership;
 use crate::member::memberships::Memberships;
+use dto::checked_member::CheckedMember;
 use dto::member_to_check::MemberToCheck;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -25,13 +26,15 @@ impl From<HashMap<String, Memberships>> for Members {
 }
 
 impl Members {
-    pub fn check_members<'a>(
-        &self,
-        members_to_check: &'a [MemberToCheck],
-    ) -> Vec<(&'a MemberToCheck, Option<&Membership>)> {
+    pub fn check_members(&self, members_to_check: &[MemberToCheck]) -> Vec<CheckedMember> {
         members_to_check
             .iter()
-            .map(|member_to_check| (member_to_check, self.check_member(member_to_check)))
+            .map(|member_to_check| {
+                CheckedMember::new(
+                    member_to_check.clone(),
+                    self.check_member(member_to_check).cloned(),
+                )
+            })
             .collect()
     }
 
@@ -53,6 +56,7 @@ impl Members {
 mod tests {
     use crate::member::members::Members;
     use crate::member::memberships::Memberships;
+    use dto::checked_member::CheckedMember;
     use dto::member_to_check::MemberToCheck;
     use dto::membership::tests::{
         MEMBER_FIRSTNAME, MEMBER_NAME, MEMBERSHIP_NUMBER, get_expected_member,
@@ -74,7 +78,10 @@ mod tests {
         );
 
         assert_eq!(
-            vec![(&member_to_check.clone(), Some(&membership))],
+            vec![CheckedMember::new(
+                member_to_check.clone(),
+                Some(membership)
+            )],
             members.check_members(&[member_to_check])
         );
     }
@@ -94,7 +101,7 @@ mod tests {
         );
 
         assert_eq!(
-            vec![(&member_to_check.clone(), None)],
+            vec![CheckedMember::new(member_to_check.clone(), None)],
             members.check_members(&[member_to_check])
         );
     }
