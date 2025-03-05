@@ -1,13 +1,12 @@
 **/.git/
 **/.github/
 **/.idea/
-**/target/
-**/target-wasm/
 **/.dockerignore
 **/.gitignore
+**/pkg/
+**/target/
 data/
 demo_data/
-public/static/pkg/
 Dockerfile
 LICENSE
 tarpaulin-report.html

@@ -1,5 +1,5 @@
 [package]
-name = "wasm-verification-licences"
+name = "wasm"
 version = "0.1.0"
 authors = ["Maxence Cornaton <maxence.cornaton+git@proton.me>"]
 edition = "2024"
@@ -12,7 +12,7 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 # Internal
-dto = {path = "../../../../dto"}
+dto = {path = "../dto"}
 
 # Wasm generation & tools
 wasm-bindgen = "0.2.100"
@@ -28,8 +28,6 @@ console_error_panic_hook = { version = "0.1.7", optional = true }
 web-sys = { version = "0.3.77", features = ["Document", "Element", "Event", "EventListener", "File", "FileList", "HtmlFormElement", "HtmlInputElement", "Location", "Window"] }
 
 # Other tools
-csv = "1.3.1"
-derive-getters = "0.5.0"
 serde = { version = "1.0.218", features = ["derive"] }
 log = "0.4.26"
 reqwest = "0.12.12"

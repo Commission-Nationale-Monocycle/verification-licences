@@ -1,7 +1,6 @@
 **/.idea/
+**/pkg/
 **/target/
-**/target-wasm/
 data/
 demo_data/
-public/static/pkg/
 tarpaulin-report.html

@@ -16,8 +16,8 @@
     </footer>
 
     <script type="module">
-        import init from '/pkg/wasm_verification_licences.js';
-        import * as app from '/pkg/wasm_verification_licences.js';
+        import init from '/pkg/wasm.js';
+        import * as app from '/pkg/wasm.js';
 
         async function run() {
             await init();
