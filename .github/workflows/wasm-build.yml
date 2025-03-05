@@ -37,7 +37,7 @@ jobs:
       - name: Install wasm-bindgen-cli
         run: cargo install wasm-bindgen-cli || true
       - name: Build
-        run: cargo build --verbose
+        run: cargo build --target=wasm32-unknown-unknown --verbose
       - name: Install tree
         run: sudo apt install tree
       - name: Run tree
