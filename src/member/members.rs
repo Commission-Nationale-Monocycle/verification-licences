@@ -95,12 +95,9 @@ impl MemberToCheck {
 #[cfg(test)]
 mod tests {
     use std::collections::{BTreeSet, HashMap};
-
+    use dto::membership::tests::{get_expected_member, MEMBERSHIP_NUMBER, MEMBER_FIRSTNAME, MEMBER_NAME};
     use crate::member::members::{MemberToCheck, Members};
     use crate::member::memberships::Memberships;
-    use crate::member::tests::{
-        MEMBER_FIRSTNAME, MEMBER_NAME, MEMBERSHIP_NUMBER, get_expected_member,
-    };
 
     // region check_members
     #[test]

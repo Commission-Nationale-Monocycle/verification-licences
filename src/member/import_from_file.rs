@@ -138,9 +138,7 @@ mod tests {
     use std::fs::File;
     use std::io::BufReader;
 
-    use chrono::NaiveDate;
-    use regex::bytes::Regex;
-
+    use crate::member::MembershipDto;
     use crate::member::error::Error::{
         CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound,
     };
@@ -149,12 +147,13 @@ mod tests {
         find_file, group_members_by_membership, import_from_file, load_memberships,
     };
     use crate::member::members::Members;
-    use crate::member::MembershipDto;
     use crate::member::memberships::Memberships;
-    use crate::member::tests::{
+    use crate::tools::test::tests::temp_dir;
+    use chrono::NaiveDate;
+    use dto::membership::tests::{
         get_expected_member, get_malformed_member_as_csv, get_member_as_csv,
     };
-    use crate::tools::test::tests::temp_dir;
+    use regex::bytes::Regex;
 
     // region import_from_file
     #[test]
@@ -210,49 +209,49 @@ mod tests {
     // endregion
     #[test]
     fn should_group_members_by_membership() {
-        let jean = MembershipDto {
-            name: "1".to_string(),
-            firstname: "Jean".to_string(),
-            gender: "".to_string(),
-            birthdate: None,
-            age: None,
-            membership_number: "1".to_string(),
-            email_address: "".to_string(),
-            payed: false,
-            end_date: Default::default(),
-            expired: false,
-            club: "".to_string(),
-            structure_code: "".to_string(),
-        };
+        let jean = MembershipDto::new(
+            "1".to_string(),
+            "Jean".to_string(),
+            "".to_string(),
+            None,
+            None,
+            "1".to_string(),
+            "".to_string(),
+            false,
+            Default::default(),
+            false,
+            "".to_string(),
+            "".to_string(),
+        );
 
-        let michel = MembershipDto {
-            name: "1".to_string(),
-            firstname: "Michel".to_string(),
-            gender: "".to_string(),
-            birthdate: None,
-            age: None,
-            membership_number: "1".to_string(),
-            email_address: "".to_string(),
-            payed: false,
-            end_date: Default::default(),
-            expired: false,
-            club: "".to_string(),
-            structure_code: "".to_string(),
-        };
-        let pierre = MembershipDto {
-            name: "2".to_string(),
-            firstname: "Pierre".to_string(),
-            gender: "".to_string(),
-            birthdate: None,
-            age: None,
-            membership_number: "2".to_string(),
-            email_address: "".to_string(),
-            payed: false,
-            end_date: Default::default(),
-            expired: false,
-            club: "".to_string(),
-            structure_code: "".to_string(),
-        };
+        let michel = MembershipDto::new(
+            "1".to_string(),
+            "Michel".to_string(),
+            "".to_string(),
+            None,
+            None,
+            "1".to_string(),
+            "".to_string(),
+            false,
+            Default::default(),
+            false,
+            "".to_string(),
+            "".to_string()
+        );
+        let pierre = MembershipDto::new(
+            "2".to_string(),
+            "Pierre".to_string(),
+            "".to_string(),
+            None,
+            None,
+            "2".to_string(),
+            "".to_string(),
+            false,
+            Default::default(),
+            false,
+            "".to_string(),
+            "".to_string()
+        );
 
         let expected_map: Members = Members::from(
             [

@@ -1,7 +1,6 @@
 mod card_creator;
 mod checked_member;
 mod member_to_check;
-mod membership_dto;
 mod utils;
 
 use crate::card_creator::CardCreator;
