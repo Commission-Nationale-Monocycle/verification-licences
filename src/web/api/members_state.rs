@@ -63,15 +63,14 @@ mod tests {
     use std::fs;
     use std::fs::File;
 
-    use chrono::NaiveDate;
-
     use crate::member::error::Error::CantBrowseThroughFiles;
     use crate::member::file_details::FileDetails;
     use crate::member::members::Members;
     use crate::member::memberships::Memberships;
-    use crate::member::tests::{MEMBERSHIP_NUMBER, get_expected_member, get_member_as_csv};
     use crate::tools::test::tests::temp_dir;
     use crate::web::api::members_state::MembersState;
+    use chrono::NaiveDate;
+    use dto::membership::tests::{MEMBERSHIP_NUMBER, get_expected_member, get_member_as_csv};
 
     // region load_members_file_details
     #[test]

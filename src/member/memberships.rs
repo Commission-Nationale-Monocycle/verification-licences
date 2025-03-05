@@ -4,15 +4,15 @@ use std::ops::{Deref, DerefMut};
 use derive_getters::Getters;
 use rocket::serde::{Deserialize, Serialize};
 
-use crate::member::MembershipDto;
+use crate::member::Membership;
 
 #[derive(Debug, Serialize, Deserialize, Default, Eq, PartialEq, Getters)]
 pub struct Memberships {
-    memberships: BTreeSet<MembershipDto>,
+    memberships: BTreeSet<Membership>,
 }
 
 impl Deref for Memberships {
-    type Target = BTreeSet<MembershipDto>;
+    type Target = BTreeSet<Membership>;
 
     fn deref(&self) -> &Self::Target {
         &self.memberships
@@ -25,8 +25,8 @@ impl DerefMut for Memberships {
     }
 }
 
-impl<const N: usize> From<[MembershipDto; N]> for Memberships {
-    fn from(value: [MembershipDto; N]) -> Self {
+impl<const N: usize> From<[Membership; N]> for Memberships {
+    fn from(value: [Membership; N]) -> Self {
         Memberships {
             memberships: BTreeSet::from(value),
         }
@@ -34,7 +34,7 @@ impl<const N: usize> From<[MembershipDto; N]> for Memberships {
 }
 
 impl Memberships {
-    pub fn find_last_membership(&self) -> Option<&MembershipDto> {
+    pub fn find_last_membership(&self) -> Option<&Membership> {
         self.memberships.iter().max()
     }
 }
@@ -45,15 +45,15 @@ mod tests {
 
     use chrono::NaiveDate;
 
-    use crate::member::MembershipDto;
+    use crate::member::Membership;
     use crate::member::memberships::Memberships;
 
     #[test]
     fn should_retrieve_last_membership() {
         let first_end_date = NaiveDate::from_ymd_opt(2024, 9, 30).unwrap();
         let second_end_date = NaiveDate::from_ymd_opt(2025, 9, 30).unwrap();
-        let first_membership = MembershipDto::new_test(first_end_date);
-        let second_membership = MembershipDto::new_test(second_end_date);
+        let first_membership = Membership::new_test(first_end_date);
+        let second_membership = Membership::new_test(second_end_date);
 
         let memberships = Memberships::from([first_membership.clone(), second_membership.clone()]);
         assert_eq!(Some(&second_membership), memberships.find_last_membership());

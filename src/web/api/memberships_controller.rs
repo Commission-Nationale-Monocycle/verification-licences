@@ -5,9 +5,9 @@ use crate::member::members::{MemberToCheck, Members};
 use crate::tools::{log_message, log_message_and_return};
 use crate::web::api::members_state::MembersState;
 use rocket::State;
+use rocket::form::Form;
 use serde_json::json;
 use std::sync::Mutex;
-use rocket::form::Form;
 
 /// Download memberships csv file from remote provided in config,
 /// write said file into filesystem
@@ -72,11 +72,11 @@ pub async fn check_memberships(
 mod tests {
     use crate::member::config::MembershipsProviderConfig;
     use crate::member::members::Members;
-    use crate::member::tests::{MEMBERSHIP_NUMBER, get_expected_member, get_member_as_csv};
     use crate::tools::env_args::with_env_args;
     use crate::tools::test::tests::temp_dir;
     use crate::web::api::members_state::MembersState;
     use crate::web::api::memberships_controller::download_memberships;
+    use dto::membership::tests::{MEMBERSHIP_NUMBER, get_expected_member, get_member_as_csv};
     use encoding::all::ISO_8859_1;
     use encoding::{EncoderTrap, Encoding};
     use regex::Regex;

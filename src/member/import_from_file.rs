@@ -16,7 +16,7 @@ use crate::member::error::Error::{
 use crate::member::file_details::FileDetails;
 use crate::member::members::Members;
 use crate::member::memberships::Memberships;
-use crate::member::{Membership, MembershipDto};
+use crate::member::{ImportedMembership, Membership};
 use crate::tools::{log_message, log_message_and_return};
 
 pub fn import_from_file(filepath: &OsStr) -> Result<Members> {
@@ -28,13 +28,13 @@ pub fn import_from_file(filepath: &OsStr) -> Result<Members> {
     Ok(group_members_by_membership(members))
 }
 
-fn load_memberships<T>(reader: &mut Reader<T>) -> Vec<MembershipDto>
+fn load_memberships<T>(reader: &mut Reader<T>) -> Vec<Membership>
 where
     T: std::io::Read,
 {
     reader
         .deserialize()
-        .filter_map(|result: Result<Membership, _>| match result {
+        .filter_map(|result: Result<ImportedMembership, _>| match result {
             Ok(membership) => Some(membership.into()),
             Err(e) => {
                 log_message("Error while reading membership")(e);
@@ -44,7 +44,7 @@ where
         .collect::<Vec<_>>()
 }
 
-fn group_members_by_membership(memberships: Vec<MembershipDto>) -> Members {
+fn group_members_by_membership(memberships: Vec<Membership>) -> Members {
     let mut map = HashMap::new();
 
     memberships.into_iter().for_each(|membership| {
@@ -138,9 +138,7 @@ mod tests {
     use std::fs::File;
     use std::io::BufReader;
 
-    use chrono::NaiveDate;
-    use regex::bytes::Regex;
-
+    use crate::member::Membership;
     use crate::member::error::Error::{
         CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound,
     };
@@ -149,12 +147,13 @@ mod tests {
         find_file, group_members_by_membership, import_from_file, load_memberships,
     };
     use crate::member::members::Members;
-    use crate::member::MembershipDto;
     use crate::member::memberships::Memberships;
-    use crate::member::tests::{
+    use crate::tools::test::tests::temp_dir;
+    use chrono::NaiveDate;
+    use dto::membership::tests::{
         get_expected_member, get_malformed_member_as_csv, get_member_as_csv,
     };
-    use crate::tools::test::tests::temp_dir;
+    use regex::bytes::Regex;
 
     // region import_from_file
     #[test]
@@ -210,49 +209,49 @@ mod tests {
     // endregion
     #[test]
     fn should_group_members_by_membership() {
-        let jean = MembershipDto {
-            name: "1".to_string(),
-            firstname: "Jean".to_string(),
-            gender: "".to_string(),
-            birthdate: None,
-            age: None,
-            membership_number: "1".to_string(),
-            email_address: "".to_string(),
-            payed: false,
-            end_date: Default::default(),
-            expired: false,
-            club: "".to_string(),
-            structure_code: "".to_string(),
-        };
+        let jean = Membership::new(
+            "1".to_string(),
+            "Jean".to_string(),
+            "".to_string(),
+            None,
+            None,
+            "1".to_string(),
+            "".to_string(),
+            false,
+            Default::default(),
+            false,
+            "".to_string(),
+            "".to_string(),
+        );
 
-        let michel = MembershipDto {
-            name: "1".to_string(),
-            firstname: "Michel".to_string(),
-            gender: "".to_string(),
-            birthdate: None,
-            age: None,
-            membership_number: "1".to_string(),
-            email_address: "".to_string(),
-            payed: false,
-            end_date: Default::default(),
-            expired: false,
-            club: "".to_string(),
-            structure_code: "".to_string(),
-        };
-        let pierre = MembershipDto {
-            name: "2".to_string(),
-            firstname: "Pierre".to_string(),
-            gender: "".to_string(),
-            birthdate: None,
-            age: None,
-            membership_number: "2".to_string(),
-            email_address: "".to_string(),
-            payed: false,
-            end_date: Default::default(),
-            expired: false,
-            club: "".to_string(),
-            structure_code: "".to_string(),
-        };
+        let michel = Membership::new(
+            "1".to_string(),
+            "Michel".to_string(),
+            "".to_string(),
+            None,
+            None,
+            "1".to_string(),
+            "".to_string(),
+            false,
+            Default::default(),
+            false,
+            "".to_string(),
+            "".to_string(),
+        );
+        let pierre = Membership::new(
+            "2".to_string(),
+            "Pierre".to_string(),
+            "".to_string(),
+            None,
+            None,
+            "2".to_string(),
+            "".to_string(),
+            false,
+            Default::default(),
+            false,
+            "".to_string(),
+            "".to_string(),
+        );
 
         let expected_map: Members = Members::from(
             [

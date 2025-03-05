@@ -1,0 +1,16 @@
+[package]
+name = "dto"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+test = []
+
+[dependencies]
+serde = { version = "1.0.218", features = ["derive"] }
+derive-getters = "0.5.0"
+chrono = { version = "0.4.40", features = ["serde"]}
+parameterized = "2.0.0"
+
+[dev-dependencies]
+parameterized = "2.0.0"

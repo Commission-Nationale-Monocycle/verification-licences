@@ -2,7 +2,7 @@ use csv::Reader;
 use derive_getters::Getters;
 use std::collections::{BTreeSet, HashMap};
 use std::ops::Deref;
-use crate::member::MembershipDto;
+use crate::member::Membership;
 use serde::{Deserialize, Serialize};
 
 use crate::member::memberships::Memberships;
@@ -31,14 +31,14 @@ impl Members {
     pub fn check_members<'a>(
         &self,
         members_to_check: &'a [MemberToCheck],
-    ) -> Vec<(&'a MemberToCheck, Option<&MembershipDto>)> {
+    ) -> Vec<(&'a MemberToCheck, Option<&Membership>)> {
         members_to_check
             .iter()
             .map(|member_to_check| (member_to_check, self.check_member(member_to_check)))
             .collect()
     }
 
-    fn check_member(&self, member_to_check: &MemberToCheck) -> Option<&MembershipDto> {
+    fn check_member(&self, member_to_check: &MemberToCheck) -> Option<&Membership> {
         let membership_num_to_check = member_to_check.membership_num().clone();
 
         self.iter()
@@ -95,12 +95,9 @@ impl MemberToCheck {
 #[cfg(test)]
 mod tests {
     use std::collections::{BTreeSet, HashMap};
-
+    use dto::membership::tests::{get_expected_member, MEMBERSHIP_NUMBER, MEMBER_FIRSTNAME, MEMBER_NAME};
     use crate::member::members::{MemberToCheck, Members};
     use crate::member::memberships::Memberships;
-    use crate::member::tests::{
-        MEMBER_FIRSTNAME, MEMBER_NAME, MEMBERSHIP_NUMBER, get_expected_member,
-    };
 
     // region check_members
     #[test]

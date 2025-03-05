@@ -1,11 +1,10 @@
-use std::cmp::Ordering;
 use std::ffi::OsStr;
 
+use crate::member::error::Error;
 use chrono::NaiveDate;
 use derive_getters::Getters;
-use serde::{Deserialize, Serialize};
-
-use crate::member::error::Error;
+use dto::membership::Membership;
+use serde::Deserialize;
 
 pub mod config;
 pub mod download;
@@ -26,7 +25,7 @@ pub fn get_members_file_folder() -> &'static OsStr {
 }
 
 #[derive(Debug, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
-pub struct Membership {
+pub struct ImportedMembership {
     #[serde(alias = "Nom d'usage")]
     name: String,
     #[serde(alias = "Prénom")]
@@ -62,54 +61,22 @@ pub struct Membership {
     structure_code: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
-pub struct MembershipDto {
-    name: String,
-    firstname: String,
-    gender: String,
-    birthdate: Option<NaiveDate>,
-    age: Option<u8>,
-    membership_number: String,
-    email_address: String,
-    payed: bool,
-    end_date: NaiveDate,
-    expired: bool,
-    club: String,
-    structure_code: String,
-}
-
-impl PartialOrd for MembershipDto {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for MembershipDto {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.membership_number
-            .cmp(&other.membership_number)
-            .then(self.name.cmp(&other.name))
-            .then(self.firstname.cmp(&other.firstname))
-            .then(self.end_date.cmp(&other.end_date))
-    }
-}
-
-impl From<Membership> for MembershipDto {
-    fn from(membership: Membership) -> Self {
-        MembershipDto {
-            name: membership.name,
-            firstname: membership.firstname,
-            gender: membership.gender,
-            birthdate: membership.birthdate,
-            age: membership.age,
-            membership_number: membership.membership_number,
-            email_address: membership.email_address,
-            payed: membership.payed,
-            end_date: membership.end_date,
-            expired: membership.expired,
-            club: membership.club,
-            structure_code: membership.structure_code,
-        }
+impl From<ImportedMembership> for Membership {
+    fn from(membership: ImportedMembership) -> Self {
+        Membership::new(
+            membership.name,
+            membership.firstname,
+            membership.gender,
+            membership.birthdate,
+            membership.age,
+            membership.membership_number,
+            membership.email_address,
+            membership.payed,
+            membership.end_date,
+            membership.expired,
+            membership.club,
+            membership.structure_code,
+        )
     }
 }
 
@@ -162,94 +129,17 @@ mod bool_format {
 
 #[cfg(test)]
 pub mod tests {
-    use std::cmp::Ordering;
-
     use chrono::NaiveDate;
     use parameterized::ide;
     use parameterized::parameterized;
 
-    use crate::member::{Membership, MembershipDto};
+    use crate::member::ImportedMembership;
 
     ide!();
 
-    impl MembershipDto {
-        pub fn new_test(end_date: NaiveDate) -> Self {
-            MembershipDto {
-                name: "".to_string(),
-                firstname: "".to_string(),
-                gender: "".to_string(),
-                birthdate: None,
-                age: None,
-                membership_number: "".to_string(),
-                email_address: "".to_string(),
-                payed: false,
-                end_date,
-                expired: false,
-                club: "".to_string(),
-                structure_code: "".to_string(),
-            }
-        }
-    }
-
-    const HEADER: &str = "Nom d'usage;Prénom;Sexe;Date de Naissance;Age;Numéro d'adhérent;Email;Réglé;Date Fin d'adhésion;Adherent expiré;Nom de structure;Code de structure";
-    const MEMBER_AS_CSV: &str =
-        "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oui;30-09-2025;Non;My club;Z01234";
-    pub const MEMBER_NAME: &str = "Doe";
-    pub const MEMBER_FIRSTNAME: &str = "Jon";
-    pub const MEMBERSHIP_NUMBER: &str = "123456";
-    const MALFORMED_MEMBER_AS_CSV: &str =
-        "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oops;30-09-2025;Non;My club;Z01234";
-
-    pub fn get_expected_member() -> MembershipDto {
-        MembershipDto {
-            name: "Doe".to_string(),
-            firstname: "Jon".to_string(),
-            gender: "H".to_string(),
-            birthdate: NaiveDate::from_ymd_opt(1980, 2, 1),
-            age: Some(45),
-            membership_number: MEMBERSHIP_NUMBER.to_string(),
-            email_address: "email@address.com".to_string(),
-            payed: true,
-            end_date: NaiveDate::from_ymd_opt(2025, 9, 30).unwrap(),
-            expired: false,
-            club: "My club".to_string(),
-            structure_code: "Z01234".to_string(),
-        }
-    }
-
-    pub fn get_member_as_csv() -> String {
-        format!("{HEADER}\n{MEMBER_AS_CSV}")
-    }
-
-    pub fn get_malformed_member_as_csv() -> String {
-        format!("{HEADER}\n{MALFORMED_MEMBER_AS_CSV}")
-    }
-
-    #[parameterized(
-        end_dates = {
-        ((2020, 10, 12), (2020, 11, 12)),
-        ((2020, 11, 12), (2020, 10, 12)),
-        ((2020, 11, 12), (2020, 11, 12)),
-        },
-        expected_result = {
-        Ordering::Less,
-        Ordering::Greater,
-        Ordering::Equal,
-        }
-    )]
-    fn should_sort_members(
-        end_dates: ((i32, u32, u32), (i32, u32, u32)),
-        expected_result: Ordering,
-    ) {
-        let ((y1, m1, d1), (y2, m2, d2)) = end_dates;
-        let member1 = MembershipDto::new_test(NaiveDate::from_ymd_opt(y1, m1, d1).unwrap());
-        let member2 = MembershipDto::new_test(NaiveDate::from_ymd_opt(y2, m2, d2).unwrap());
-        assert_eq!(Some(expected_result), member1.partial_cmp(&member2));
-    }
-
     #[test]
     fn should_deserialize_member() {
-        let membership = Membership {
+        let membership = ImportedMembership {
             name: "Doe".to_owned(),
             firstname: "John".to_owned(),
             gender: "M".to_string(),
@@ -272,7 +162,7 @@ pub mod tests {
 
     #[test]
     fn should_deserialize_when_empty_date() {
-        let membership = Membership {
+        let membership = ImportedMembership {
             name: "Doe".to_owned(),
             firstname: "John".to_owned(),
             gender: "M".to_string(),
@@ -300,7 +190,7 @@ pub mod tests {
         let json = format!(
             r#"{{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"11-10-2000","Age":24,"Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"{payed}","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}}"#
         );
-        let result: Result<Membership, _> = serde_json::from_str(&json);
+        let result: Result<ImportedMembership, _> = serde_json::from_str(&json);
         assert!(result.is_err());
     }
 }
