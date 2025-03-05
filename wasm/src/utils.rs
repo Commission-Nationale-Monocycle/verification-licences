@@ -12,6 +12,34 @@ pub fn set_panic_hook() {
     console_error_panic_hook::set_once();
 }
 
+// region Get elements
+pub fn get_window() -> web_sys::Window {
+    web_sys::window().expect("no global `window` exists")
+}
+
+pub fn get_document() -> Document {
+    let window = get_window();
+    window.document().expect("should have a document on window")
+}
+
+pub fn get_element_by_id(document: &Document, id: &str) -> Element {
+    document
+        .get_element_by_id(id)
+        .unwrap_or_else(|| panic!("`{id}` element does not exist"))
+}
+
+pub fn get_element_by_id_dyn<T: JsCast>(document: &Document, id: &str) -> T {
+    get_element_by_id(document, id).dyn_into().unwrap()
+}
+
+pub fn get_value_from_input(document: &Document, id: &str) -> String {
+    get_element_by_id(document, id)
+        .get_attribute("value")
+        .unwrap_or_else(|| panic!("`{id}` input does not contain text"))
+}
+// endregion
+
+// region Create elements
 pub fn create_element(
     document: &Document,
     name: &str,
@@ -58,32 +86,9 @@ pub fn create_element_with_classes(
     new_element.set_class_name(&classes.join(" "));
     new_element
 }
+// endregion
 
-pub fn get_window() -> web_sys::Window {
-    web_sys::window().expect("no global `window` exists")
-}
-
-pub fn get_document() -> Document {
-    let window = get_window();
-    window.document().expect("should have a document on window")
-}
-
-pub fn get_element_by_id(document: &Document, id: &str) -> Element {
-    document
-        .get_element_by_id(id)
-        .unwrap_or_else(|| panic!("`{id}` element does not exist"))
-}
-
-pub fn get_element_by_id_dyn<T: JsCast>(document: &Document, id: &str) -> T {
-    get_element_by_id(document, id).dyn_into().unwrap()
-}
-
-pub fn get_value_from_input(document: &Document, id: &str) -> String {
-    get_element_by_id(document, id)
-        .get_attribute("value")
-        .unwrap_or_else(|| panic!("`{id}` input does not contain text"))
-}
-
+// region Manipulate existing elements
 pub fn append_child(container: &Element, child: &Element) {
     container.append_child(child).expect("can't append child");
 }
@@ -103,16 +108,23 @@ pub fn remove_attribute(element: &Element, name: &str) {
         .remove_attribute(name)
         .expect("can't remove attribute");
 }
+// endregion
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use wasm_bindgen_test::*;
-
     wasm_bindgen_test_configure!(run_in_browser);
 
+    // region Get elements
     #[wasm_bindgen_test]
     fn should_get_window() {
         get_window();
     }
+
+    #[wasm_bindgen_test]
+    fn should_get_document() {
+        get_document();
+    }
+    // endregion
 }
