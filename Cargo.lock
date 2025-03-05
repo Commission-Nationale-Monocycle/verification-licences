@@ -532,6 +532,7 @@ name = "dto"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "csv",
  "derive-getters",
  "parameterized",
  "serde",

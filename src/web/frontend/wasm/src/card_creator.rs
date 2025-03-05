@@ -1,4 +1,5 @@
 use web_sys::{Document, Element};
+use dto::member_to_check::MemberToCheck;
 use dto::membership::Membership;
 use crate::utils::{create_element, create_element_with_class, create_element_with_classes};
 
@@ -48,6 +49,29 @@ impl OptionalCardCreator for Membership {
                 "font-semibold",
             );
         }
+
+        container
+    }
+}
+
+impl CardCreator for MemberToCheck {
+    fn create_card(&self, document: &Document) -> Element {
+        let membership_num = format!("Numéro d'adhésion : {}", self.membership_num());
+        let name = format!("Nom : {}", self.name());
+        let firstname = format!("Prénom : {}", self.firstname());
+
+        let container =
+            create_element_with_classes(document, "div", None, None, &["flex-shrink-0", "m-2"]);
+        create_element_with_class(
+            document,
+            "div",
+            Some(&container),
+            Some("Membre à vérifier"),
+            "font-semibold",
+        );
+        create_element(document, "div", Some(&container), Some(&membership_num));
+        create_element(document, "div", Some(&container), Some(&name));
+        create_element(document, "div", Some(&container), Some(&firstname));
 
         container
     }
