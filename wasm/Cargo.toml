@@ -1,5 +1,5 @@
 [package]
-name = "wasm-verification-licences"
+name = "wasm"
 version = "0.1.0"
 authors = ["Maxence Cornaton <maxence.cornaton+git@proton.me>"]
 edition = "2024"
@@ -12,7 +12,7 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 # Internal
-dto = {path = "../../../../dto"}
+dto = {path = "../dto"}
 
 # Wasm generation & tools
 wasm-bindgen = "0.2.100"
