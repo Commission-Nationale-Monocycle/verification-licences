@@ -39,7 +39,7 @@ jobs:
       - name: Build
         run: cargo build --verbose
       - name: Install tree
-        run: apt install tree
+        run: sudo apt install tree
       - name: Run tree
         run: tree
       - name: Generate bindings
