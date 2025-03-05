@@ -24,14 +24,14 @@ impl OptionalCardCreator for Membership {
             None,
             &["flex", "flex-col", "flex-shrink-0", "justify-center", "m-2"],
         );
-        if let Some(membership_dto) = element {
-            let name = format!("Nom : {}", membership_dto.name());
-            let firstname = format!("Prénom : {}", membership_dto.firstname());
+        if let Some(membership) = element {
+            let name = format!("Nom : {}", membership.name());
+            let firstname = format!("Prénom : {}", membership.firstname());
             let end_date = format!(
                 "Fin de l'adhésion : {}",
-                membership_dto.end_date().format("%d/%m/%Y")
+                membership.end_date().format("%d/%m/%Y")
             );
-            let email_address = format!("Adresse mail : {}", membership_dto.email_address());
+            let email_address = format!("Adresse mail : {}", membership.email_address());
 
             create_element_with_class(
                 document,
@@ -106,12 +106,12 @@ impl CardCreator for CheckedMember {
         append_child(&container, &member_to_check_card);
 
         let membership_card =
-            Membership::create_card_from_optional(&self.membership_dto().as_ref(), document);
+            Membership::create_card_from_optional(&self.membership().as_ref(), document);
         append_child(&container, &membership_card);
 
         {
-            if let Some(membership_dto) = &self.membership_dto() {
-                if Utc::now().date_naive() > *membership_dto.end_date() {
+            if let Some(membership) = &self.membership() {
+                if Utc::now().date_naive() > *membership.end_date() {
                     let classes = format!("{} bg-orange-300", container.class_name());
                     container.set_class_name(&classes);
                 }
