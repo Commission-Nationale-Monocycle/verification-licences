@@ -98,7 +98,7 @@ fn create_wrong_lines(document: &Document, wrong_lines: &[String]) -> Element {
     let parent = create_element(document, "div", None, Some(parent_text));
 
     wrong_lines.iter().for_each(|wrong_line| {
-        create_element(document, "p", Some(&parent), Some(&wrong_line));
+        create_element(document, "p", Some(&parent), Some(wrong_line));
     });
 
     parent
