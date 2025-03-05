@@ -36,6 +36,7 @@ serde_json = "1.0.139"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.50"
+web-sys = { version = "0.3.77" , features = ["HtmlBodyElement", "HtmlCollection"]}
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.
