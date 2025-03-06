@@ -1,5 +1,6 @@
 pub mod env_args;
 pub mod test;
+mod email;
 
 use std::fmt::Debug;
 
