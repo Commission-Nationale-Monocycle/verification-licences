@@ -41,3 +41,9 @@ Besides, throughout your journey into the app, you'll encounter some generated f
 - _data/_: location for the downloaded memberships. This acts as the database.
 - _demo_data/_: similarly to `data`, this is the location for the demo memberships. This is populated when running in demo mode.
 - _public/static/pkg/_: this is the location for the generated WASM and JS libs.
+
+## Running the tests
+Running the tests in the 3 packages is fairly simple:
+1. To run tests against the main app, run `cargo test` at the root of the project
+2. To run tests against the `dto` crate, run the same command in the `dto` package
+3. To run tests against the `wasm` crate, run `wasm-pack test --headless --firefox` in the `wasm` crate.
