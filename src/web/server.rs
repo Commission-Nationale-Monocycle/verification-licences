@@ -24,7 +24,7 @@ pub fn build_server() -> Rocket<Build> {
 }
 
 fn get_api_port() -> i32 {
-    retrieve_arg_value(&[PORT_ENV_ARG])
+    retrieve_arg_value(vec![PORT_ENV_ARG])
         .map(|port| port.parse::<i32>().ok())
         .unwrap_or(None)
         .unwrap_or(DEFAULT_PORT)

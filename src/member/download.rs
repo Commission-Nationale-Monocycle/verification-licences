@@ -78,10 +78,10 @@ fn build_client() -> Result<Client> {
 fn retrieve_login_and_password() -> (Option<String>, Option<String>) {
     let mut login = None;
     let mut password = None;
-    if let Some(new_login) = env_args::retrieve_arg_value(&["--login", "-l"]) {
+    if let Some(new_login) = env_args::retrieve_arg_value(vec!["--login", "-l"]) {
         login = Some(new_login);
     }
-    if let Some(new_password) = env_args::retrieve_arg_value(&["--password", "-p"]) {
+    if let Some(new_password) = env_args::retrieve_arg_value(vec!["--password", "-p"]) {
         password = Some(new_password);
     }
     (login, password)
