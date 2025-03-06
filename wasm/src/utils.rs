@@ -218,13 +218,13 @@ mod tests {
         let document = Document::new().unwrap();
         let name = "p";
         let parent = document.create_element("p").unwrap();
-        let inner_html = Some("some text");
+        let inner_html = "some text";
 
-        let new_element = create_element(&document, name, Some(&parent), inner_html);
+        let new_element = create_element(&document, name, Some(&parent), Some(inner_html));
 
         assert_eq!(name, new_element.tag_name());
         assert_eq!(parent, new_element.parent_element().unwrap());
-        assert_eq!(inner_html.unwrap(), new_element.inner_html());
+        assert_eq!(inner_html, new_element.inner_html());
     }
 
     #[wasm_bindgen_test]
@@ -244,15 +244,15 @@ mod tests {
         let document = Document::new().unwrap();
         let name = "p";
         let parent = document.create_element("p").unwrap();
-        let inner_html = Some("some text");
+        let inner_html = "some text";
         let class = "class";
 
         let new_element =
-            create_element_with_class(&document, name, Some(&parent), inner_html, class);
+            create_element_with_class(&document, name, Some(&parent), Some(inner_html), class);
 
         assert_eq!(name, new_element.tag_name());
         assert_eq!(parent, new_element.parent_element().unwrap());
-        assert_eq!(inner_html.unwrap(), new_element.inner_html());
+        assert_eq!(inner_html, new_element.inner_html());
         assert_eq!(class, new_element.class_name());
     }
 
@@ -261,22 +261,22 @@ mod tests {
         let document = Document::new().unwrap();
         let name = "p";
         let parent = document.create_element("p").unwrap();
-        let inner_html = Some("some text");
+        let inner_html = "some text";
         let classes = ["class1", "class2"];
 
         let new_element =
-            create_element_with_classes(&document, name, Some(&parent), inner_html, &classes);
+            create_element_with_classes(&document, name, Some(&parent), Some(inner_html), &classes);
 
         assert_eq!(name, new_element.tag_name());
         assert_eq!(parent, new_element.parent_element().unwrap());
-        assert_eq!(inner_html.unwrap(), new_element.inner_html());
+        assert_eq!(inner_html, new_element.inner_html());
         assert_eq!(classes.join(" "), new_element.class_name());
     }
     // endregion
 
     // region Manipulate existing elements
     #[wasm_bindgen_test]
-    fn should_append_chile() {
+    fn should_append_child() {
         let document = Document::new().unwrap();
         let child = document.create_element("p").unwrap();
         let container = document.create_element("p").unwrap();

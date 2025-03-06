@@ -1,19 +1,15 @@
 mod card_creator;
+mod user_interface;
 mod utils;
 
-use crate::card_creator::CardCreator;
-use crate::utils::{
-    append_child, clear_element, get_document, get_element_by_id, get_element_by_id_dyn,
-    get_value_from_input, get_window, remove_attribute, set_attribute,
-};
+use crate::user_interface::handle_checked_members;
+use crate::utils::{get_document, get_element_by_id_dyn, get_value_from_input, get_window};
 use dto::checked_member::CheckedMember;
 use dto::member_to_check::MemberToCheck;
 use reqwest::Client;
-use std::collections::BTreeSet;
-use utils::create_element;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::{Document, Element, Event, HtmlFormElement, HtmlInputElement};
+use web_sys::{Event, HtmlFormElement, HtmlInputElement};
 
 #[wasm_bindgen(start)]
 fn run() {
@@ -42,66 +38,11 @@ pub async fn handle_members_to_check_file(input: HtmlInputElement) -> Result<(),
     let (members_to_check, wrong_lines) =
         MemberToCheck::load_members_to_check_from_csv_string(&csv_content);
 
-    render_lines(&document, &csv_content, &members_to_check, &wrong_lines);
+    user_interface::render_lines(&document, &csv_content, &members_to_check, &wrong_lines);
 
     Ok(())
 }
 
-fn render_lines(
-    document: &Document,
-    csv_content: &str,
-    members_to_check: &BTreeSet<MemberToCheck>,
-    wrong_lines: &[String],
-) {
-    let members_to_check_hidden_input = get_members_to_check_hidden_input(document);
-    let members_to_check_table = get_members_to_check_table(document);
-    let wrong_lines_paragraph = get_element_by_id(document, "wrong_lines_paragraph");
-    let submit_button = get_element_by_id(document, "submit_members");
-
-    clear_element(&members_to_check_table);
-    clear_element(&wrong_lines_paragraph);
-
-    if !wrong_lines.is_empty() {
-        let wrong_lines_data = create_wrong_lines(document, wrong_lines);
-        append_child(&wrong_lines_paragraph, &wrong_lines_data);
-    }
-    if !members_to_check.is_empty() {
-        let members_to_check = members_to_check.iter().collect::<Vec<_>>();
-        let lines = create_members_to_check_lines(document, &members_to_check);
-        lines.iter().for_each(|line| {
-            append_child(&members_to_check_table, line);
-        });
-        set_attribute(&members_to_check_hidden_input, "value", csv_content);
-        remove_attribute(&submit_button, "disabled");
-    } else {
-        set_attribute(&submit_button, "disabled", "true");
-    }
-}
-
-fn create_members_to_check_lines(
-    document: &Document,
-    members_to_check: &[&MemberToCheck],
-) -> Vec<Element> {
-    members_to_check
-        .iter()
-        .map(|member_to_check| member_to_check.create_card(document))
-        .collect()
-}
-
-fn create_wrong_lines(document: &Document, wrong_lines: &[String]) -> Element {
-    let parent_text = if wrong_lines.len() == 1 {
-        "La ligne suivante contient une ou des erreurs :"
-    } else {
-        "Les lignes suivantes contiennent une ou des erreurs :"
-    };
-    let parent = create_element(document, "div", None, Some(parent_text));
-
-    wrong_lines.iter().for_each(|wrong_line| {
-        create_element(document, "p", Some(&parent), Some(wrong_line));
-    });
-
-    parent
-}
 // endregion
 
 // region Handle form submission
@@ -143,7 +84,7 @@ async fn handle_form_submission(e: Event) {
         let checked_members: Vec<CheckedMember> =
             serde_json::from_str(&text).expect("can't deserialize checked members");
         handle_checked_members(&checked_members);
-        clear_inputs(&document);
+        user_interface::clear_inputs(&document);
     } else {
         log::error!("Server error: {}", response.status().as_str())
     }
@@ -153,34 +94,3 @@ fn build_client() -> Client {
     Client::builder().build().expect("could not build client")
 }
 // endregion
-
-// region Handle checked members
-fn handle_checked_members(checked_members: &Vec<CheckedMember>) {
-    let document = get_document();
-    let parent = get_element_by_id(&document, "checked_members");
-    for checked_member in checked_members {
-        let card = checked_member.create_card(&document);
-        append_child(&parent, &card);
-    }
-}
-// endregion
-
-// region Get parts of the document
-fn get_members_to_check_hidden_input(document: &Document) -> HtmlInputElement {
-    get_element_by_id_dyn(document, "members_to_check")
-}
-
-fn get_members_to_check_picker(document: &Document) -> HtmlInputElement {
-    get_element_by_id_dyn(document, "members_to_check_picker")
-}
-
-fn get_members_to_check_table(document: &Document) -> Element {
-    get_element_by_id(document, "members_to_check_table")
-}
-// endregion
-
-fn clear_inputs(document: &Document) {
-    get_members_to_check_picker(document).set_value("");
-    get_members_to_check_hidden_input(document).set_value("");
-    render_lines(document, "", &BTreeSet::new(), &[])
-}
