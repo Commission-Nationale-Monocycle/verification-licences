@@ -134,6 +134,7 @@ mod tests {
     // region Membership
     #[wasm_bindgen_test]
     fn should_create_card_for_known_membership() {
+        let end_date = Utc::now().date_naive();
         let membership = Membership::new(
             "Doe".to_owned(),
             "Jon".to_owned(),
@@ -143,7 +144,7 @@ mod tests {
             "123456".to_owned(),
             "email@address.org".to_owned(),
             true,
-            Utc::now().date_naive(),
+            end_date,
             false,
             "club".to_owned(),
             "structure_code".to_owned(),
@@ -152,7 +153,8 @@ mod tests {
 
         let element = Membership::create_card_from_optional(&Some(&membership), &document);
         let inner_html = element.inner_html();
-        let expected_inner_html = "<div class=\"font-semibold\">Membre associé au numéro d'adhésion fourni</div><div>Nom : Doe</div><div>Prénom : Jon</div><div>Fin de l'adhésion : 05/03/2025</div><div>Adresse mail : email@address.org</div>";
+        let expected_inner_html = format!("<div class=\"font-semibold\">Membre associé au numéro d'adhésion fourni</div><div>Nom : Doe</div><div>Prénom : Jon</div><div>Fin de l'adhésion : {}</div><div>Adresse mail : email@address.org</div>",
+                                          end_date.format("%d/%m/%Y"));
         assert_eq!(expected_inner_html, inner_html);
     }
 
@@ -186,6 +188,7 @@ mod tests {
     fn should_create_card_for_checked_member_with_up_to_date_membership() {
         let member_to_check =
             MemberToCheck::new("123456".to_owned(), "Doe".to_owned(), "Jon".to_owned());
+        let end_date = Utc::now().date_naive();
         let membership = Membership::new(
             "Doe".to_owned(),
             "Jon".to_owned(),
@@ -195,7 +198,7 @@ mod tests {
             "123456".to_owned(),
             "email@address.org".to_owned(),
             true,
-            Utc::now().date_naive(),
+            end_date,
             false,
             "club".to_owned(),
             "structure_code".to_owned(),
@@ -205,7 +208,8 @@ mod tests {
 
         let element = checked_member.create_card(&document);
         let inner_html = element.inner_html();
-        let expected_inner_html = "<div class=\"flex-shrink-0 m-2\"><div class=\"font-semibold\">Membre à vérifier</div><div>Numéro d'adhésion : 123456</div><div>Nom : Doe</div><div>Prénom : Jon</div></div><div class=\"flex flex-col flex-shrink-0 justify-center m-2\"><div class=\"font-semibold\">Membre associé au numéro d'adhésion fourni</div><div>Nom : Doe</div><div>Prénom : Jon</div><div>Fin de l'adhésion : 05/03/2025</div><div>Adresse mail : email@address.org</div></div>";
+        let expected_inner_html = format!("<div class=\"flex-shrink-0 m-2\"><div class=\"font-semibold\">Membre à vérifier</div><div>Numéro d'adhésion : 123456</div><div>Nom : Doe</div><div>Prénom : Jon</div></div><div class=\"flex flex-col flex-shrink-0 justify-center m-2\"><div class=\"font-semibold\">Membre associé au numéro d'adhésion fourni</div><div>Nom : Doe</div><div>Prénom : Jon</div><div>Fin de l'adhésion : {}</div><div>Adresse mail : email@address.org</div></div>",
+                                          end_date.format("%d/%m/%Y"));
         assert_eq!(expected_inner_html, inner_html);
     }
 
@@ -213,6 +217,10 @@ mod tests {
     fn should_create_card_for_checked_member_with_expired_membership() {
         let member_to_check =
             MemberToCheck::new("123456".to_owned(), "Doe".to_owned(), "Jon".to_owned());
+        let end_date = Utc::now()
+            .date_naive()
+            .checked_sub_days(Days::new(1))
+            .unwrap();
         let membership = Membership::new(
             "Doe".to_owned(),
             "Jon".to_owned(),
@@ -222,10 +230,7 @@ mod tests {
             "123456".to_owned(),
             "email@address.org".to_owned(),
             true,
-            Utc::now()
-                .date_naive()
-                .checked_sub_days(Days::new(1))
-                .unwrap(),
+            end_date,
             true,
             "club".to_owned(),
             "structure_code".to_owned(),
@@ -237,7 +242,10 @@ mod tests {
 
         assert!(element.class_name().contains("bg-orange"));
         let inner_html = element.inner_html();
-        let expected_inner_html = "<div class=\"flex-shrink-0 m-2\"><div class=\"font-semibold\">Membre à vérifier</div><div>Numéro d'adhésion : 123456</div><div>Nom : Doe</div><div>Prénom : Jon</div></div><div class=\"flex flex-col flex-shrink-0 justify-center m-2\"><div class=\"font-semibold\">Membre associé au numéro d'adhésion fourni</div><div>Nom : Doe</div><div>Prénom : Jon</div><div>Fin de l'adhésion : 04/03/2025</div><div>Adresse mail : email@address.org</div></div>";
+        let expected_inner_html = format!(
+            "<div class=\"flex-shrink-0 m-2\"><div class=\"font-semibold\">Membre à vérifier</div><div>Numéro d'adhésion : 123456</div><div>Nom : Doe</div><div>Prénom : Jon</div></div><div class=\"flex flex-col flex-shrink-0 justify-center m-2\"><div class=\"font-semibold\">Membre associé au numéro d'adhésion fourni</div><div>Nom : Doe</div><div>Prénom : Jon</div><div>Fin de l'adhésion : {}</div><div>Adresse mail : email@address.org</div></div>",
+            end_date.format("%d/%m/%Y")
+        );
         assert_eq!(expected_inner_html, inner_html);
     }
 
