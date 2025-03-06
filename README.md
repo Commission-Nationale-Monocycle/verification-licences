@@ -11,6 +11,7 @@ At the CNM, we've had issues checking manually every and each person who'd like 
 ## Getting started
 The following tools are required:
 - [Rust](https://www.rust-lang.org/): version 1.85+ (supporting Rust Edition 2024)
+- [wasm-bindgen-cli](https://github.com/rustwasm/wasm-bindgen): required to build the WASM and JS libs from Rust code 
 - `wasm32-unknown-unknown` toolchain: install using `rustup target add wasm32-unknown-unknown`
 - [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/): required to run WASM tests
 - [Docker](https://www.docker.com/): used to package the app in an easy-to-share image
