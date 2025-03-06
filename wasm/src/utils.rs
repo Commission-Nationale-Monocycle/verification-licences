@@ -276,7 +276,7 @@ mod tests {
 
     // region Manipulate existing elements
     #[wasm_bindgen_test]
-    fn should_append_chile() {
+    fn should_append_child() {
         let document = Document::new().unwrap();
         let child = document.create_element("p").unwrap();
         let container = document.create_element("p").unwrap();
