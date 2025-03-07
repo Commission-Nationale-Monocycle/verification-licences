@@ -126,8 +126,6 @@ mod tests {
 
     const TEST_SMTP_SERVER: &str = "sandbox.smtp.mailtrap.io";
     const TEST_SMTP_PORT: u16 = 25;
-    const TEST_SMTP_LOGIN: &str = "a98bf336e0cc2b";
-    const TEST_SMTP_PASSWORD: &str = "e66ba53ae60ac7";
     const TEST_EMAIL_SENDER_NAME: &str = "Sender";
     const TEST_EMAIL_SENDER_ADDRESS: &str = "sender@address.com";
     const TEST_REPLY_TO: &str = "sender+reply-to@address.com";
@@ -140,8 +138,6 @@ mod tests {
         vec![
             format!("{SMTP_SERVER_ARG}={TEST_SMTP_SERVER}"),
             format!("{SMTP_PORT_ARG}={TEST_SMTP_PORT}"),
-            format!("{SMTP_LOGIN_ARG}={}", retrieve_smtp_login().unwrap()),
-            format!("{SMTP_PASSWORD_ARG}={}", retrieve_smtp_password().unwrap()),
             format!("{EMAIL_SENDER_NAME_ARG}={TEST_EMAIL_SENDER_NAME}"),
             format!("{EMAIL_SENDER_ADDRESS_ARG}={TEST_EMAIL_SENDER_ADDRESS}"),
             format!("{REPLY_TO_ARG}={TEST_REPLY_TO}"),
@@ -149,18 +145,15 @@ mod tests {
     }
 
     // region send_email
-    #[cfg(not(tarpaulin))]  // Should be removed once Tarpaulin is able to parse arguments
     #[async_test]
     async fn should_send_email() {
         let args = get_args();
-        with_env_args(args, || {
-            block_on(send_email(
-                TEST_RECIPIENTS,
-                TEST_SUBJECT,
-                TEST_HTML_BODY,
-                TEST_TEXT_BODY,
-            ))
-        }).unwrap();
+        with_env_args(args, || block_on(send_email(
+            TEST_RECIPIENTS,
+            TEST_SUBJECT,
+            TEST_HTML_BODY,
+            TEST_TEXT_BODY,
+        ))).unwrap();
     }
     // endregion
 

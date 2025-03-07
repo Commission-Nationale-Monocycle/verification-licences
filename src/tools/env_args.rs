@@ -80,13 +80,15 @@ fn get_env_args() -> Vec<String> {
 }
 
 #[cfg(test)]
-/// When running tests, env args are sourced from within the app.
+/// When running tests, env args are extended from within the app.
 /// You can set them up from there by wrapping your test with this function.
-pub fn with_env_args<F, T>(args: Vec<String>, function: F) -> T
+pub fn with_env_args<F, T>(mut args: Vec<String>, function: F) -> T
 where
     F: FnOnce() -> T,
 {
     ENV_ARGS.with(|refcell| {
+        let global_env_args = std::env::args().collect::<Vec<String>>();
+        args.extend_from_slice(&global_env_args);
         let old_value = refcell.replace(args);
         let result = function();
         refcell.replace(old_value);
