@@ -80,7 +80,6 @@ async fn handle_form_submission(e: Event) {
     let status = response.status();
     if status.is_success() || status.is_redirection() {
         let text = response.text().await.expect("can't get text");
-        log::info!("{text}");
         let checked_members: Vec<CheckedMember> =
             serde_json::from_str(&text).expect("can't deserialize checked members");
         handle_checked_members(&checked_members);
