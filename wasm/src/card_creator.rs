@@ -1,10 +1,12 @@
 use crate::utils::{
-    append_child, create_element, create_element_with_class, create_element_with_classes,
+    ElementConfig, add_class, append_child, create_element, create_element_with_class,
+    create_element_with_classes, create_element_with_options,
 };
 use chrono::Utc;
 use dto::checked_member::CheckedMember;
 use dto::member_to_check::MemberToCheck;
 use dto::membership::Membership;
+use wasm_bindgen::UnwrapThrowExt;
 use web_sys::{Document, Element};
 
 pub trait CardCreator {
@@ -15,6 +17,9 @@ pub trait OptionalCardCreator {
     fn create_card_from_optional(element: &Option<&Self>, document: &Document) -> Element;
 }
 
+const MEMBERSHIP_CONTAINER_CLASS_NAME: &str = "membership-container";
+const EMAIL_ADDRESS_CLASS_NAME: &str = "email-address-container";
+
 impl OptionalCardCreator for Membership {
     fn create_card_from_optional(element: &Option<&Self>, document: &Document) -> Element {
         let container = create_element_with_classes(
@@ -22,7 +27,13 @@ impl OptionalCardCreator for Membership {
             "div",
             None,
             None,
-            &["flex", "flex-col", "flex-shrink-0", "justify-center", "m-2"],
+            &[
+                MEMBERSHIP_CONTAINER_CLASS_NAME,
+                "flex",
+                "flex-col",
+                "flex-shrink-0",
+                "m-2",
+            ],
         );
         if let Some(membership) = element {
             let name = format!("Nom : {}", membership.name());
@@ -31,7 +42,6 @@ impl OptionalCardCreator for Membership {
                 "Fin de l'adhésion : {}",
                 membership.end_date().format("%d/%m/%Y")
             );
-            let email_address = format!("Adresse mail : {}", membership.email_address());
 
             create_element_with_class(
                 document,
@@ -43,7 +53,19 @@ impl OptionalCardCreator for Membership {
             create_element(document, "div", Some(&container), Some(&name));
             create_element(document, "div", Some(&container), Some(&firstname));
             create_element(document, "div", Some(&container), Some(&end_date));
-            create_element(document, "div", Some(&container), Some(&email_address));
+            let email_container =
+                create_element(document, "div", Some(&container), Some("Adresse mail : "));
+            create_element_with_classes(
+                document,
+                "div",
+                Some(&email_container),
+                Some(&format!(
+                    "<a href='mailto:{}'>{}</a>",
+                    membership.email_address(),
+                    membership.email_address()
+                )),
+                &[EMAIL_ADDRESS_CLASS_NAME, "inline"],
+            );
         } else {
             create_element_with_class(
                 document,
@@ -110,19 +132,45 @@ impl CardCreator for CheckedMember {
         append_child(&container, &membership_card);
 
         {
+            let membership_container = container
+                .get_elements_by_class_name(MEMBERSHIP_CONTAINER_CLASS_NAME)
+                .get_with_index(0)
+                .expect_throw("can't find membership container");
             if let Some(membership) = &self.membership() {
                 if Utc::now().date_naive() > *membership.end_date() {
-                    let classes = format!("{} bg-orange-300", container.class_name());
-                    container.set_class_name(&classes);
+                    add_class(&container, "bg-orange-300");
+
+                    let checkbox = create_checkbox(document);
+                    append_child(&membership_container, &checkbox);
                 }
             } else {
-                let classes = format!("{} bg-red-300", container.class_name());
-                container.set_class_name(&classes);
+                add_class(&container, "bg-red-300");
+                add_class(&membership_container, "justify-center");
             }
         }
 
         container
     }
+}
+
+fn create_checkbox(document: &Document) -> Element {
+    create_element_with_options(
+        &document,
+        "label",
+        None,
+        Some("Envoyer un email"),
+        &ElementConfig::new(
+            Some(&["border-2", "rounded-md", "flex", "justify-evenly"]),
+            None,
+            Some(&[&create_element_with_options(
+                &document,
+                "input",
+                None,
+                None,
+                &ElementConfig::new(None, Some(&[("type", "checkbox"), ("checked", "")]), None),
+            )]),
+        ),
+    )
 }
 
 #[cfg(test)]
@@ -153,8 +201,10 @@ mod tests {
 
         let element = Membership::create_card_from_optional(&Some(&membership), &document);
         let inner_html = element.inner_html();
-        let expected_inner_html = format!("<div class=\"font-semibold\">Membre associé au numéro d'adhésion fourni</div><div>Nom : Doe</div><div>Prénom : Jon</div><div>Fin de l'adhésion : {}</div><div>Adresse mail : email@address.org</div>",
-                                          end_date.format("%d/%m/%Y"));
+        let expected_inner_html = format!(
+            "<div class=\"font-semibold\">Membre associé au numéro d'adhésion fourni</div><div>Nom : Doe</div><div>Prénom : Jon</div><div>Fin de l'adhésion : {}</div><div>Adresse mail : <div class=\"email-address-container inline\"><a href=\"mailto:email@address.org\">email@address.org</a></div></div>",
+            end_date.format("%d/%m/%Y")
+        );
         assert_eq!(expected_inner_html, inner_html);
     }
 
@@ -208,8 +258,10 @@ mod tests {
 
         let element = checked_member.create_card(&document);
         let inner_html = element.inner_html();
-        let expected_inner_html = format!("<div class=\"flex-shrink-0 m-2\"><div class=\"font-semibold\">Membre à vérifier</div><div>Numéro d'adhésion : 123456</div><div>Nom : Doe</div><div>Prénom : Jon</div></div><div class=\"flex flex-col flex-shrink-0 justify-center m-2\"><div class=\"font-semibold\">Membre associé au numéro d'adhésion fourni</div><div>Nom : Doe</div><div>Prénom : Jon</div><div>Fin de l'adhésion : {}</div><div>Adresse mail : email@address.org</div></div>",
-                                          end_date.format("%d/%m/%Y"));
+        let expected_inner_html = format!(
+            "<div class=\"flex-shrink-0 m-2\"><div class=\"font-semibold\">Membre à vérifier</div><div>Numéro d'adhésion : 123456</div><div>Nom : Doe</div><div>Prénom : Jon</div></div><div class=\"membership-container flex flex-col flex-shrink-0 m-2\"><div class=\"font-semibold\">Membre associé au numéro d'adhésion fourni</div><div>Nom : Doe</div><div>Prénom : Jon</div><div>Fin de l'adhésion : {}</div><div>Adresse mail : <div class=\"email-address-container inline\"><a href=\"mailto:email@address.org\">email@address.org</a></div></div></div>",
+            end_date.format("%d/%m/%Y")
+        );
         assert_eq!(expected_inner_html, inner_html);
     }
 
@@ -243,7 +295,7 @@ mod tests {
         assert!(element.class_name().contains("bg-orange"));
         let inner_html = element.inner_html();
         let expected_inner_html = format!(
-            "<div class=\"flex-shrink-0 m-2\"><div class=\"font-semibold\">Membre à vérifier</div><div>Numéro d'adhésion : 123456</div><div>Nom : Doe</div><div>Prénom : Jon</div></div><div class=\"flex flex-col flex-shrink-0 justify-center m-2\"><div class=\"font-semibold\">Membre associé au numéro d'adhésion fourni</div><div>Nom : Doe</div><div>Prénom : Jon</div><div>Fin de l'adhésion : {}</div><div>Adresse mail : email@address.org</div></div>",
+            "<div class=\"flex-shrink-0 m-2\"><div class=\"font-semibold\">Membre à vérifier</div><div>Numéro d'adhésion : 123456</div><div>Nom : Doe</div><div>Prénom : Jon</div></div><div class=\"membership-container flex flex-col flex-shrink-0 m-2\"><div class=\"font-semibold\">Membre associé au numéro d'adhésion fourni</div><div>Nom : Doe</div><div>Prénom : Jon</div><div>Fin de l'adhésion : {}</div><div>Adresse mail : <div class=\"email-address-container inline\"><a href=\"mailto:email@address.org\">email@address.org</a></div></div><label class=\"border-2 rounded-md flex justify-evenly\">Envoyer un email<input type=\"checkbox\" checked=\"\"/></label></div>",
             end_date.format("%d/%m/%Y")
         );
         assert_eq!(expected_inner_html, inner_html);
@@ -260,7 +312,7 @@ mod tests {
 
         assert!(element.class_name().contains("bg-red"));
         let inner_html = element.inner_html();
-        let expected_inner_html = "<div class=\"flex-shrink-0 m-2\"><div class=\"font-semibold\">Membre à vérifier</div><div>Numéro d'adhésion : 123456</div><div>Nom : Doe</div><div>Prénom : Jon</div></div><div class=\"flex flex-col flex-shrink-0 justify-center m-2\"><div class=\"font-semibold\">Aucune adhésion trouvée</div></div>";
+        let expected_inner_html = "<div class=\"flex-shrink-0 m-2\"><div class=\"font-semibold\">Membre à vérifier</div><div>Numéro d'adhésion : 123456</div><div>Nom : Doe</div><div>Prénom : Jon</div></div><div class=\"membership-container flex flex-col flex-shrink-0 m-2 justify-center\"><div class=\"font-semibold\">Aucune adhésion trouvée</div></div>";
         assert_eq!(expected_inner_html, inner_html);
     }
     // endregion
