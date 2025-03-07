@@ -12,10 +12,12 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 const EMAIL_SENDER_NAME_ARG: &'static str = "--email-sender-name";
 const EMAIL_SENDER_ADDRESS_ARG: &'static str = "--email-sender_address";
 const REPLY_TO_ARG: &'static str = "--reply-to";
+const SMTP_SERVER_ARG: &'static str = "--smtp-server";
+const SMTP_PORT_ARG: &'static str = "--smtp-port";
 const SMTP_LOGIN_ARG: &'static str = "--smtp-login";
 const SMTP_PASSWORD_ARG: &'static str = "--smtp-password";
-const SMTP_SERVER: &'static str = "smtp.gmail.com";
-const SMTP_PORT: u16 = 25;
+const DEFAULT_SMTP_SERVER: &'static str = "smtp.gmail.com";
+const DEFAULT_SMTP_PORT: u16 = 25;
 
 pub async fn send_email(
     recipients: &[(&str, &str)],
@@ -28,11 +30,13 @@ pub async fn send_email(
 }
 
 async fn create_smtp_client_and_send_email(message: MessageBuilder<'_>) -> Result<()> {
+    let smtp_server = retrieve_smtp_server();
+    let smtp_port = retrieve_smtp_port();
     let smtp_login = retrieve_smtp_login()?;
     let smtp_password = retrieve_smtp_password()?;
-    let smtp_client = SmtpClientBuilder::new(SMTP_SERVER, SMTP_PORT)
+    let smtp_client = SmtpClientBuilder::new(smtp_server, smtp_port)
         .implicit_tls(false)
-        .credentials((smtp_login.as_str(), smtp_password.as_str()))
+        .credentials((smtp_login, smtp_password))
         .connect()
         .await;
 
@@ -70,6 +74,15 @@ fn create_message<'a>(
 }
 
 // region Retrieve args
+fn retrieve_smtp_server() -> String {
+    retrieve_arg_value(SMTP_SERVER_ARG).unwrap_or(DEFAULT_SMTP_SERVER.to_owned())
+}
+fn retrieve_smtp_port() -> u16 {
+    retrieve_arg_value(SMTP_PORT_ARG)
+        .map(|port| port.parse::<u16>().ok())
+        .flatten()
+        .unwrap_or(DEFAULT_SMTP_PORT)
+}
 fn retrieve_smtp_login() -> Result<String> {
     retrieve_expected_arg_value(SMTP_LOGIN_ARG, MissingSmtpLogin)
 }
