@@ -10,7 +10,7 @@ use mail_send::mail_builder::MessageBuilder;
 type Result<T, E = Error> = std::result::Result<T, E>;
 
 const EMAIL_SENDER_NAME_ARG: &str = "--email-sender-name";
-const EMAIL_SENDER_ADDRESS_ARG: &str = "--email-sender_address";
+const EMAIL_SENDER_ADDRESS_ARG: &str = "--email-sender-address";
 const REPLY_TO_ARG: &str = "--reply-to";
 const SMTP_SERVER_ARG: &str = "--smtp-server";
 const SMTP_PORT_ARG: &str = "--smtp-port";
@@ -23,10 +23,9 @@ const DEFAULT_SMTP_PORT: u16 = 25;
 pub async fn send_email(
     recipients: &[&str],
     subject: &str,
-    html_body: &str,
     text_body: &str,
 ) -> Result<()> {
-    let message = create_message(recipients, subject, html_body, text_body)?;
+    let message = create_message(recipients, subject, text_body)?;
     create_smtp_client_and_send_email(message).await
 }
 
@@ -57,7 +56,6 @@ async fn create_smtp_client_and_send_email(message: MessageBuilder<'_>) -> Resul
 fn create_message<'a>(
     recipients: &'a [&str],
     subject: &'a str,
-    html_body: &'a str,
     text_body: &'a str,
 ) -> Result<MessageBuilder<'a>> {
     let sender_name = retrieve_email_sender_name()?;
@@ -70,7 +68,6 @@ fn create_message<'a>(
         .to(reply_to_address)
         .bcc(Vec::from(recipients))
         .subject(subject)
-        .html_body(html_body)
         .text_body(text_body))
 }
 
@@ -131,7 +128,6 @@ mod tests {
     const TEST_REPLY_TO: &str = "sender+reply-to@address.com";
     const TEST_RECIPIENTS: &[&str] = &["recipient@address.com"];
     const TEST_SUBJECT: &str = "This is a subject";
-    const TEST_HTML_BODY: &str = "<h1>This is a very important email</h1>";
     const TEST_TEXT_BODY: &str = "This is a slightly less important email";
 
     fn get_args() -> Vec<String> {
@@ -151,7 +147,6 @@ mod tests {
         with_env_args(args, || block_on(send_email(
             TEST_RECIPIENTS,
             TEST_SUBJECT,
-            TEST_HTML_BODY,
             TEST_TEXT_BODY,
         ))).unwrap();
     }
@@ -170,7 +165,6 @@ mod tests {
             create_message(
                 TEST_RECIPIENTS,
                 TEST_SUBJECT,
-                TEST_HTML_BODY,
                 TEST_TEXT_BODY,
             )
         };
@@ -202,7 +196,6 @@ mod tests {
             create_message(
                 TEST_RECIPIENTS,
                 TEST_SUBJECT,
-                TEST_HTML_BODY,
                 TEST_TEXT_BODY,
             )
         };

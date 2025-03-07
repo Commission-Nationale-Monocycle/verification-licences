@@ -34,6 +34,7 @@ impl Server for ApiServer {
                 routes![
                     memberships_controller::download_memberships,
                     memberships_controller::check_memberships,
+                    memberships_controller::notify_members,
                 ],
             )
     }
