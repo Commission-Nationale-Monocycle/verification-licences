@@ -19,6 +19,7 @@ const SMTP_PASSWORD_ARG: &'static str = "--smtp-password";
 const DEFAULT_SMTP_SERVER: &'static str = "smtp.gmail.com";
 const DEFAULT_SMTP_PORT: u16 = 25;
 
+#[allow(dead_code)]
 pub async fn send_email(
     recipients: &[&str],
     subject: &str,
