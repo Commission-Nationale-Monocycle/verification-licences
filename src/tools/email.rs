@@ -20,7 +20,7 @@ const DEFAULT_SMTP_SERVER: &'static str = "smtp.gmail.com";
 const DEFAULT_SMTP_PORT: u16 = 25;
 
 pub async fn send_email(
-    recipients: &[(&str, &str)],
+    recipients: &[&str],
     subject: &str,
     html_body: &str,
     text_body: &str,
@@ -54,7 +54,7 @@ async fn create_smtp_client_and_send_email(message: MessageBuilder<'_>) -> Resul
 }
 
 fn create_message<'a>(
-    recipients: &'a [(&str, &str)],
+    recipients: &'a [&str],
     subject: &'a str,
     html_body: &'a str,
     text_body: &'a str,
@@ -120,8 +120,49 @@ mod tests {
     use crate::tools::env_args::with_env_args;
     use mail_send::mail_builder::mime::BodyPart;
     use parameterized::{ide, parameterized};
+    use rocket::futures::executor::block_on;
 
     ide!();
+
+    const TEST_SMTP_SERVER: &str = "sandbox.smtp.mailtrap.io";
+    const TEST_SMTP_PORT: u16 = 25;
+    const TEST_SMTP_LOGIN: &str = "a98bf336e0cc2b";
+    const TEST_SMTP_PASSWORD: &str = "e66ba53ae60ac7";
+    const TEST_EMAIL_SENDER_NAME: &str = "Sender";
+    const TEST_EMAIL_SENDER_ADDRESS: &str = "sender@address.com";
+    const TEST_REPLY_TO: &str = "sender+reply-to@address.com";
+    const TEST_RECIPIENTS: &[&str] = &["recipient@address.com"];
+    const TEST_SUBJECT: &str = "This is a subject";
+    const TEST_HTML_BODY: &str = "<h1>This is a very important email</h1>";
+    const TEST_TEXT_BODY: &str = "This is a slightly less important email";
+
+    fn get_args() -> Vec<String> {
+        vec![
+            format!("{SMTP_SERVER_ARG}={TEST_SMTP_SERVER}"),
+            format!("{SMTP_PORT_ARG}={TEST_SMTP_PORT}"),
+            format!("{SMTP_LOGIN_ARG}={}", retrieve_smtp_login().unwrap()),
+            format!("{SMTP_PASSWORD_ARG}={}", retrieve_smtp_password().unwrap()),
+            format!("{EMAIL_SENDER_NAME_ARG}={TEST_EMAIL_SENDER_NAME}"),
+            format!("{EMAIL_SENDER_ADDRESS_ARG}={TEST_EMAIL_SENDER_ADDRESS}"),
+            format!("{REPLY_TO_ARG}={TEST_REPLY_TO}"),
+        ]
+    }
+
+    // region send_email
+    #[cfg(not(tarpaulin))]  // Should be removed once Tarpaulin is able to parse arguments
+    #[async_test]
+    async fn should_send_email() {
+        let args = get_args();
+        with_env_args(args, || {
+            block_on(send_email(
+                TEST_RECIPIENTS,
+                TEST_SUBJECT,
+                TEST_HTML_BODY,
+                TEST_TEXT_BODY,
+            ))
+        }).unwrap();
+    }
+    // endregion
 
     // region create_message
     #[test]
@@ -132,19 +173,20 @@ mod tests {
         let sender_address_arg = format!("{EMAIL_SENDER_ADDRESS_ARG}={sender_address}");
         let args = vec![sender_name_arg, sender_address_arg];
 
-        let recipient = ("Recipient", "recipient@address.com");
-        let recipients = &[recipient];
-        let subject = "This is an important mail!";
-        let html_body = "<h1>Important!</h1>";
-        let text_body = "Important!";
-
-        let function = || create_message(recipients, subject, html_body, text_body);
+        let function = || {
+            create_message(
+                TEST_RECIPIENTS,
+                TEST_SUBJECT,
+                TEST_HTML_BODY,
+                TEST_TEXT_BODY,
+            )
+        };
         let result = with_env_args(args, function);
 
         assert!(result.is_ok());
         let result = result.unwrap();
         match result.clone().text_body.unwrap().contents {
-            BodyPart::Text(text) => assert_eq!(text_body, text),
+            BodyPart::Text(text) => assert_eq!(TEST_TEXT_BODY, text),
             BodyPart::Binary(_) => panic!("Unexpected binary part"),
             BodyPart::Multipart(_) => panic!("Unexpected multipart part"),
         };
@@ -152,8 +194,8 @@ mod tests {
 
     #[parameterized(
         args = {
-            vec![format!("{EMAIL_SENDER_NAME_ARG}=Sender")],
-            vec![format!("{EMAIL_SENDER_ADDRESS_ARG}=sender@address.com")],
+            vec![format!("{EMAIL_SENDER_NAME_ARG}={TEST_EMAIL_SENDER_NAME}")],
+            vec![format!("{EMAIL_SENDER_ADDRESS_ARG}={TEST_EMAIL_SENDER_ADDRESS}")],
             vec![],
         },
         expected_error = {
@@ -163,13 +205,14 @@ mod tests {
         }
     )]
     fn should_fail_to_create_message(args: Vec<String>, expected_error: Error) {
-        let recipient = ("Recipient", "recipient@address.com");
-        let recipients = &[recipient];
-        let subject = "This is an important mail!";
-        let html_body = "<h1>Important!</h1>";
-        let text_body = "Important!";
-
-        let function = || create_message(recipients, subject, html_body, text_body);
+        let function = || {
+            create_message(
+                TEST_RECIPIENTS,
+                TEST_SUBJECT,
+                TEST_HTML_BODY,
+                TEST_TEXT_BODY,
+            )
+        };
         let result = with_env_args(args, function);
 
         let error = result.unwrap_err();
@@ -180,16 +223,16 @@ mod tests {
     // region Retrieve args
     #[parameterized(
         args = {
-            vec![format!("{SMTP_SERVER_ARG}=smtp-server.com")],
-            vec![format!("{SMTP_PORT_ARG}=32")],
+            vec![format!("{SMTP_SERVER_ARG}={TEST_SMTP_SERVER}")],
+            vec![format!("{SMTP_PORT_ARG}={TEST_SMTP_PORT}")],
         },
         function = {
             &retrieve_smtp_server,
             & || retrieve_smtp_port().to_string(),
         },
         expected_result = {
-            "smtp-server.com".to_owned(),
-            "32".to_owned(),
+            TEST_SMTP_SERVER.to_owned(),
+            TEST_SMTP_PORT.to_string(),
         }
     )]
     fn should_retrieve_optional_arg(
@@ -228,11 +271,11 @@ mod tests {
 
     #[parameterized(
         args = {
-            vec![format!("{SMTP_LOGIN_ARG}=login")],
-            vec![format!("{SMTP_PASSWORD_ARG}=password")],
-            vec![format!("{EMAIL_SENDER_NAME_ARG}=Sender")],
-            vec![format!("{EMAIL_SENDER_ADDRESS_ARG}=sender@address.com")],
-            vec![format!("{SMTP_LOGIN_ARG}=login"), format!("{SMTP_PASSWORD_ARG}=password")],
+            vec![format!("{SMTP_LOGIN_ARG}={TEST_SMTP_LOGIN}")],
+            vec![format!("{SMTP_PASSWORD_ARG}={TEST_SMTP_PASSWORD}")],
+            vec![format!("{EMAIL_SENDER_NAME_ARG}={TEST_EMAIL_SENDER_NAME}")],
+            vec![format!("{EMAIL_SENDER_ADDRESS_ARG}={TEST_EMAIL_SENDER_ADDRESS}")],
+            vec![format!("{SMTP_LOGIN_ARG}={TEST_SMTP_LOGIN}"), format!("{SMTP_PASSWORD_ARG}={TEST_SMTP_PASSWORD}")],
         },
         function = {
             &retrieve_smtp_login,
@@ -242,11 +285,11 @@ mod tests {
             &retrieve_smtp_login
         },
         expected_result = {
-            "login".to_owned(),
-            "password".to_owned(),
-            "Sender".to_owned(),
-            "sender@address.com".to_owned(),
-            "login".to_owned(),
+            TEST_SMTP_LOGIN.to_owned(),
+            TEST_SMTP_PASSWORD.to_owned(),
+            TEST_EMAIL_SENDER_NAME.to_owned(),
+            TEST_EMAIL_SENDER_ADDRESS.to_owned(),
+            TEST_SMTP_LOGIN.to_owned(),
         }
     )]
     fn should_retrieve_expected_arg(
@@ -261,11 +304,11 @@ mod tests {
 
     #[parameterized(
         args = {
-            vec![format!("{SMTP_LOGIN_ARG}=login")],
-            vec![format!("{SMTP_PASSWORD_ARG}=password")],
-            vec![format!("{EMAIL_SENDER_NAME_ARG}=Sender")],
-            vec![format!("{EMAIL_SENDER_ADDRESS_ARG}=sender@address.com")],
-            vec![format!("{SMTP_LOGIN_ARG}=login"), format!("{SMTP_PASSWORD_ARG}=password")],
+            vec![format!("{SMTP_LOGIN_ARG}={TEST_SMTP_LOGIN}")],
+            vec![format!("{SMTP_PASSWORD_ARG}={TEST_SMTP_PASSWORD}")],
+            vec![format!("{EMAIL_SENDER_NAME_ARG}={TEST_EMAIL_SENDER_NAME}")],
+            vec![format!("{EMAIL_SENDER_ADDRESS_ARG}={TEST_EMAIL_SENDER_ADDRESS}")],
+            vec![format!("{SMTP_LOGIN_ARG}={TEST_SMTP_LOGIN}"), format!("{SMTP_PASSWORD_ARG}={TEST_SMTP_PASSWORD}")],
         },
         function = {
             &retrieve_smtp_login,
@@ -275,11 +318,11 @@ mod tests {
             &retrieve_smtp_login
         },
         expected_result = {
-            "login".to_owned(),
-            "password".to_owned(),
-            "Sender".to_owned(),
-            "sender@address.com".to_owned(),
-            "login".to_owned(),
+            TEST_SMTP_LOGIN.to_owned(),
+            TEST_SMTP_PASSWORD.to_owned(),
+            TEST_EMAIL_SENDER_NAME.to_owned(),
+            TEST_EMAIL_SENDER_ADDRESS.to_owned(),
+            TEST_SMTP_LOGIN.to_owned(),
         }
     )]
     fn should_fail_to_retrieve_arg(
