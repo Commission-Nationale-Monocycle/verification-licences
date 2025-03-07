@@ -180,6 +180,54 @@ mod tests {
     // region Retrieve args
     #[parameterized(
         args = {
+            vec![format!("{SMTP_SERVER_ARG}=smtp-server.com")],
+            vec![format!("{SMTP_PORT_ARG}=32")],
+        },
+        function = {
+            &retrieve_smtp_server,
+            & || retrieve_smtp_port().to_string(),
+        },
+        expected_result = {
+            "smtp-server.com".to_owned(),
+            "32".to_owned(),
+        }
+    )]
+    fn should_retrieve_optional_arg(
+        args: Vec<String>,
+        function: &dyn Fn() -> String,
+        expected_result: String,
+    ) {
+        let result = with_env_args(args, function);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[parameterized(
+        args = {
+            vec![],
+            vec![],
+        },
+        function = {
+            &retrieve_smtp_server,
+            & || retrieve_smtp_port().to_string(),
+        },
+        expected_result = {
+            DEFAULT_SMTP_SERVER.to_owned(),
+            DEFAULT_SMTP_PORT.to_string(),
+        }
+    )]
+    fn should_retrieve_default_value_for_optional_arg(
+        args: Vec<String>,
+        function: &dyn Fn() -> String,
+        expected_result: String,
+    ) {
+        let result = with_env_args(args, function);
+
+        assert_eq!(expected_result, result);
+    }
+
+    #[parameterized(
+        args = {
             vec![format!("{SMTP_LOGIN_ARG}=login")],
             vec![format!("{SMTP_PASSWORD_ARG}=password")],
             vec![format!("{EMAIL_SENDER_NAME_ARG}=Sender")],
@@ -201,7 +249,7 @@ mod tests {
             "login".to_owned(),
         }
     )]
-    fn should_retrieve_arg(
+    fn should_retrieve_expected_arg(
         args: Vec<String>,
         function: &dyn Fn() -> Result<String>,
         expected_result: String,
