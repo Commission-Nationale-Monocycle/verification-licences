@@ -155,7 +155,7 @@ impl CardCreator for CheckedMember {
 
 fn create_checkbox(document: &Document) -> Element {
     create_element_with_options(
-        &document,
+        document,
         "label",
         None,
         Some("Envoyer un email"),
@@ -163,7 +163,7 @@ fn create_checkbox(document: &Document) -> Element {
             Some(&["border-2", "rounded-md", "flex", "justify-evenly"]),
             None,
             Some(&[&create_element_with_options(
-                &document,
+                document,
                 "input",
                 None,
                 None,
