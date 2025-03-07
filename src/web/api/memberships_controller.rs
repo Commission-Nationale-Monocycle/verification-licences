@@ -2,11 +2,15 @@ use crate::member::config::MembershipsProviderConfig;
 use crate::member::download::download_memberships_list;
 use crate::member::import_from_file::{clean_old_files, import_from_file};
 use crate::member::members::Members;
+use crate::tools::email::send_email;
 use crate::tools::{log_message, log_message_and_return};
 use crate::web::api::members_state::MembersState;
+use derive_getters::Getters;
 use dto::member_to_check::MemberToCheck;
 use rocket::State;
 use rocket::form::Form;
+use rocket::serde::json::Json;
+use serde::Deserialize;
 use serde_json::json;
 use std::sync::Mutex;
 
@@ -76,6 +80,30 @@ pub async fn check_memberships(
     let vec = members.check_members(&members_to_check);
 
     Ok(json!(vec).to_string())
+}
+
+#[derive(Deserialize, Getters)]
+pub struct Email {
+    recipients: Vec<String>,
+    subject: String,
+    body: String,
+}
+
+/// Email all recipients specified as argument.
+#[post("/members/notify", format = "application/json", data = "<email>")]
+pub async fn notify_members(
+    email: Json<Email>,
+) -> Result<(), String> {
+    let recipients = email.recipients()
+        .iter()
+        .map(|email| email.as_ref())
+        .collect::<Vec<&str>>();
+    send_email(recipients.as_ref(), email.subject(), email.body())
+        .await
+        .map_err(log_message_and_return("Couldn't send email",
+        "Email has not been sent."))?;
+
+    Ok(())
 }
 
 #[cfg(test)]
