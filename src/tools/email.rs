@@ -2,7 +2,7 @@ use crate::tools::email::Error::{
     CantConnectToSmtpServer, CantSendMessage, MissingEmailSenderAddress, MissingEmailSenderName,
     MissingSmtpLogin, MissingSmtpPassword,
 };
-use crate::tools::env_args::retrieve_expected_arg_value;
+use crate::tools::env_args::{retrieve_arg_value, retrieve_expected_arg_value};
 use crate::tools::log_message_and_return;
 use mail_send::SmtpClientBuilder;
 use mail_send::mail_builder::MessageBuilder;
@@ -10,11 +10,12 @@ use mail_send::mail_builder::MessageBuilder;
 type Result<T, E = Error> = std::result::Result<T, E>;
 
 const EMAIL_SENDER_NAME_ARG: &'static str = "--email-sender-name";
-const EMAIL_SENDER_ADDRESS_ARG: &'static str = "--email-address";
+const EMAIL_SENDER_ADDRESS_ARG: &'static str = "--email-sender_address";
+const REPLY_TO_ARG: &'static str = "--reply-to";
 const SMTP_LOGIN_ARG: &'static str = "--smtp-login";
 const SMTP_PASSWORD_ARG: &'static str = "--smtp-password";
 const SMTP_SERVER: &'static str = "smtp.gmail.com";
-const SMTP_PORT: u16 = 587;
+const SMTP_PORT: u16 = 25;
 
 pub async fn send_email(
     recipients: &[(&str, &str)],
@@ -56,10 +57,13 @@ fn create_message<'a>(
 ) -> Result<MessageBuilder<'a>> {
     let sender_name = retrieve_email_sender_name()?;
     let sender_address = retrieve_email_sender_address()?;
+    let reply_to_address = retrieve_reply_to().unwrap_or_else(|| sender_address.clone());
 
     Ok(MessageBuilder::new()
         .from((sender_name, sender_address))
-        .to(Vec::from(recipients))
+        .reply_to(reply_to_address.clone())
+        .to(reply_to_address)
+        .bcc(Vec::from(recipients))
         .subject(subject)
         .html_body(html_body)
         .text_body(text_body))
@@ -80,6 +84,10 @@ fn retrieve_email_sender_name() -> Result<String> {
 
 fn retrieve_email_sender_address() -> Result<String> {
     retrieve_expected_arg_value(EMAIL_SENDER_ADDRESS_ARG, MissingEmailSenderAddress)
+}
+
+fn retrieve_reply_to() -> Option<String> {
+    retrieve_arg_value(REPLY_TO_ARG)
 }
 // endregion
 
