@@ -1,8 +1,17 @@
 use crate::member_to_check::MemberToCheck;
 use crate::membership::Membership;
+use chrono::Utc;
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+use crate::checked_member::MemberStatus::{Expired, Unknown, UpToDate};
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum MemberStatus {
+    UpToDate,
+    Expired,
+    Unknown,
+}
 
 #[derive(Debug, Getters, Serialize, Deserialize, PartialEq)]
 pub struct CheckedMember {
@@ -15,6 +24,19 @@ impl CheckedMember {
         Self {
             member_to_check,
             membership,
+        }
+    }
+
+    pub fn compute_member_status(&self) -> MemberStatus {
+        match &self.membership {
+            None => Unknown,
+            Some(membership) => {
+                if Utc::now().date_naive() < *membership.end_date() {
+                    UpToDate
+                } else {
+                    Expired
+                }
+            }
         }
     }
 }
@@ -35,7 +57,7 @@ impl PartialOrd for CheckedMember {
 mod tests {
     use super::*;
     use std::cmp::Ordering::{Greater, Less};
-
+    use chrono::Days;
     // region utils
 
     fn get_member_to_check_2() -> MemberToCheck {
@@ -80,6 +102,57 @@ mod tests {
         )
     }
     // endregion
+
+    // region compute_member_status
+    #[test]
+    fn should_be_up_to_date() {
+        let membership = Membership::new(
+            "1".to_owned(),
+            "".to_owned(),
+            "".to_owned(),
+            None,
+            None,
+            "".to_owned(),
+            "".to_owned(),
+            false,
+            Utc::now().date_naive().checked_add_days(Days::new(10)).unwrap(),
+            false,
+            "".to_owned(),
+            "".to_owned(),
+        );
+
+        let checked_member = CheckedMember::new(get_member_to_check_1(), Some(membership));
+        assert_eq!(UpToDate, checked_member.compute_member_status());
+    }
+
+    #[test]
+    fn should_be_expired() {
+        let membership = Membership::new(
+            "1".to_owned(),
+            "".to_owned(),
+            "".to_owned(),
+            None,
+            None,
+            "".to_owned(),
+            "".to_owned(),
+            false,
+            Utc::now().date_naive().checked_sub_days(Days::new(10)).unwrap(),
+            false,
+            "".to_owned(),
+            "".to_owned(),
+        );
+
+        let checked_member = CheckedMember::new(get_member_to_check_1(), Some(membership));
+        assert_eq!(Expired, checked_member.compute_member_status());
+    }
+
+    #[test]
+    fn should_be_unknown() {
+        let checked_member = CheckedMember::new(get_member_to_check_1(), None);
+        assert_eq!(Unknown, checked_member.compute_member_status());
+    }
+    // endregion
+
 
     #[test]
     fn should_sort_by_membership() {
