@@ -9,14 +9,14 @@ use mail_send::mail_builder::MessageBuilder;
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
-const EMAIL_SENDER_NAME_ARG: &'static str = "--email-sender-name";
-const EMAIL_SENDER_ADDRESS_ARG: &'static str = "--email-sender_address";
-const REPLY_TO_ARG: &'static str = "--reply-to";
-const SMTP_SERVER_ARG: &'static str = "--smtp-server";
-const SMTP_PORT_ARG: &'static str = "--smtp-port";
-const SMTP_LOGIN_ARG: &'static str = "--smtp-login";
-const SMTP_PASSWORD_ARG: &'static str = "--smtp-password";
-const DEFAULT_SMTP_SERVER: &'static str = "smtp.gmail.com";
+const EMAIL_SENDER_NAME_ARG: &str = "--email-sender-name";
+const EMAIL_SENDER_ADDRESS_ARG: &str = "--email-sender_address";
+const REPLY_TO_ARG: &str = "--reply-to";
+const SMTP_SERVER_ARG: &str = "--smtp-server";
+const SMTP_PORT_ARG: &str = "--smtp-port";
+const SMTP_LOGIN_ARG: &str = "--smtp-login";
+const SMTP_PASSWORD_ARG: &str = "--smtp-password";
+const DEFAULT_SMTP_SERVER: &str = "smtp.gmail.com";
 const DEFAULT_SMTP_PORT: u16 = 25;
 
 #[allow(dead_code)]
@@ -80,8 +80,7 @@ fn retrieve_smtp_server() -> String {
 }
 fn retrieve_smtp_port() -> u16 {
     retrieve_arg_value(SMTP_PORT_ARG)
-        .map(|port| port.parse::<u16>().ok())
-        .flatten()
+        .and_then(|port| port.parse::<u16>().ok())
         .unwrap_or(DEFAULT_SMTP_PORT)
 }
 fn retrieve_smtp_login() -> Result<String> {

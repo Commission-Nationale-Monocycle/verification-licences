@@ -11,15 +11,15 @@ use std::ops::Deref;
 pub struct ArgName<'a> {
     names: Vec<&'a str>,
 }
-impl<'a> Into<ArgName<'a>> for &'a str {
-    fn into(self) -> ArgName<'a> {
-        ArgName { names: vec![self] }
+impl<'a> From<&'a str> for ArgName<'a> {
+    fn from(val: &'a str) -> Self {
+        ArgName { names: vec![val] }
     }
 }
 
-impl<'a> Into<ArgName<'a>> for Vec<&'a str> {
-    fn into(self) -> ArgName<'a> {
-        ArgName { names: self }
+impl<'a> From<Vec<&'a str>> for ArgName<'a> {
+    fn from(val: Vec<&'a str>) -> Self {
+        ArgName { names: val }
     }
 }
 
