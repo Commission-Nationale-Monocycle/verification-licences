@@ -264,25 +264,16 @@ mod tests {
 
     #[parameterized(
         args = {
-            vec![format!("{SMTP_LOGIN_ARG}={TEST_SMTP_LOGIN}")],
-            vec![format!("{SMTP_PASSWORD_ARG}={TEST_SMTP_PASSWORD}")],
             vec![format!("{EMAIL_SENDER_NAME_ARG}={TEST_EMAIL_SENDER_NAME}")],
             vec![format!("{EMAIL_SENDER_ADDRESS_ARG}={TEST_EMAIL_SENDER_ADDRESS}")],
-            vec![format!("{SMTP_LOGIN_ARG}={TEST_SMTP_LOGIN}"), format!("{SMTP_PASSWORD_ARG}={TEST_SMTP_PASSWORD}")],
         },
         function = {
-            &retrieve_smtp_login,
-            &retrieve_smtp_password,
             &retrieve_email_sender_name,
             &retrieve_email_sender_address,
-            &retrieve_smtp_login
         },
         expected_result = {
-            TEST_SMTP_LOGIN.to_owned(),
-            TEST_SMTP_PASSWORD.to_owned(),
             TEST_EMAIL_SENDER_NAME.to_owned(),
             TEST_EMAIL_SENDER_ADDRESS.to_owned(),
-            TEST_SMTP_LOGIN.to_owned(),
         }
     )]
     fn should_retrieve_expected_arg(
@@ -297,25 +288,16 @@ mod tests {
 
     #[parameterized(
         args = {
-            vec![format!("{SMTP_LOGIN_ARG}={TEST_SMTP_LOGIN}")],
-            vec![format!("{SMTP_PASSWORD_ARG}={TEST_SMTP_PASSWORD}")],
             vec![format!("{EMAIL_SENDER_NAME_ARG}={TEST_EMAIL_SENDER_NAME}")],
             vec![format!("{EMAIL_SENDER_ADDRESS_ARG}={TEST_EMAIL_SENDER_ADDRESS}")],
-            vec![format!("{SMTP_LOGIN_ARG}={TEST_SMTP_LOGIN}"), format!("{SMTP_PASSWORD_ARG}={TEST_SMTP_PASSWORD}")],
         },
         function = {
-            &retrieve_smtp_login,
-            &retrieve_smtp_password,
             &retrieve_email_sender_name,
             &retrieve_email_sender_address,
-            &retrieve_smtp_login
         },
         expected_result = {
-            TEST_SMTP_LOGIN.to_owned(),
-            TEST_SMTP_PASSWORD.to_owned(),
             TEST_EMAIL_SENDER_NAME.to_owned(),
             TEST_EMAIL_SENDER_ADDRESS.to_owned(),
-            TEST_SMTP_LOGIN.to_owned(),
         }
     )]
     fn should_fail_to_retrieve_arg(
