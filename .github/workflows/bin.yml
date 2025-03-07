@@ -82,9 +82,9 @@ jobs:
         run: |
           cargo install --locked cargo-tarpaulin || true
       - name: Run tests
-        env:
-          SMTP_LOGIN=${{ secrets.TEST_SMTP_LOGIN }}
-          SMTP_PASSWORD=${{ secrets.TEST_SMTP_PASSWORD }}
+#        env:
+#          SMTP_LOGIN: ${{ secrets.TEST_SMTP_LOGIN }}
+#          SMTP_PASSWORD: ${{ secrets.TEST_SMTP_PASSWORD }}
 #        run: cargo tarpaulin -o Stdout -o Html --fail-under 75 -- --smtp-login=${{ SMTP_LOGIN }} --smtp-password=${{ SMTP_PASSWORD }}    # Should be enabled once Tarpaulin is able to parse arguments
         run: cargo tarpaulin -o Stdout -o Html --fail-under 75
       - name: Archive code coverage result
