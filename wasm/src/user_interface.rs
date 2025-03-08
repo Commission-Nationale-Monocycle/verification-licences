@@ -1,12 +1,10 @@
 use crate::card_creator::CardCreator;
-use crate::utils::{
-    append_child, clear_element, create_element, get_document, get_element_by_id,
-    get_element_by_id_dyn, remove_attribute, set_attribute,
-};
+use crate::utils::{add_class, append_child, clear_element, create_element, get_document, get_element_by_id, get_element_by_id_dyn, remove_attribute, remove_class, set_attribute};
 use dto::checked_member::CheckedMember;
+use dto::checked_member::MemberStatus::Expired;
 use dto::member_to_check::MemberToCheck;
 use std::collections::BTreeSet;
-use web_sys::{Document, Element, HtmlInputElement};
+use web_sys::{Document, Element, HtmlButtonElement, HtmlInputElement};
 
 // region Handle "members to check" file
 pub fn render_lines(
@@ -15,13 +13,17 @@ pub fn render_lines(
     members_to_check: &BTreeSet<MemberToCheck>,
     wrong_lines: &[String],
 ) {
+    clear_inputs(&document);
+
     let members_to_check_hidden_input = get_members_to_check_hidden_input(document);
     let members_to_check_table = get_members_to_check_table(document);
-    let wrong_lines_paragraph = get_element_by_id(document, "wrong_lines_paragraph");
-    let submit_button = get_element_by_id(document, "submit_members");
+    let wrong_lines_paragraph = get_wrong_line_paragraph(document);
+    let submit_button = get_submit_button(document);
+    let checked_members_container = get_checked_members_container(document);
 
     clear_element(&members_to_check_table);
     clear_element(&wrong_lines_paragraph);
+    clear_element(&checked_members_container);
 
     if !wrong_lines.is_empty() {
         let wrong_lines_data = create_wrong_lines(document, wrong_lines);
@@ -74,6 +76,15 @@ pub fn handle_checked_members(checked_members: &Vec<CheckedMember>) {
         let card = checked_member.create_card(&document);
         append_child(&parent, &card);
     }
+
+    if checked_members
+        .iter()
+        .any(|checked_member| checked_member.compute_member_status() == Expired)
+    {
+        let email_button = get_email_button(&document);
+        email_button.set_disabled(false);
+        remove_class(&email_button, "hidden");
+    }
 }
 // endregion
 
@@ -90,10 +101,27 @@ fn get_members_to_check_table(document: &Document) -> Element {
     get_element_by_id(document, "members_to_check_table")
 }
 
+fn get_wrong_line_paragraph(document: &Document) -> Element {
+    get_element_by_id(document, "wrong_lines_paragraph")
+}
+
+fn get_submit_button(document: &Document) -> Element {
+    get_element_by_id(document, "submit_members")
+}
+
+fn get_checked_members_container(document: &Document) -> Element {
+    get_element_by_id(document, "checked_members")
+}
+
+fn get_email_button(document: &Document) -> HtmlButtonElement {
+    get_element_by_id_dyn(&document, "email-button")
+}
+
 pub fn clear_inputs(document: &Document) {
     get_members_to_check_picker(document).set_value("");
     get_members_to_check_hidden_input(document).set_value("");
-    render_lines(document, "", &BTreeSet::new(), &[])
+    let email_button = get_email_button(&document);
+    email_button.set_disabled(true);
+    add_class(&email_button, "hidden");
 }
-
 // endregion

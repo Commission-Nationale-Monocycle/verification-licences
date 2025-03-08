@@ -178,7 +178,25 @@ pub fn remove_attribute(element: &Element, name: &str) {
 
 pub fn add_class(element: &Element, class_name: &str) {
     let already_applied_classes = element.class_name();
-    let new_set_of_classes = format!("{} {}", already_applied_classes, class_name);
+    if &already_applied_classes == "" {
+        element.set_class_name(&class_name);
+    } else {
+        let new_set_of_classes = format!("{} {}", already_applied_classes, class_name);
+        element.set_class_name(&new_set_of_classes);
+    }
+}
+
+pub fn remove_class(element: &Element, class_name: &str) {
+    let classes = element.class_name();
+    if !classes.contains(&class_name) {
+        return;
+    }
+    let new_set_of_classes = classes
+        .split(" ")
+        .filter(|applied_class| *applied_class != class_name)
+        .collect::<Vec<_>>()
+        .join(" ");
+
     element.set_class_name(&new_set_of_classes);
 }
 // endregion

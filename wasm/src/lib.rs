@@ -2,7 +2,6 @@ mod card_creator;
 mod user_interface;
 mod utils;
 
-use crate::user_interface::handle_checked_members;
 use crate::utils::{get_document, get_element_by_id_dyn, get_value_from_input, get_window};
 use dto::checked_member::CheckedMember;
 use dto::member_to_check::MemberToCheck;
@@ -82,8 +81,7 @@ async fn handle_form_submission(e: Event) {
         let text = response.text().await.expect("can't get text");
         let checked_members: Vec<CheckedMember> =
             serde_json::from_str(&text).expect("can't deserialize checked members");
-        handle_checked_members(&checked_members);
-        user_interface::clear_inputs(&document);
+        user_interface::handle_checked_members(&checked_members);
     } else {
         log::error!("Server error: {}", response.status().as_str())
     }
