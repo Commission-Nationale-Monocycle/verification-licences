@@ -178,8 +178,8 @@ pub fn remove_attribute(element: &Element, name: &str) {
 
 pub fn add_class(element: &Element, class_name: &str) {
     let already_applied_classes = element.class_name();
-    if &already_applied_classes == "" {
-        element.set_class_name(&class_name);
+    if already_applied_classes.is_empty() {
+        element.set_class_name(class_name);
     } else {
         let new_set_of_classes = format!("{} {}", already_applied_classes, class_name);
         element.set_class_name(&new_set_of_classes);
@@ -188,7 +188,7 @@ pub fn add_class(element: &Element, class_name: &str) {
 
 pub fn remove_class(element: &Element, class_name: &str) {
     let classes = element.class_name();
-    if !classes.contains(&class_name) {
+    if !classes.contains(class_name) {
         return;
     }
     let new_set_of_classes = classes

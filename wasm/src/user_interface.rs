@@ -1,5 +1,8 @@
 use crate::card_creator::CardCreator;
-use crate::utils::{add_class, append_child, clear_element, create_element, get_document, get_element_by_id, get_element_by_id_dyn, remove_attribute, remove_class, set_attribute};
+use crate::utils::{
+    add_class, append_child, clear_element, create_element, get_document, get_element_by_id,
+    get_element_by_id_dyn, remove_attribute, remove_class, set_attribute,
+};
 use dto::checked_member::CheckedMember;
 use dto::checked_member::MemberStatus::Expired;
 use dto::member_to_check::MemberToCheck;
@@ -13,7 +16,7 @@ pub fn render_lines(
     members_to_check: &BTreeSet<MemberToCheck>,
     wrong_lines: &[String],
 ) {
-    clear_inputs(&document);
+    clear_inputs(document);
 
     let members_to_check_hidden_input = get_members_to_check_hidden_input(document);
     let members_to_check_table = get_members_to_check_table(document);
@@ -109,19 +112,19 @@ fn get_submit_button(document: &Document) -> Element {
     get_element_by_id(document, "submit_members")
 }
 
-fn get_checked_members_container(document: &Document) -> Element {
+pub fn get_checked_members_container(document: &Document) -> Element {
     get_element_by_id(document, "checked_members")
 }
 
 fn get_email_button(document: &Document) -> HtmlButtonElement {
-    get_element_by_id_dyn(&document, "email-button")
+    get_element_by_id_dyn(document, "email-button")
 }
+// endregion
 
 pub fn clear_inputs(document: &Document) {
     get_members_to_check_picker(document).set_value("");
     get_members_to_check_hidden_input(document).set_value("");
-    let email_button = get_email_button(&document);
+    let email_button = get_email_button(document);
     email_button.set_disabled(true);
     add_class(&email_button, "hidden");
 }
-// endregion
