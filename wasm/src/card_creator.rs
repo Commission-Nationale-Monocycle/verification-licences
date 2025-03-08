@@ -17,6 +17,7 @@ pub trait OptionalCardCreator {
 }
 
 const MEMBERSHIP_CONTAINER_CLASS_NAME: &str = "membership-container";
+pub const EXPIRED_MEMBERSHIP_CONTAINER_CLASS_NAME: &str = "membership-container-expired";
 const EMAIL_ADDRESS_CLASS_NAME: &str = "email-address-container";
 
 impl OptionalCardCreator for Membership {
@@ -138,6 +139,7 @@ impl CardCreator for CheckedMember {
             match self.compute_member_status() {
                 MemberStatus::UpToDate => {}
                 MemberStatus::Expired => {
+                    add_class(&container, EXPIRED_MEMBERSHIP_CONTAINER_CLASS_NAME);
                     add_class(&container, "bg-orange-300");
 
                     let checkbox = create_checkbox(document);
