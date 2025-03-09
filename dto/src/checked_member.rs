@@ -1,10 +1,10 @@
+use crate::checked_member::MemberStatus::{Expired, Unknown, UpToDate};
 use crate::member_to_check::MemberToCheck;
 use crate::membership::Membership;
 use chrono::Utc;
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use crate::checked_member::MemberStatus::{Expired, Unknown, UpToDate};
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum MemberStatus {
@@ -31,7 +31,7 @@ impl CheckedMember {
         match &self.membership {
             None => Unknown,
             Some(membership) => {
-                if Utc::now().date_naive() < *membership.end_date() {
+                if Utc::now().date_naive() <= *membership.end_date() {
                     UpToDate
                 } else {
                     Expired
@@ -56,8 +56,8 @@ impl PartialOrd for CheckedMember {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::cmp::Ordering::{Greater, Less};
     use chrono::Days;
+    use std::cmp::Ordering::{Greater, Less};
     // region utils
 
     fn get_member_to_check_2() -> MemberToCheck {
@@ -115,7 +115,10 @@ mod tests {
             "".to_owned(),
             "".to_owned(),
             false,
-            Utc::now().date_naive().checked_add_days(Days::new(10)).unwrap(),
+            Utc::now()
+                .date_naive()
+                .checked_add_days(Days::new(10))
+                .unwrap(),
             false,
             "".to_owned(),
             "".to_owned(),
@@ -136,7 +139,10 @@ mod tests {
             "".to_owned(),
             "".to_owned(),
             false,
-            Utc::now().date_naive().checked_sub_days(Days::new(10)).unwrap(),
+            Utc::now()
+                .date_naive()
+                .checked_sub_days(Days::new(10))
+                .unwrap(),
             false,
             "".to_owned(),
             "".to_owned(),
@@ -152,7 +158,6 @@ mod tests {
         assert_eq!(Unknown, checked_member.compute_member_status());
     }
     // endregion
-
 
     #[test]
     fn should_sort_by_membership() {
