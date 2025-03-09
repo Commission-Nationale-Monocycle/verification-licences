@@ -29,4 +29,7 @@
     <div id="checked_members" class="flex flex-col md:flex-row flex-wrap">
 
     </div>
+    <button id="email-button" type="button" class="hidden" onclick="app.handle_selected_members()" disabled>
+        Envoyer un email aux personnes sélectionnées
+    </button>
 {% endblock content %}

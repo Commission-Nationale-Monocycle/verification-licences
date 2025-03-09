@@ -2,8 +2,7 @@ use crate::utils::{
     ElementConfig, add_class, append_child, create_element, create_element_with_class,
     create_element_with_classes, create_element_with_options,
 };
-use chrono::Utc;
-use dto::checked_member::CheckedMember;
+use dto::checked_member::{CheckedMember, MemberStatus};
 use dto::member_to_check::MemberToCheck;
 use dto::membership::Membership;
 use wasm_bindgen::UnwrapThrowExt;
@@ -18,6 +17,7 @@ pub trait OptionalCardCreator {
 }
 
 const MEMBERSHIP_CONTAINER_CLASS_NAME: &str = "membership-container";
+pub const EXPIRED_MEMBERSHIP_CONTAINER_CLASS_NAME: &str = "membership-container-expired";
 const EMAIL_ADDRESS_CLASS_NAME: &str = "email-address-container";
 
 impl OptionalCardCreator for Membership {
@@ -136,16 +136,19 @@ impl CardCreator for CheckedMember {
                 .get_elements_by_class_name(MEMBERSHIP_CONTAINER_CLASS_NAME)
                 .get_with_index(0)
                 .expect_throw("can't find membership container");
-            if let Some(membership) = &self.membership() {
-                if Utc::now().date_naive() > *membership.end_date() {
+            match self.compute_member_status() {
+                MemberStatus::UpToDate => {}
+                MemberStatus::Expired => {
+                    add_class(&container, EXPIRED_MEMBERSHIP_CONTAINER_CLASS_NAME);
                     add_class(&container, "bg-orange-300");
 
                     let checkbox = create_checkbox(document);
                     append_child(&membership_container, &checkbox);
                 }
-            } else {
-                add_class(&container, "bg-red-300");
-                add_class(&membership_container, "justify-center");
+                MemberStatus::Unknown => {
+                    add_class(&container, "bg-red-300");
+                    add_class(&membership_container, "justify-center");
+                }
             }
         }
 
