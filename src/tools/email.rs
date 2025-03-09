@@ -17,14 +17,10 @@ const SMTP_PORT_ARG: &str = "--smtp-port";
 const SMTP_LOGIN_ARG: &str = "--smtp-login";
 const SMTP_PASSWORD_ARG: &str = "--smtp-password";
 const DEFAULT_SMTP_SERVER: &str = "smtp.gmail.com";
-const DEFAULT_SMTP_PORT: u16 = 25;
+const DEFAULT_SMTP_PORT: u16 = 587;
 
 #[allow(dead_code)]
-pub async fn send_email(
-    recipients: &[&str],
-    subject: &str,
-    text_body: &str,
-) -> Result<()> {
+pub async fn send_email(recipients: &[&str], subject: &str, text_body: &str) -> Result<()> {
     let message = create_message(recipients, subject, text_body)?;
     create_smtp_client_and_send_email(message).await
 }
@@ -144,11 +140,10 @@ mod tests {
     #[async_test]
     async fn should_send_email() {
         let args = get_args();
-        with_env_args(args, || block_on(send_email(
-            TEST_RECIPIENTS,
-            TEST_SUBJECT,
-            TEST_TEXT_BODY,
-        ))).unwrap();
+        with_env_args(args, || {
+            block_on(send_email(TEST_RECIPIENTS, TEST_SUBJECT, TEST_TEXT_BODY))
+        })
+        .unwrap();
     }
     // endregion
 
@@ -161,13 +156,7 @@ mod tests {
         let sender_address_arg = format!("{EMAIL_SENDER_ADDRESS_ARG}={sender_address}");
         let args = vec![sender_name_arg, sender_address_arg];
 
-        let function = || {
-            create_message(
-                TEST_RECIPIENTS,
-                TEST_SUBJECT,
-                TEST_TEXT_BODY,
-            )
-        };
+        let function = || create_message(TEST_RECIPIENTS, TEST_SUBJECT, TEST_TEXT_BODY);
         let result = with_env_args(args, function);
 
         assert!(result.is_ok());
@@ -192,13 +181,7 @@ mod tests {
         }
     )]
     fn should_fail_to_create_message(args: Vec<String>, expected_error: Error) {
-        let function = || {
-            create_message(
-                TEST_RECIPIENTS,
-                TEST_SUBJECT,
-                TEST_TEXT_BODY,
-            )
-        };
+        let function = || create_message(TEST_RECIPIENTS, TEST_SUBJECT, TEST_TEXT_BODY);
         let result = with_env_args(args, function);
 
         let error = result.unwrap_err();

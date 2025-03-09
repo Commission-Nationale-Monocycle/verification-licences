@@ -70,7 +70,7 @@ To run the app in production, you'll need to pass the following args while start
 | --email-sender-address | The address that should be used to send the emails.<br/>⚠ If it doesn't fit with the SMTP login, the SMTP server may reject the emails. | String | Yes      | None                           |
 | --reply-to             | Which address the recipients should reply to                                                                                            | String | No       | `--email-sender-address` value |
 | --smtp-server          | The SMTP server to use to send emails                                                                                                   | String | No       | smtp.gmail.com                 |
-| --smtp-port            | The SMTP port the SMTP is listening on                                                                                                  | u16    | No       | 25                             |
+| --smtp-port            | The SMTP port the SMTP is listening on                                                                                                  | u16    | No       | 587                            |
 | --smtp-login           | The login used to access the SMTP server                                                                                                | String | Yes      | None                           |
 | --smtp-password        | The password used to access the SMTP server                                                                                             | String | Yes      | None                           |
 

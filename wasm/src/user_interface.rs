@@ -7,7 +7,7 @@ use dto::checked_member::CheckedMember;
 use dto::checked_member::MemberStatus::Expired;
 use dto::member_to_check::MemberToCheck;
 use std::collections::BTreeSet;
-use web_sys::{Document, Element, HtmlButtonElement, HtmlInputElement};
+use web_sys::{Document, Element, HtmlInputElement};
 
 // region Handle "members to check" file
 pub fn render_lines(
@@ -84,9 +84,8 @@ pub fn handle_checked_members(checked_members: &Vec<CheckedMember>) {
         .iter()
         .any(|checked_member| checked_member.compute_member_status() == Expired)
     {
-        let email_button = get_email_button(&document);
-        email_button.set_disabled(false);
-        remove_class(&email_button, "hidden");
+        let write_email_container = get_write_email_container(&document);
+        remove_class(&write_email_container, "hidden");
     }
 }
 // endregion
@@ -116,15 +115,22 @@ pub fn get_checked_members_container(document: &Document) -> Element {
     get_element_by_id(document, "checked_members")
 }
 
-fn get_email_button(document: &Document) -> HtmlButtonElement {
-    get_element_by_id_dyn(document, "email-button")
+fn get_write_email_container(document: &Document) -> Element {
+    get_element_by_id(document, "write_email_container")
+}
+
+pub fn get_email_subject(document: &Document) -> String {
+    get_element_by_id_dyn::<HtmlInputElement>(document, "email_subject").value()
+}
+
+pub fn get_email_body(document: &Document) -> String {
+    get_element_by_id(document, "email_body").inner_html()
 }
 // endregion
 
 pub fn clear_inputs(document: &Document) {
     get_members_to_check_picker(document).set_value("");
     get_members_to_check_hidden_input(document).set_value("");
-    let email_button = get_email_button(document);
-    email_button.set_disabled(true);
-    add_class(&email_button, "hidden");
+    let write_email_container = get_write_email_container(&document);
+    add_class(&write_email_container, "hidden");
 }
