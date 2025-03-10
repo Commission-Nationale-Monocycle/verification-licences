@@ -1,4 +1,5 @@
 mod card_creator;
+mod navbar;
 mod toast;
 mod user_interface;
 mod utils;
@@ -23,7 +24,10 @@ use web_sys::{Document, Event, HtmlFormElement, HtmlInputElement};
 fn run() {
     utils::set_panic_hook();
     wasm_logger::init(wasm_logger::Config::default());
-    add_submit_event_listener_to_form();
+
+    let document = &get_document();
+    navbar::init_navbar(document);
+    add_submit_event_listener_to_form(document);
 }
 
 // region Handle "members to check" file
@@ -59,8 +63,7 @@ pub async fn handle_members_to_check_file(input: HtmlInputElement) -> Result<(),
 // endregion
 
 // region Handle form submission
-fn add_submit_event_listener_to_form() {
-    let document = get_document();
+fn add_submit_event_listener_to_form(document: &Document) {
     let form = get_element_by_id_dyn::<HtmlFormElement>(&document, "check_members_form");
     let closure = Closure::wrap(Box::new(|e: Event| {
         spawn_local(async move {

@@ -1,6 +1,6 @@
 use crate::toast::{ToastLevel, show_toast};
 use wasm_bindgen::{JsCast, UnwrapThrowExt};
-use web_sys::{Document, Element};
+use web_sys::{Document, Element, Location};
 
 pub fn set_panic_hook() {
     // When the `console_error_panic_hook` feature is enabled, we can call the
@@ -246,6 +246,38 @@ pub fn remove_class(element: &Element, class_name: &str) {
         .join(" ");
 
     element.set_class_name(&new_set_of_classes);
+}
+// endregion
+
+// region Location
+pub fn get_location() -> Location {
+    get_window().location()
+}
+
+pub fn get_origin() -> String {
+    get_location().origin().unwrap_or_else(|error| {
+        show_toast(
+            &get_document(),
+            "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
+            ToastLevel::Error,
+        );
+        panic!("Couldn't get origin: {error:?}")
+    })
+}
+
+pub fn get_pathname() -> String {
+    get_location().pathname().unwrap_or_else(|error| {
+        show_toast(
+            &get_document(),
+            "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
+            ToastLevel::Error,
+        );
+        panic!("Couldn't get origin: {error:?}")
+    })
+}
+
+pub fn get_url_without_query() -> String {
+    format!("{}{}", get_origin(), get_pathname())
 }
 // endregion
 
