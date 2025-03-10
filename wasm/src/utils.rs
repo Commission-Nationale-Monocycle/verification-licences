@@ -69,7 +69,7 @@ pub fn query_selector_single_element(
                 "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
                 ToastLevel::ERROR,
             );
-            panic!("There should be a single element matching query: {error:?}.")
+            panic!("There should be a single element matching query.")
         })
 }
 
