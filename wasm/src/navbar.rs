@@ -1,5 +1,7 @@
 use crate::alert::{AlertLevel, create_alert};
-use crate::utils::{get_element_by_id, get_url_without_query, query_selector_single_element};
+use crate::utils::{
+    get_element_by_id, get_url_without_query, query_selector_single_element, set_attribute,
+};
 use wasm_bindgen::JsCast;
 use web_sys::{Document, HtmlAnchorElement};
 
@@ -22,9 +24,7 @@ pub fn init_navbar(document: &Document) {
                 });
         let href = link_element.href();
         if href == url {
-            link_element.set_class_name("block py-2 px-3 text-white bg-blue-700 rounded-sm md:bg-transparent md:text-blue-700 md:p-0 dark:text-white md:dark:text-blue-500");
-        } else {
-            link_element.set_class_name("block py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent");
+            set_attribute(&link_element, "aria-current", "page");
         }
     }
 }
