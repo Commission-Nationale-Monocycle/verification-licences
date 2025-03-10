@@ -1,3 +1,4 @@
+use crate::toast::{ToastLevel, show_toast};
 use wasm_bindgen::{JsCast, UnwrapThrowExt};
 use web_sys::{Document, Element};
 
@@ -23,19 +24,66 @@ pub fn get_document() -> Document {
 }
 
 pub fn get_element_by_id(document: &Document, id: &str) -> Element {
-    document
-        .get_element_by_id(id)
-        .unwrap_or_else(|| panic!("`{id}` element does not exist"))
+    document.get_element_by_id(id).unwrap_or_else(|| {
+        show_toast(
+            &document,
+            "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
+            ToastLevel::ERROR,
+        );
+
+        panic!("`{id}` element does not exist");
+    })
 }
 
 pub fn get_element_by_id_dyn<T: JsCast>(document: &Document, id: &str) -> T {
-    get_element_by_id(document, id).dyn_into().unwrap()
+    get_element_by_id(document, id)
+        .dyn_into()
+        .unwrap_or_else(|error| {
+            show_toast(
+                &document,
+                "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
+                ToastLevel::ERROR,
+            );
+            panic!("Can't cast element: {error:?}");
+        })
+}
+
+pub fn query_selector_single_element(
+    document: &Document,
+    element: &Element,
+    selector: &str,
+) -> Element {
+    element
+        .query_selector(selector)
+        .unwrap_or_else(|error| {
+            show_toast(
+                document,
+                "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
+                ToastLevel::ERROR,
+            );
+            panic!("There should be a single element matching query: {error:?}.")
+        })
+        .unwrap_or_else(|| {
+            show_toast(
+                document,
+                "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
+                ToastLevel::ERROR,
+            );
+            panic!("There should be a single element matching query: {error:?}.")
+        })
 }
 
 pub fn get_value_from_input(document: &Document, id: &str) -> String {
     get_element_by_id(document, id)
         .get_attribute("value")
-        .unwrap_or_else(|| panic!("`{id}` input does not contain text"))
+        .unwrap_or_else(|| {
+            show_toast(
+                &document,
+                "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
+                ToastLevel::ERROR,
+            );
+            panic!("`{id}` input does not contain text");
+        })
 }
 // endregion
 

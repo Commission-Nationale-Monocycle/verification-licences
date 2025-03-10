@@ -19,6 +19,7 @@ fn get_toast_level_icon(toast_level: &ToastLevel) -> &'static str {
     }
 }
 
+#[cfg(not(test))]
 #[wasm_bindgen]
 pub fn show_toast(document: &Document, text: &str, level: ToastLevel) {
     let toast = get_element_by_id(document, "toast");
@@ -29,6 +30,11 @@ pub fn show_toast(document: &Document, text: &str, level: ToastLevel) {
     let text_container = get_element_by_id(document, "toast_text");
     text_container.set_text_content(Some(text));
     modal.show();
+}
+
+#[cfg(test)]
+pub fn show_toast(_document: &Document, _text: &str, _level: ToastLevel) {
+    // Nothing to do for tests
 }
 
 #[wasm_bindgen]
