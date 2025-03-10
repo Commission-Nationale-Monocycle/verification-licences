@@ -1,1 +1,1 @@
-npx @tailwindcss/cli -i public/styles/styles.css -o public/static/styles.css
+npx @tailwindcss/cli -i public/styles/styles.css -o public/static/styles.css --minify
