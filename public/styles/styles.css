@@ -1,8 +1,18 @@
 @import "tailwindcss";
-@import "../../node_modules/flowbite/src/themes/default";
+@import "../../node_modules/flowbite/src/themes/default.css";
 @plugin "flowbite/plugin";
 @source "../../node_modules/flowbite";
 
-@tailwind base;
-@tailwind components;
 @tailwind utilities;
+
+#alert {
+    @apply flex items-center p-4 mb-4 rounded-lg dark:bg-gray-800
+}
+
+.alert-content {
+    @apply ms-3 text-sm font-medium
+}
+
+#close_alert {
+    @apply ms-auto -mx-1.5 -my-1.5 rounded-lg focus:ring-2 p-1.5 inline-flex items-center justify-center h-8 w-8 dark:bg-gray-800 dark:hover:bg-gray-700
+}
