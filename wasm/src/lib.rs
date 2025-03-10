@@ -1,11 +1,11 @@
+mod alert;
 mod card_creator;
 mod navbar;
-mod toast;
 mod user_interface;
 mod utils;
 
+use crate::alert::{AlertLevel, create_alert};
 use crate::card_creator::EXPIRED_MEMBERSHIP_CONTAINER_CLASS_NAME;
-use crate::toast::{ToastLevel, show_toast};
 use crate::user_interface::{get_email_body, get_email_subject};
 use crate::utils::{
     get_document, get_element_by_id_dyn, get_value_from_input, get_window,
@@ -44,10 +44,10 @@ pub async fn handle_members_to_check_file(input: HtmlInputElement) -> Result<(),
     let promise = csv_file.text();
     let text_jsvalue = wasm_bindgen_futures::JsFuture::from(promise).await?;
     let csv_content = text_jsvalue.as_string().unwrap_or_else(|| {
-        show_toast(
+        create_alert(
             &document,
             "Le fichier CSV contient des caractères incorrects. Vérifiez l'encodage UTF-8 du fichier.",
-            ToastLevel::Error,
+            AlertLevel::Error,
         );
         panic!("csv file should contain only valid UTF-8 characters");
     });
@@ -92,10 +92,10 @@ async fn handle_form_submission(e: Event) {
         .send()
         .await
         .unwrap_or_else(|error| {
-            show_toast(
+            create_alert(
                 &document,
                 "Impossible d'envoyer la requête. Veuillez réessayer.",
-                ToastLevel::Error,
+                AlertLevel::Error,
             );
             panic!("can't send request: {error:?}")
         });
@@ -107,10 +107,10 @@ async fn handle_form_submission(e: Event) {
             serde_json::from_str(&text).expect("can't deserialize checked members");
         user_interface::handle_checked_members(&checked_members);
     } else {
-        show_toast(
+        create_alert(
             &document,
             "Le serveur a rencontré une erreur lors du traitement. Veuillez réessayer.",
-            ToastLevel::Error,
+            AlertLevel::Error,
         );
         log::error!("Server error: {}", response.status().as_str())
     }
@@ -118,10 +118,10 @@ async fn handle_form_submission(e: Event) {
 
 fn build_client() -> Client {
     Client::builder().build().unwrap_or_else(|error| {
-        show_toast(
+        create_alert(
             &get_document(),
             "Impossible d'envoyer la requête. Veuillez réessayer.",
-            ToastLevel::Error,
+            AlertLevel::Error,
         );
         panic!("could not build client: {error:?}")
     })
@@ -152,10 +152,10 @@ pub async fn handle_email_sending() {
         .send()
         .await
         .unwrap_or_else(|error| {
-            show_toast(
+            create_alert(
                 document,
                 "Impossible d'envoyer la requête. Veuillez réessayer.",
-                ToastLevel::Error,
+                AlertLevel::Error,
             );
             panic!("can't send request: {error:?}")
         });
@@ -163,21 +163,21 @@ pub async fn handle_email_sending() {
     let status = response.status();
     if status.is_success() || status.is_redirection() {
         let addresses_count = email_addresses_to_notify.len();
-        show_toast(
+        create_alert(
             document,
             &format!(
                 "L'email a bien été envoyé à {} adresse{}.",
                 &addresses_count,
                 if addresses_count > 1 { "s" } else { "" }
             ),
-            ToastLevel::Info,
+            AlertLevel::Info,
         );
         log::info!("Email sent to {:?}!", email_addresses_to_notify); // FIXME
     } else {
-        show_toast(
+        create_alert(
             document,
             "Impossible d'envoyer l'email. Veuillez réessayer.",
-            ToastLevel::Error,
+            AlertLevel::Error,
         );
         log::error!("Server error: {}", response.status().as_str()) // FIXME
     }
@@ -192,10 +192,10 @@ fn get_email_addresses_to_notify(document: &Document) -> Vec<String> {
         let expired_member = expired_members.get_with_index(index).unwrap();
         let checkboxes = expired_member.get_elements_by_tag_name("input");
         if checkboxes.length() != 1 {
-            show_toast(
+            create_alert(
                 document,
                 "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                ToastLevel::Error,
+                AlertLevel::Error,
             );
             log::error!(
                 "There should be a single checkbox [count: {}]",
@@ -215,10 +215,10 @@ fn get_email_addresses_to_notify(document: &Document) -> Vec<String> {
                     ".email-address-container a",
                 );
                 let email_address = address_container.text_content().unwrap_or_else(|| {
-                    show_toast(
+                    create_alert(
                         document,
                         "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                        ToastLevel::Error,
+                        AlertLevel::Error,
                     );
                     panic!("There should be a single email address in each box.")
                 });

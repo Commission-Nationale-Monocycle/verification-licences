@@ -1,4 +1,4 @@
-use crate::toast::{ToastLevel, show_toast};
+use crate::alert::{AlertLevel, create_alert};
 use crate::utils::{
     ElementConfig, add_class, append_child, create_element, create_element_with_class,
     create_element_with_classes, create_element_with_options,
@@ -136,10 +136,10 @@ impl CardCreator for CheckedMember {
                 .get_elements_by_class_name(MEMBERSHIP_CONTAINER_CLASS_NAME)
                 .get_with_index(0)
                 .unwrap_or_else(|| {
-                    show_toast(
+                    create_alert(
                         document,
                         "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                        ToastLevel::Error,
+                        AlertLevel::Error,
                     );
                     panic!("can't find membership container")
                 });

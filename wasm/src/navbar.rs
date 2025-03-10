@@ -1,4 +1,4 @@
-use crate::toast::{ToastLevel, show_toast};
+use crate::alert::{AlertLevel, create_alert};
 use crate::utils::{get_element_by_id, get_url_without_query, query_selector_single_element};
 use wasm_bindgen::JsCast;
 use web_sys::{Document, HtmlAnchorElement};
@@ -13,10 +13,10 @@ pub fn init_navbar(document: &Document) {
             query_selector_single_element(document, &items.get_with_index(i).unwrap(), "a")
                 .dyn_into::<HtmlAnchorElement>()
                 .unwrap_or_else(|error| {
-                    show_toast(
+                    create_alert(
                         document,
                         "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                        ToastLevel::Error,
+                        AlertLevel::Error,
                     );
                     panic!("Couldn't find link element: {error:?}");
                 });

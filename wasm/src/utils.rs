@@ -1,6 +1,6 @@
-use crate::toast::{ToastLevel, show_toast};
+use crate::alert::{AlertLevel, create_alert};
 use wasm_bindgen::{JsCast, UnwrapThrowExt};
-use web_sys::{Document, Element, Location};
+use web_sys::{Document, Element, HtmlElement, Location, Node};
 
 pub fn set_panic_hook() {
     // When the `console_error_panic_hook` feature is enabled, we can call the
@@ -23,12 +23,17 @@ pub fn get_document() -> Document {
     window.document().expect("should have a document on window")
 }
 
+pub fn get_body() -> HtmlElement {
+    let document = get_document();
+    document.body().expect("should have a document on window")
+}
+
 pub fn get_element_by_id(document: &Document, id: &str) -> Element {
     document.get_element_by_id(id).unwrap_or_else(|| {
-        show_toast(
+        create_alert(
             document,
             "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-            ToastLevel::Error,
+            AlertLevel::Error,
         );
 
         panic!("`{id}` element does not exist");
@@ -39,10 +44,10 @@ pub fn get_element_by_id_dyn<T: JsCast>(document: &Document, id: &str) -> T {
     get_element_by_id(document, id)
         .dyn_into()
         .unwrap_or_else(|error| {
-            show_toast(
+            create_alert(
                 document,
                 "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                ToastLevel::Error,
+                AlertLevel::Error,
             );
             panic!("Can't cast element: {error:?}");
         })
@@ -56,18 +61,18 @@ pub fn query_selector_single_element(
     element
         .query_selector(selector)
         .unwrap_or_else(|error| {
-            show_toast(
+            create_alert(
                 document,
                 "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                ToastLevel::Error,
+                AlertLevel::Error,
             );
             panic!("There should be a single element matching query: {error:?}.")
         })
         .unwrap_or_else(|| {
-            show_toast(
+            create_alert(
                 document,
                 "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                ToastLevel::Error,
+                AlertLevel::Error,
             );
             panic!("There should be a single element matching query.")
         })
@@ -77,10 +82,10 @@ pub fn get_value_from_input(document: &Document, id: &str) -> String {
     get_element_by_id(document, id)
         .get_attribute("value")
         .unwrap_or_else(|| {
-            show_toast(
+            create_alert(
                 document,
                 "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                ToastLevel::Error,
+                AlertLevel::Error,
             );
             panic!("`{id}` input does not contain text");
         })
@@ -204,7 +209,7 @@ pub fn create_element_with_options(
 // endregion
 
 // region Manipulate existing elements
-pub fn append_child(container: &Element, child: &Element) {
+pub fn append_child(container: &Element, child: &Node) {
     container.append_child(child).expect("can't append child");
 }
 
@@ -256,10 +261,10 @@ pub fn get_location() -> Location {
 
 pub fn get_origin() -> String {
     get_location().origin().unwrap_or_else(|error| {
-        show_toast(
+        create_alert(
             &get_document(),
             "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-            ToastLevel::Error,
+            AlertLevel::Error,
         );
         panic!("Couldn't get origin: {error:?}")
     })
@@ -267,10 +272,10 @@ pub fn get_origin() -> String {
 
 pub fn get_pathname() -> String {
     get_location().pathname().unwrap_or_else(|error| {
-        show_toast(
+        create_alert(
             &get_document(),
             "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-            ToastLevel::Error,
+            AlertLevel::Error,
         );
         panic!("Couldn't get origin: {error:?}")
     })
