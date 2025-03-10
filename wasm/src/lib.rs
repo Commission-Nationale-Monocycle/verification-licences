@@ -1,4 +1,5 @@
 mod card_creator;
+mod toast;
 mod user_interface;
 mod utils;
 
