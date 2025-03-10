@@ -18,15 +18,21 @@ The following tools are required:
 - `wasm32-unknown-unknown` toolchain: install using `rustup target add wasm32-unknown-unknown`
 - [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/): required to run WASM tests
 - [Docker](https://www.docker.com/): used to package the app in an easy-to-share image
+- [Node.js](https://nodejs.org/en): required to install the tools to build the CSS file
+- [Tailwind-CLI](https://tailwindcss.com/docs/installation/tailwind-cli): used to build the CSS file
+- [Flowbite](https://flowbite.com/docs/getting-started/introduction/#install-using-npm): CSS library based on Tailwind,
+  required to build the CSS file
 
 Once everything's installed, you can try and compile the app:
 
-1. On Windows, run `.\build-wasm.bat` to build the WASM lib. If you use another OS, please adapt the script - it should
+1. On Windows, run `.\build-wasm.bat` to build the WASM lib. It should create a new `./public/static/pkg` folder. If you use another OS, please adapt the script - it should
    not be too hard.
-2. Build and run the app in demo mode with `cargo run --features demo`.
-3. If that's the first time you run the app, you'll have to populate the memberships. You can do so with cURL or any
+2. On windows, run `.\build-css.bat` to build the CSS file. It should appear in the `./public/static/` folder. If you use another OS, please adapt the script - it should
+   not be too hard.
+3. Build and run the app in demo mode with `cargo run --features demo`.
+4. If that's the first time you run the app, you'll have to populate the memberships. You can do so with cURL or any
    other tool: `curl --request GET --url http://127.0.0.1:8000/api/memberships`.
-4. Once the app is started and populated, go to http://127.0.0.1:8000/check-memberships. You should be able to check
+5. Once the app is started and populated, go to http://127.0.0.1:8000/check-memberships. You should be able to check
    memberships.
 
 You'll need Fileo credentials to do so.
