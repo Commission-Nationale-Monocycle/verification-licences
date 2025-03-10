@@ -4,10 +4,12 @@ use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::{Document, Element};
 
+#[allow(dead_code)]
 fn get_toast_success(document: &Document) -> Element {
     get_element_by_id(document, "toast_success")
 }
 
+#[allow(dead_code)]
 fn get_toast_error(document: &Document) -> Element {
     get_element_by_id(document, "toast_error")
 }
