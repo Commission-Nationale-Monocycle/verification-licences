@@ -1,3 +1,4 @@
+use crate::toast::{ToastLevel, show_toast};
 use crate::utils::{
     ElementConfig, add_class, append_child, create_element, create_element_with_class,
     create_element_with_classes, create_element_with_options,
@@ -5,7 +6,6 @@ use crate::utils::{
 use dto::checked_member::{CheckedMember, MemberStatus};
 use dto::member_to_check::MemberToCheck;
 use dto::membership::Membership;
-use wasm_bindgen::UnwrapThrowExt;
 use web_sys::{Document, Element};
 
 pub trait CardCreator {
@@ -135,7 +135,14 @@ impl CardCreator for CheckedMember {
             let membership_container = container
                 .get_elements_by_class_name(MEMBERSHIP_CONTAINER_CLASS_NAME)
                 .get_with_index(0)
-                .expect_throw("can't find membership container");
+                .unwrap_or_else(|| {
+                    show_toast(
+                        document,
+                        "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
+                        ToastLevel::Error,
+                    );
+                    panic!("can't find membership container")
+                });
             match self.compute_member_status() {
                 MemberStatus::UpToDate => {}
                 MemberStatus::Expired => {

@@ -11,8 +11,7 @@
 
     {% block content %}{% endblock content %}
 
-    {% include "toast-success" %}
-    {% include "toast-error" %}
+    {% include "toast" %}
 
     <footer>
         <a href="/">Accueil</a>
