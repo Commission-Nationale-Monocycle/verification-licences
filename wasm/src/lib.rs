@@ -3,6 +3,7 @@ mod user_interface;
 mod utils;
 
 use crate::card_creator::EXPIRED_MEMBERSHIP_CONTAINER_CLASS_NAME;
+use crate::user_interface::{get_email_body, get_email_subject};
 use crate::utils::{get_document, get_element_by_id_dyn, get_value_from_input, get_window};
 use dto::checked_member::CheckedMember;
 use dto::email::Email;
@@ -95,19 +96,21 @@ fn build_client() -> Client {
 }
 // endregion
 
-// region Handle selected members
+// region Handle email sending
 #[wasm_bindgen]
-pub async fn handle_selected_members() {
+pub async fn handle_email_sending() {
     let document = &get_document();
     let email_addresses_to_notify = get_email_addresses_to_notify(document);
+    let email_subject = get_email_subject(document);
+    let email_body = get_email_body(document);
 
     let client = build_client();
     let origin = get_window().location().origin().unwrap();
     let url = format!("{origin}/api/members/notify");
     let body = json!(Email::new(
-        email_addresses_to_notify,
-        "Very important subject".to_owned(), // FIXME
-        "You bad unicyclist".to_owned()      // FIXME
+        email_addresses_to_notify.clone(),
+        email_subject.to_owned(),
+        email_body.to_owned(),
     ))
     .to_string();
     let response = client
@@ -120,9 +123,9 @@ pub async fn handle_selected_members() {
 
     let status = response.status();
     if status.is_success() || status.is_redirection() {
-        log::info!("Email sent!"); // FIXME
+        log::info!("Email sent to {:?}!", email_addresses_to_notify); // FIXME
     } else {
-        log::error!("Server error: {}", response.status().as_str())
+        log::error!("Server error: {}", response.status().as_str()) // FIXME
     }
 }
 

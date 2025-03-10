@@ -29,7 +29,9 @@
     <div id="checked_members" class="flex flex-col md:flex-row flex-wrap">
 
     </div>
-    <button id="email-button" type="button" class="hidden" onclick="app.handle_selected_members()" disabled>
-        Envoyer un email aux personnes sélectionnées
-    </button>
+    <div id="write_email_container" class="hidden flex flex-col">
+        <label>Sujet : <input type="text" id="email_subject" value="Votre licence CNM/UNSLL a expiré" class="w-80 md:w-64 "></label>
+        <label><textarea id="email_body" class="block w-full h-64">{% include "default-email-body" %}</textarea></label>
+        <button id="send_email" type="button" onclick="app.handle_email_sending()">Envoyer</button>
+    </div>
 {% endblock content %}
