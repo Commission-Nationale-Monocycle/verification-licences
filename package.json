@@ -1,0 +1,22 @@
+{
+  "name": "verification-licences",
+  "version": "1.0.0",
+  "description": "",
+  "main": "tailwind.config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Abrikot/verification-licences.git"
+  },
+  "private": true,
+  "devDependencies": {
+    "postcss-cli": "^11.0.0"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.0.12",
+    "flowbite": "^3.1.2",
+    "tailwindcss": "^4.0.12"
+  }
+}

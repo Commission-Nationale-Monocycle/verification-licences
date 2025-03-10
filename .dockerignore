@@ -3,6 +3,7 @@
 **/.idea/
 **/.dockerignore
 **/.gitignore
+**/node_modules/
 **/pkg/
 **/target/
 data/

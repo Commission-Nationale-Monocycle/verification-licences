@@ -1,6 +1,8 @@
 **/.idea/
+**/node_modules/
 **/pkg/
 **/target/
-data/
-demo_data/
+/data/
+/demo_data/
+/public/static/styles.css
 tarpaulin-report.html
