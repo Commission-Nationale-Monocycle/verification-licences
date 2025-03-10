@@ -131,6 +131,6 @@ pub fn get_email_body(document: &Document) -> String {
 pub fn clear_inputs(document: &Document) {
     get_members_to_check_picker(document).set_value("");
     get_members_to_check_hidden_input(document).set_value("");
-    let write_email_container = get_write_email_container(&document);
+    let write_email_container = get_write_email_container(document);
     add_class(&write_email_container, "hidden");
 }
