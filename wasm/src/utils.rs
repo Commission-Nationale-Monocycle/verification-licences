@@ -26,9 +26,9 @@ pub fn get_document() -> Document {
 pub fn get_element_by_id(document: &Document, id: &str) -> Element {
     document.get_element_by_id(id).unwrap_or_else(|| {
         show_toast(
-            &document,
+            document,
             "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-            ToastLevel::ERROR,
+            ToastLevel::Error,
         );
 
         panic!("`{id}` element does not exist");
@@ -40,9 +40,9 @@ pub fn get_element_by_id_dyn<T: JsCast>(document: &Document, id: &str) -> T {
         .dyn_into()
         .unwrap_or_else(|error| {
             show_toast(
-                &document,
+                document,
                 "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                ToastLevel::ERROR,
+                ToastLevel::Error,
             );
             panic!("Can't cast element: {error:?}");
         })
@@ -59,7 +59,7 @@ pub fn query_selector_single_element(
             show_toast(
                 document,
                 "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                ToastLevel::ERROR,
+                ToastLevel::Error,
             );
             panic!("There should be a single element matching query: {error:?}.")
         })
@@ -67,7 +67,7 @@ pub fn query_selector_single_element(
             show_toast(
                 document,
                 "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                ToastLevel::ERROR,
+                ToastLevel::Error,
             );
             panic!("There should be a single element matching query.")
         })
@@ -78,9 +78,9 @@ pub fn get_value_from_input(document: &Document, id: &str) -> String {
         .get_attribute("value")
         .unwrap_or_else(|| {
             show_toast(
-                &document,
+                document,
                 "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                ToastLevel::ERROR,
+                ToastLevel::Error,
             );
             panic!("`{id}` input does not contain text");
         })

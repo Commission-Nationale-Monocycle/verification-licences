@@ -137,9 +137,9 @@ impl CardCreator for CheckedMember {
                 .get_with_index(0)
                 .unwrap_or_else(|| {
                     show_toast(
-                        &document,
+                        document,
                         "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                        ToastLevel::ERROR,
+                        ToastLevel::Error,
                     );
                     panic!("can't find membership container")
                 });
