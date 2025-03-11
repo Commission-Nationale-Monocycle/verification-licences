@@ -165,11 +165,11 @@ body.loading #spinner-container {
     @apply inline
 }
 
-.checked_member_expired .send-email-checkbox {
-    @apply border-2 rounded-md flex justify-evenly
+.checked-member-expired .send-email-checkbox {
+    @apply border-2 rounded-md flex justify-evenly items-center
 }
 
-.checked_member_unknown .membership {
+.checked-member-unknown .membership {
     @apply justify-center
 }
 
