@@ -49,7 +49,7 @@ pub fn create_alert(document: &Document, text: &str, level: AlertLevel) {
 }
 
 #[cfg(test)]
-pub fn show_alert(_document: &Document, _text: &str, _level: AlertLevel) {
+pub fn create_alert(_document: &Document, _text: &str, _level: AlertLevel) {
     // Nothing to do for tests
 }
 
