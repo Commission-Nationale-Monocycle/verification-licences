@@ -16,8 +16,6 @@ pub fn render_lines(
     members_to_check: &BTreeSet<MemberToCheck>,
     wrong_lines: &[String],
 ) {
-    clear_inputs(document);
-
     let members_to_check_hidden_input = get_members_to_check_hidden_input(document);
     let members_to_check_table = get_members_to_check_table(document);
     let wrong_lines_paragraph = get_wrong_line_paragraph(document);
@@ -75,6 +73,7 @@ fn create_wrong_lines(document: &Document, wrong_lines: &[String]) -> Element {
 pub fn handle_checked_members(checked_members: &Vec<CheckedMember>) {
     let document = get_document();
     let parent = get_element_by_id(&document, "checked_members");
+    clear_element(&parent);
     for checked_member in checked_members {
         let card = checked_member.create_card(&document);
         append_child(&parent, &card);
@@ -93,10 +92,6 @@ pub fn handle_checked_members(checked_members: &Vec<CheckedMember>) {
 // region Get parts of the document
 fn get_members_to_check_hidden_input(document: &Document) -> HtmlInputElement {
     get_element_by_id_dyn(document, "members_to_check")
-}
-
-fn get_members_to_check_picker(document: &Document) -> HtmlInputElement {
-    get_element_by_id_dyn(document, "members_to_check_picker")
 }
 
 fn get_members_to_check_table(document: &Document) -> Element {
@@ -127,13 +122,6 @@ pub fn get_email_body(document: &Document) -> String {
     get_element_by_id(document, "email_body").inner_html()
 }
 // endregion
-
-pub fn clear_inputs(document: &Document) {
-    get_members_to_check_picker(document).set_value("");
-    get_members_to_check_hidden_input(document).set_value("");
-    let write_email_container = get_write_email_container(document);
-    add_class(&write_email_container, "hidden");
-}
 
 pub fn set_loading(loading: bool) {
     if loading {
