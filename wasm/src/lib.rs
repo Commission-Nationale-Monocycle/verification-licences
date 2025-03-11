@@ -127,17 +127,6 @@ async fn handle_form_submission(e: Event) {
         log::error!("Server error: {}", response.status().as_str())
     }
 }
-
-fn build_client() -> Client {
-    Client::builder().build().unwrap_or_else(|error| {
-        create_alert(
-            &get_document(),
-            "Impossible d'envoyer la requête. Veuillez réessayer.",
-            AlertLevel::Error,
-        );
-        panic!("could not build client: {error:?}")
-    })
-}
 // endregion
 
 // region Handle email sending
@@ -247,3 +236,14 @@ fn get_email_addresses_to_notify(document: &Document) -> Vec<String> {
     email_addresses_to_notify
 }
 // endregion
+
+fn build_client() -> Client {
+    Client::builder().build().unwrap_or_else(|error| {
+        create_alert(
+            &get_document(),
+            "Impossible d'envoyer la requête. Veuillez réessayer.",
+            AlertLevel::Error,
+        );
+        panic!("could not build client: {error:?}")
+    })
+}
