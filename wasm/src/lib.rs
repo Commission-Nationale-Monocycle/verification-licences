@@ -20,8 +20,7 @@ use dto::member_to_check::MemberToCheck;
 use reqwest::Client;
 use serde_json::json;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::spawn_local;
-use web_sys::{Document, Event, HtmlFormElement, HtmlInputElement, HtmlTextAreaElement};
+use web_sys::{Document, HtmlInputElement, HtmlTextAreaElement};
 
 #[wasm_bindgen(start)]
 fn run() {

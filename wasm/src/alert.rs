@@ -1,6 +1,5 @@
 use crate::template::get_template;
 use crate::utils::{append_child, get_body, get_element_by_id, query_selector_single_element};
-use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::{Document, Element, Node};
 
