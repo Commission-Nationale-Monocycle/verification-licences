@@ -1,37 +1,43 @@
 {% extends "base" %}
 
 {% block content %}
-    <div>
-        <label for="members_to_check_picker">Sélectionnez le fichier contenant les licences à vérifier</label>
-        <input id="members_to_check_picker"
-               name="members_to_check_picker"
-               type="file"
-               accept=".text/csv,.csv"
-               oninput="app.handle_members_to_check_file(this)"/>
-    </div>
-    <form id="check_members_form"
-          action="/api/members/check"
-          method="post">
-        <input id="members_to_check"
-               name="members_to_check"
-               type="hidden"
-               required>
-        <div id="members_to_check_table" class="flex flex-col md:flex-row flex-wrap">
+    {% include "stepper" %}
 
+    <div class="step current-step">
+        <div>
+            <label for="members_to_check_picker">Sélectionnez le fichier contenant les licences à vérifier</label>
+            <input id="members_to_check_picker"
+                   name="members_to_check_picker"
+                   type="file"
+                   accept=".text/csv,.csv"
+                   oninput="app.handle_members_to_check_file(this)"/>
         </div>
-        <div id="wrong_lines_paragraph">
+        <form id="check_members_form"
+              action="/api/members/check"
+              method="post">
+            <input id="members_to_check"
+                   name="members_to_check"
+                   type="hidden"
+                   required>
+            <div id="members_to_check_table" class="flex flex-col md:flex-row flex-wrap">
 
-        </div>
-        <p></p>
-        <input id="submit_members" type="submit" value="Vérifier les licences" disabled>
-    </form>
+            </div>
+            <div id="wrong_lines_paragraph">
 
-    <div id="checked_members" class="flex flex-col md:flex-row flex-wrap">
-
+            </div>
+            <p></p>
+            <input id="submit_members" type="submit" value="Vérifier les licences" disabled>
+        </form>
     </div>
-    <div id="write_email_container" class="hidden flex flex-col">
-        <label>Sujet : <input type="text" id="email_subject" value="Votre licence CNM/UNSLL a expiré" class="w-80 md:w-64 "></label>
-        <label><textarea id="email_body" class="block w-full h-64">{% include "default-email-body" %}</textarea></label>
-        <button id="send_email" type="button" onclick="app.handle_email_sending()">Envoyer</button>
+
+    <div class="step">
+        <div id="checked_members" class="flex flex-col md:flex-row flex-wrap"></div>
+    </div>
+    <div class="step">
+        <div id="write_email_container" class="hidden flex flex-col">
+            <label>Sujet : <input type="text" id="email_subject" value="Votre licence CNM/UNSLL a expiré" class="w-80 md:w-64 "></label>
+            <label><textarea id="email_body" class="block w-full h-64">{% include "default-email-body" %}</textarea></label>
+            <button id="send_email" type="button" onclick="app.handle_email_sending()">Envoyer</button>
+        </div>
     </div>
 {% endblock content %}

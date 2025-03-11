@@ -74,3 +74,51 @@ body.loading #spinner-container {
 }
 
 /* endregion */
+
+/* region stepper */
+.stepper {
+    @apply flex items-center w-6/12 m-auto text-sm font-medium text-center text-gray-500 dark:text-gray-400 sm:text-base
+}
+
+.stepper > li {
+    @apply flex items-center
+}
+
+.stepper > li:is(.stepper-current-step, .stepper-validated-step) {
+    @apply text-blue-600 dark:text-blue-500 sm:after:content-['']
+}
+
+.stepper > li > span {
+    @apply flex items-center
+}
+
+.stepper > li.stepper-validated-step > span > svg {
+    @apply w-3.5 h-3.5 sm:w-4 sm:h-4 me-2.5
+}
+
+.stepper > li.stepper-validated-step > span > span {
+    @apply hidden
+}
+
+.stepper > li:not(.stepper-validated-step) > span > svg {
+    @apply hidden
+}
+
+.stepper > li:not(.stepper-validated-step) > span > span {
+    @apply me-2
+}
+
+.stepper > li:not(:last-child) {
+    @apply md:w-full after:content-[''] after:w-full after:h-1 after:border-b after:border-gray-200 after:border-1 after:hidden sm:after:inline-block after:mx-6 xl:after:mx-10 dark:after:border-gray-700
+}
+
+.stepper > li:not(:last-child) > span {
+    @apply after:content-['/'] sm:after:hidden after:mx-2 after:text-gray-200 dark:after:text-gray-500
+}
+/* endregion */
+
+/* region steps */
+.step:not(.current-step) {
+    @apply hidden
+}
+/* endregion */
