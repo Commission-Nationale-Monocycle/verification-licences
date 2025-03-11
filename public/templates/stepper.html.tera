@@ -1,5 +1,5 @@
 <ol class="stepper">
-    <li class="stepper-current-step">
+    <li class="stepper-current-step" onclick="app.go_to_step(document, 0)">
         <span>
             <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
                  fill="currentColor" viewBox="0 0 20 20">
@@ -9,7 +9,7 @@
             Sélection
         </span>
     </li>
-    <li>
+    <li onclick="app.go_to_step(document, 1)">
         <span>
             <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
                  fill="currentColor" viewBox="0 0 20 20">
@@ -19,7 +19,7 @@
             Vérification
         </span>
     </li>
-    <li>
+    <li onclick="app.go_to_step(document, 2)">
         <span>
             <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
                  fill="currentColor" viewBox="0 0 20 20">
