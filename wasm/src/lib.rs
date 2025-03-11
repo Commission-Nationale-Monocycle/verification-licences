@@ -172,14 +172,14 @@ pub async fn handle_email_sending() {
             ),
             AlertLevel::Info,
         );
-        log::info!("Email sent to {:?}!", email_addresses_to_notify); // FIXME
+        log::info!("Email sent to {:?}!", email_addresses_to_notify);
     } else {
         create_alert(
             document,
             "Impossible d'envoyer l'email. Veuillez réessayer.",
             AlertLevel::Error,
         );
-        log::error!("Server error: {}", response.status().as_str()) // FIXME
+        log::error!("Server error: {}", response.status().as_str());
     }
 }
 
