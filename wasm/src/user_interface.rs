@@ -1,6 +1,6 @@
 use crate::card_creator::{create_card_for_checked_member, create_card_for_member_to_check};
 use crate::utils::{
-    add_class, append_child, clear_element, create_element, get_body, get_document,
+    ElementBuilder, add_class, append_child, clear_element, get_body, get_document,
     get_element_by_id, get_element_by_id_dyn, remove_attribute, remove_class, set_attribute,
 };
 use dto::checked_member::CheckedMember;
@@ -59,10 +59,15 @@ fn create_wrong_lines(document: &Document, wrong_lines: &[String]) -> Element {
     } else {
         "Les lignes suivantes contiennent une ou des erreurs :"
     };
-    let parent = create_element(document, "div", None, Some(parent_text));
+    let parent = ElementBuilder::default()
+        .inner_html(parent_text)
+        .build(document, "div");
 
     wrong_lines.iter().for_each(|wrong_line| {
-        create_element(document, "p", Some(&parent), Some(wrong_line));
+        ElementBuilder::default()
+            .parent(&parent)
+            .inner_html(wrong_line)
+            .build(document, "p");
     });
 
     parent

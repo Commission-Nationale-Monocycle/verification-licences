@@ -13,7 +13,7 @@ pub fn create_card_for_member_to_check(
     document: &Document,
     member_to_check: &MemberToCheck,
 ) -> Element {
-    let container = create_element(document, "div", None, None);
+    let container = create_element(document, "div");
 
     let card_template = get_member_to_check_template(document);
     append_child(&container, &card_template);
@@ -34,7 +34,7 @@ pub fn create_card_for_checked_member(
     document: &Document,
     checked_member: &CheckedMember,
 ) -> Element {
-    let container = create_element(document, "div", None, None);
+    let container = create_element(document, "div");
 
     let status = checked_member.compute_member_status();
     let card_template = get_checked_member_template(document, &status);

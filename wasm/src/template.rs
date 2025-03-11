@@ -6,7 +6,7 @@ use web_sys::{Document, DocumentFragment, Element, HtmlTemplateElement};
 
 /// Retrieve a template from the document and make it available as an Element.
 pub fn get_template(document: &Document, template_id: &str) -> Element {
-    let container = create_element(document, "div", None, None);
+    let container = create_element(document, "div");
 
     let template = get_element_by_id(document, template_id)
         .dyn_into::<HtmlTemplateElement>()
