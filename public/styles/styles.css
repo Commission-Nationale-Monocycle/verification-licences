@@ -8,7 +8,7 @@
 
 /* region alert */
 #alert {
-    @apply flex items-center p-4 mb-4 rounded-lg dark:bg-gray-800
+    @apply fixed bottom-0 w-full flex items-center p-4 rounded-t-xs dark:bg-gray-800
 }
 
 .alert-content {
