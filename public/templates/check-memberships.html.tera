@@ -32,6 +32,7 @@
 
     <div class="step">
         <div id="checked_members" class="flex flex-col md:flex-row flex-wrap"></div>
+        <button type="button" onclick="app.next_step(document)">Étape suivante</button>
     </div>
     <div class="step">
         <div id="write_email_container" class="hidden flex flex-col">

@@ -7,6 +7,7 @@ mod utils;
 
 use crate::alert::{AlertLevel, create_alert};
 use crate::card_creator::EXPIRED_MEMBERSHIP_CONTAINER_CLASS_NAME;
+use crate::stepper::next_step;
 use crate::user_interface::{get_email_body, get_email_subject, set_loading};
 use crate::utils::{
     get_document, get_element_by_id_dyn, get_value_from_input, get_window,
@@ -113,6 +114,7 @@ async fn handle_form_submission(e: Event) {
         let checked_members: Vec<CheckedMember> =
             serde_json::from_str(&text).expect("can't deserialize checked members");
         user_interface::handle_checked_members(&checked_members);
+        next_step(&document);
         set_loading(false);
     } else {
         set_loading(false);
