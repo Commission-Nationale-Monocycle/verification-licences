@@ -1,7 +1,8 @@
-use crate::utils::{append_child, get_body, get_element_by_id, query_selector_single_element};
+use crate::template::get_template;
+use crate::utils::{get_element_by_id, query_selector_single_element};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::wasm_bindgen;
-use web_sys::{Document, DocumentFragment, Element, HtmlTemplateElement, Node};
+use web_sys::{Document, Element, Node};
 
 #[wasm_bindgen]
 pub enum AlertLevel {
@@ -10,13 +11,11 @@ pub enum AlertLevel {
 }
 
 #[cfg(not(test))]
-fn get_alert_template(document: &Document, level: &AlertLevel) -> HtmlTemplateElement {
+fn get_alert_template(document: &Document, level: &AlertLevel) -> Element {
     match level {
-        AlertLevel::Info => get_element_by_id(document, "alert_info"),
-        AlertLevel::Error => get_element_by_id(document, "alert_error"),
+        AlertLevel::Info => get_template(document, "alert_info"),
+        AlertLevel::Error => get_template(document, "alert_error"),
     }
-    .dyn_into::<HtmlTemplateElement>()
-    .expect("Couldn't retrieve Alert template")
 }
 
 #[cfg(not(test))]
@@ -27,18 +26,7 @@ pub fn create_alert(document: &Document, text: &str, level: AlertLevel) {
         .as_ref()
         .map(Element::remove);
 
-    let body = get_body();
-    let template = get_alert_template(document, &level);
-    let alert = template
-        .content()
-        .clone_node_with_deep(true)
-        .unwrap_or_else(|error| panic!("Couldn't clone node: {error:?}"))
-        .dyn_into::<DocumentFragment>()
-        .unwrap();
-
-    append_child(&body, &alert);
-
-    let alert = get_element_by_id(document, "alert");
+    let alert = get_alert_template(document, &level);
     let content_container = query_selector_single_element(document, &alert, ".alert-content");
     content_container.set_inner_html(text);
 

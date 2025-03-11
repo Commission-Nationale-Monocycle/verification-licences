@@ -1,12 +1,11 @@
-use crate::utils::{
-    append_child, create_element, get_element_by_id, query_selector_single_element,
-};
+use crate::template::get_template;
+use crate::utils::{append_child, create_element, query_selector_single_element};
 use MemberStatus::Unknown;
 use dto::checked_member::MemberStatus::{Expired, UpToDate};
 use dto::checked_member::{CheckedMember, MemberStatus};
 use dto::member_to_check::MemberToCheck;
 use wasm_bindgen::JsCast;
-use web_sys::{Document, DocumentFragment, Element, HtmlAnchorElement, HtmlTemplateElement};
+use web_sys::{Document, Element, HtmlAnchorElement};
 
 pub const EXPIRED_CHECKED_MEMBER_CONTAINER_CLASS_NAME: &str = "checked-member-expired";
 
@@ -69,31 +68,14 @@ pub fn create_card_for_checked_member(
     card
 }
 
-fn get_member_to_check_template(document: &Document) -> DocumentFragment {
-    get_element_by_id(document, "member_to_check")
-        .dyn_into::<HtmlTemplateElement>()
-        .unwrap_or_else(|error| panic!("Couldn't retrieve member_to_check template: {error:?}"))
-        .content()
-        .clone_node_with_deep(true)
-        .unwrap_or_else(|error| panic!("Couldn't clone node: {error:?}"))
-        .dyn_into::<DocumentFragment>()
-        .unwrap_or_else(|error| panic!("Couldn't cast to DocumentFragment: {error:?}"))
+fn get_member_to_check_template(document: &Document) -> Element {
+    get_template(document, "member_to_check")
 }
 
-fn get_checked_member_template(
-    document: &Document,
-    member_status: &MemberStatus,
-) -> DocumentFragment {
+fn get_checked_member_template(document: &Document, member_status: &MemberStatus) -> Element {
     match member_status {
-        UpToDate => get_element_by_id(document, "checked_member_up_to_date"),
-        Expired => get_element_by_id(document, "checked_member_expired"),
-        Unknown => get_element_by_id(document, "checked_member_unknown"),
+        UpToDate => get_template(document, "checked_member_up_to_date"),
+        Expired => get_template(document, "checked_member_expired"),
+        Unknown => get_template(document, "checked_member_unknown"),
     }
-    .dyn_into::<HtmlTemplateElement>()
-    .unwrap_or_else(|error| panic!("Couldn't retrieve checked_member template: {error:?}"))
-    .content()
-    .clone_node_with_deep(true)
-    .unwrap_or_else(|error| panic!("Couldn't clone node: {error:?}"))
-    .dyn_into::<DocumentFragment>()
-    .unwrap_or_else(|error| panic!("Couldn't cast to DocumentFragment: {error:?}"))
 }

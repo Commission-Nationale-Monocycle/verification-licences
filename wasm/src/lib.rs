@@ -2,6 +2,7 @@ mod alert;
 mod card_creator;
 mod navbar;
 mod stepper;
+mod template;
 mod user_interface;
 mod utils;
 
