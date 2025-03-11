@@ -12,6 +12,7 @@
     {% block content %}{% endblock content %}
 
     {% include "alert" %}
+    {% include "loader" %}
 
     <footer>
         <a href="/">Accueil</a>

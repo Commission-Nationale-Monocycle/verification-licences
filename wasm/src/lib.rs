@@ -6,7 +6,7 @@ mod utils;
 
 use crate::alert::{AlertLevel, create_alert};
 use crate::card_creator::EXPIRED_MEMBERSHIP_CONTAINER_CLASS_NAME;
-use crate::user_interface::{get_email_body, get_email_subject};
+use crate::user_interface::{get_email_body, get_email_subject, set_loading};
 use crate::utils::{
     get_document, get_element_by_id_dyn, get_value_from_input, get_window,
     query_selector_single_element,
@@ -33,6 +33,8 @@ fn run() {
 // region Handle "members to check" file
 #[wasm_bindgen]
 pub async fn handle_members_to_check_file(input: HtmlInputElement) -> Result<(), JsValue> {
+    set_loading(true);
+
     let document = get_document();
 
     let csv_file = input
@@ -44,6 +46,7 @@ pub async fn handle_members_to_check_file(input: HtmlInputElement) -> Result<(),
     let promise = csv_file.text();
     let text_jsvalue = wasm_bindgen_futures::JsFuture::from(promise).await?;
     let csv_content = text_jsvalue.as_string().unwrap_or_else(|| {
+        set_loading(false);
         create_alert(
             &document,
             "Le fichier CSV contient des caractères incorrects. Vérifiez l'encodage UTF-8 du fichier.",
@@ -57,6 +60,7 @@ pub async fn handle_members_to_check_file(input: HtmlInputElement) -> Result<(),
 
     user_interface::render_lines(&document, &csv_content, &members_to_check, &wrong_lines);
 
+    set_loading(false);
     Ok(())
 }
 
@@ -77,6 +81,7 @@ fn add_submit_event_listener_to_form(document: &Document) {
 
 async fn handle_form_submission(e: Event) {
     e.prevent_default();
+    set_loading(true);
     let document = get_document();
     let members_to_check_input = get_value_from_input(&document, "members_to_check");
 
@@ -92,6 +97,7 @@ async fn handle_form_submission(e: Event) {
         .send()
         .await
         .unwrap_or_else(|error| {
+            set_loading(false);
             create_alert(
                 &document,
                 "Impossible d'envoyer la requête. Veuillez réessayer.",
@@ -106,7 +112,9 @@ async fn handle_form_submission(e: Event) {
         let checked_members: Vec<CheckedMember> =
             serde_json::from_str(&text).expect("can't deserialize checked members");
         user_interface::handle_checked_members(&checked_members);
+        set_loading(false);
     } else {
+        set_loading(false);
         create_alert(
             &document,
             "Le serveur a rencontré une erreur lors du traitement. Veuillez réessayer.",
@@ -131,6 +139,7 @@ fn build_client() -> Client {
 // region Handle email sending
 #[wasm_bindgen]
 pub async fn handle_email_sending() {
+    set_loading(true);
     let document = &get_document();
     let email_addresses_to_notify = get_email_addresses_to_notify(document);
     let email_subject = get_email_subject(document);
@@ -152,6 +161,7 @@ pub async fn handle_email_sending() {
         .send()
         .await
         .unwrap_or_else(|error| {
+            set_loading(false);
             create_alert(
                 document,
                 "Impossible d'envoyer la requête. Veuillez réessayer.",
@@ -173,7 +183,9 @@ pub async fn handle_email_sending() {
             AlertLevel::Info,
         );
         log::info!("Email sent to {:?}!", email_addresses_to_notify);
+        set_loading(false);
     } else {
+        set_loading(false);
         create_alert(
             document,
             "Impossible d'envoyer l'email. Veuillez réessayer.",
@@ -192,6 +204,7 @@ fn get_email_addresses_to_notify(document: &Document) -> Vec<String> {
         let expired_member = expired_members.get_with_index(index).unwrap();
         let checkboxes = expired_member.get_elements_by_tag_name("input");
         if checkboxes.length() != 1 {
+            set_loading(false);
             create_alert(
                 document,
                 "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
@@ -215,6 +228,7 @@ fn get_email_addresses_to_notify(document: &Document) -> Vec<String> {
                     ".email-address-container a",
                 );
                 let email_address = address_container.text_content().unwrap_or_else(|| {
+                    set_loading(false);
                     create_alert(
                         document,
                         "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",

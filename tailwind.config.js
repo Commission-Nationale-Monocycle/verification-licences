@@ -1,7 +1,7 @@
 module.exports = {
     future: {},
     purge: [
-        "./public/**/styles/**.css",
+        "./public/**/styles/*.css",
         "./public/**/*.html.tera",
         "./wasm/**/*.rs",
     ],

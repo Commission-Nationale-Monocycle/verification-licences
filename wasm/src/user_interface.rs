@@ -1,7 +1,7 @@
 use crate::card_creator::CardCreator;
 use crate::utils::{
-    add_class, append_child, clear_element, create_element, get_document, get_element_by_id,
-    get_element_by_id_dyn, remove_attribute, remove_class, set_attribute,
+    add_class, append_child, clear_element, create_element, get_body, get_document,
+    get_element_by_id, get_element_by_id_dyn, remove_attribute, remove_class, set_attribute,
 };
 use dto::checked_member::CheckedMember;
 use dto::checked_member::MemberStatus::Expired;
@@ -133,4 +133,12 @@ pub fn clear_inputs(document: &Document) {
     get_members_to_check_hidden_input(document).set_value("");
     let write_email_container = get_write_email_container(document);
     add_class(&write_email_container, "hidden");
+}
+
+pub fn set_loading(loading: bool) {
+    if loading {
+        add_class(&get_body(), "loading");
+    } else {
+        remove_class(&get_body(), "loading");
+    }
 }
