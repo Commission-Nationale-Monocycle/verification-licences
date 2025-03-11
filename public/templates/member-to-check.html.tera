@@ -1,0 +1,8 @@
+<template id="member_to_check">
+    <div class="member-to-check">
+        <div>Membre à vérifier</div>
+        <div>Numéro d'adhésion : <div class="member-to-check-membership-number"></div></div>
+        <div>Nom : <div class="member-to-check-name"></div></div>
+        <div>Prénom : <div class="member-to-check-firstname"></div></div>
+    </div>
+</template>

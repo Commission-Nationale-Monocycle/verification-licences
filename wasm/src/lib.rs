@@ -6,7 +6,7 @@ mod user_interface;
 mod utils;
 
 use crate::alert::{AlertLevel, create_alert};
-use crate::card_creator::EXPIRED_MEMBERSHIP_CONTAINER_CLASS_NAME;
+use crate::card_creator::EXPIRED_CHECKED_MEMBER_CONTAINER_CLASS_NAME;
 use crate::stepper::next_step;
 use crate::user_interface::{get_email_body, get_email_subject, set_loading};
 use crate::utils::{
@@ -201,7 +201,7 @@ pub async fn handle_email_sending() {
 fn get_email_addresses_to_notify(document: &Document) -> Vec<String> {
     let checked_members_container = user_interface::get_checked_members_container(document);
     let expired_members = checked_members_container
-        .get_elements_by_class_name(EXPIRED_MEMBERSHIP_CONTAINER_CLASS_NAME);
+        .get_elements_by_class_name(EXPIRED_CHECKED_MEMBER_CONTAINER_CLASS_NAME);
     let mut email_addresses_to_notify = vec![];
     for index in 0..expired_members.length() {
         let expired_member = expired_members.get_with_index(index).unwrap();

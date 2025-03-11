@@ -115,10 +115,62 @@ body.loading #spinner-container {
 .stepper > li:not(:last-child) > span {
     @apply after:content-['/'] sm:after:hidden after:mx-2 after:text-gray-200 dark:after:text-gray-500
 }
+
 /* endregion */
 
 /* region steps */
 .step:not(.current-step) {
     @apply hidden
 }
+
+/* endregion */
+
+/* region cards */
+.checked-member {
+    @apply flex flex-col md:flex-row flex-shrink-0 m-2 border-2 rounded-md
+}
+
+.checked-member-expired {
+    @apply bg-orange-300
+}
+
+.checked-member-unknown {
+    @apply bg-red-300
+}
+
+.member-to-check {
+    @apply flex-shrink-0 m-2
+}
+
+.member-to-check > div:first-child, .membership > div:first-child {
+    @apply font-semibold
+}
+
+.member-to-check div:is(
+.member-to-check-membership-number, .member-to-check-name, .member-to-check-firstname,
+.membership-name, .membership-firstname, .membership-end-date
+) {
+    @apply inline
+}
+
+:not(.checked-member) > .member-to-check {
+    @apply p-2 border-2 rounded-md
+}
+
+.membership {
+    @apply flex flex-col flex-shrink-0 m-2
+}
+
+.membership .email-address-container {
+    @apply inline
+}
+
+.checked_member_expired .send-email-checkbox {
+    @apply border-2 rounded-md flex justify-evenly
+}
+
+.checked_member_unknown .membership {
+    @apply justify-center
+}
+
 /* endregion */

@@ -1,4 +1,4 @@
-use crate::card_creator::CardCreator;
+use crate::card_creator::{create_card_for_checked_member, create_card_for_member_to_check};
 use crate::utils::{
     add_class, append_child, clear_element, create_element, get_body, get_document,
     get_element_by_id, get_element_by_id_dyn, remove_attribute, remove_class, set_attribute,
@@ -49,7 +49,7 @@ fn create_members_to_check_lines(
 ) -> Vec<Element> {
     members_to_check
         .iter()
-        .map(|member_to_check| member_to_check.create_card(document))
+        .map(|member_to_check| create_card_for_member_to_check(document, member_to_check))
         .collect()
 }
 
@@ -75,7 +75,7 @@ pub fn handle_checked_members(checked_members: &Vec<CheckedMember>) {
     let parent = get_element_by_id(&document, "checked_members");
     clear_element(&parent);
     for checked_member in checked_members {
-        let card = checked_member.create_card(&document);
+        let card = create_card_for_checked_member(&document, checked_member);
         append_child(&parent, &card);
     }
 

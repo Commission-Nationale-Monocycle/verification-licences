@@ -42,4 +42,7 @@
             <button id="send_email" type="button" onclick="app.handle_email_sending()">Envoyer</button>
         </div>
     </div>
+
+    {% include "member-to-check" %}
+    {% include "checked-member" %}
 {% endblock content %}
