@@ -21,7 +21,7 @@ use reqwest::Client;
 use serde_json::json;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::{Document, Event, HtmlFormElement, HtmlInputElement};
+use web_sys::{Document, Event, HtmlFormElement, HtmlInputElement, HtmlTextAreaElement};
 
 #[wasm_bindgen(start)]
 fn run() {
@@ -126,6 +126,16 @@ async fn handle_form_submission(e: Event) {
         );
         log::error!("Server error: {}", response.status().as_str())
     }
+}
+
+#[wasm_bindgen]
+pub fn go_to_notification_step(document: &Document) {
+    let addresses_to_notify = get_email_addresses_to_notify(document);
+    let text = addresses_to_notify.join("\n");
+    let element = get_element_by_id_dyn::<HtmlTextAreaElement>(document, "email-recipients");
+    element.set_value(&text);
+
+    next_step(document);
 }
 // endregion
 
