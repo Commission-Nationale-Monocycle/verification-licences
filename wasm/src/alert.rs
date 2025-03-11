@@ -40,7 +40,7 @@ pub fn create_alert(document: &Document, text: &str, level: AlertLevel) {
 
     let alert = get_element_by_id(document, "alert");
     let content_container = query_selector_single_element(document, &alert, ".alert-content");
-    content_container.set_inner_html(&text);
+    content_container.set_inner_html(text);
 
     Dismiss::new(
         &alert,

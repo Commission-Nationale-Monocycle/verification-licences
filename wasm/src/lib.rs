@@ -68,7 +68,7 @@ pub async fn handle_members_to_check_file(input: HtmlInputElement) -> Result<(),
 
 // region Handle form submission
 fn add_submit_event_listener_to_form(document: &Document) {
-    let form = get_element_by_id_dyn::<HtmlFormElement>(&document, "check_members_form");
+    let form = get_element_by_id_dyn::<HtmlFormElement>(document, "check_members_form");
     let closure = Closure::wrap(Box::new(|e: Event| {
         spawn_local(async move {
             handle_form_submission(e).await;
