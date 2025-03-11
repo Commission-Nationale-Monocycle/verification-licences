@@ -69,13 +69,13 @@ pub fn create_card_for_checked_member(
 }
 
 fn get_member_to_check_template(document: &Document) -> Element {
-    get_template(document, "member_to_check")
+    get_template(document, "member-to-check")
 }
 
 fn get_checked_member_template(document: &Document, member_status: &MemberStatus) -> Element {
     match member_status {
-        UpToDate => get_template(document, "checked_member_up_to_date"),
-        Expired => get_template(document, "checked_member_expired"),
-        Unknown => get_template(document, "checked_member_unknown"),
+        UpToDate => get_template(document, "checked-member-up-to-date"),
+        Expired => get_template(document, "checked-member-expired"),
+        Unknown => get_template(document, "checked-member-unknown"),
     }
 }

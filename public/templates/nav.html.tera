@@ -13,7 +13,7 @@
             </svg>
         </button>
         <div id="navbar-default" class="hidden">
-            <ul id="nav_list">
+            <ul id="nav-list">
                 <li>
                     <a href="/memberships">Liste des licences</a>
                 </li>

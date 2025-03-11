@@ -1,4 +1,4 @@
-<template id="checked_member_up_to_date">
+<template id="checked-member-up-to-date">
     <div class="checked-member">
         <div class="member-to-check">
             <div>Membre à vérifier</div>
@@ -18,7 +18,7 @@
     </div>
 </template>
 
-<template id="checked_member_expired">
+<template id="checked-member-expired">
     <div class="checked-member checked-member-expired">
         <div class="member-to-check">
             <div>Membre à vérifier</div>
@@ -42,7 +42,7 @@
     </div>
 </template>
 
-<template id="checked_member_unknown">
+<template id="checked-member-unknown">
     <div class="checked-member checked-member-unknown">
         <div class="member-to-check">
             <div>Membre à vérifier</div>

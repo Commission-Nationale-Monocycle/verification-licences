@@ -8,7 +8,7 @@ use web_sys::{Document, HtmlAnchorElement};
 pub fn init_navbar(document: &Document) {
     let url = get_url_without_query();
 
-    let nav_list = get_element_by_id(document, "nav_list");
+    let nav_list = get_element_by_id(document, "nav-list");
     let items = nav_list.children();
     for i in 0..items.length() {
         let link_element =

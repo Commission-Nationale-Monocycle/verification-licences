@@ -5,41 +5,41 @@
 
     <div class="step current-step">
         <div>
-            <label for="members_to_check_picker">Sélectionnez le fichier contenant les licences à vérifier</label>
-            <input id="members_to_check_picker"
-                   name="members_to_check_picker"
+            <label for="members-to-check-picker">Sélectionnez le fichier contenant les licences à vérifier</label>
+            <input id="members-to-check-picker"
+                   name="members-to-check-picker"
                    type="file"
                    accept=".text/csv,.csv"
                    oninput="app.handle_members_to_check_file(this)"/>
         </div>
-        <form id="check_members_form"
+        <form id="check-members-form"
               action="/api/members/check"
               method="post">
-            <input id="members_to_check"
+            <input id="members-to-check"
                    name="members_to_check"
                    type="hidden"
                    required>
-            <div id="members_to_check_table" class="flex flex-col md:flex-row flex-wrap">
+            <div id="members-to-check-table" class="flex flex-col md:flex-row flex-wrap">
 
             </div>
-            <div id="wrong_lines_paragraph">
+            <div id="wrong-lines-paragraph">
 
             </div>
             <p></p>
-            <input id="submit_members" type="submit" value="Vérifier les licences" disabled>
+            <input id="submit-members" type="submit" value="Vérifier les licences" disabled>
         </form>
     </div>
 
     <div class="step">
-        <div id="checked_members" class="flex flex-col md:flex-row flex-wrap"></div>
+        <div id="checked-members" class="flex flex-col md:flex-row flex-wrap"></div>
         <button type="button" onclick="app.next_step(document)">Étape suivante</button>
     </div>
 
     <div class="step">
-        <div id="write_email_container" class="hidden flex flex-col">
-            <label>Sujet : <input type="text" id="email_subject" value="Votre licence CNM/UNSLL a expiré" class="w-80 md:w-64 "></label>
-            <label><textarea id="email_body" class="block w-full h-64">{% include "default-email-body" %}</textarea></label>
-            <button id="send_email" type="button" onclick="app.handle_email_sending()">Envoyer</button>
+        <div id="write-email-container" class="hidden flex flex-col">
+            <label>Sujet : <input type="text" id="email-subject" value="Votre licence CNM/UNSLL a expiré" class="w-80 md:w-64 "></label>
+            <label><textarea id="email-body" class="block w-full h-64">{% include "default-email-body" %}</textarea></label>
+            <button id="send-email" type="button" onclick="app.handle_email_sending()">Envoyer</button>
         </div>
     </div>
 

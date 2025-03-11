@@ -72,7 +72,7 @@ fn create_wrong_lines(document: &Document, wrong_lines: &[String]) -> Element {
 // region Handle checked members
 pub fn handle_checked_members(checked_members: &Vec<CheckedMember>) {
     let document = get_document();
-    let parent = get_element_by_id(&document, "checked_members");
+    let parent = get_element_by_id(&document, "checked-members");
     clear_element(&parent);
     for checked_member in checked_members {
         let card = create_card_for_checked_member(&document, checked_member);
@@ -91,35 +91,35 @@ pub fn handle_checked_members(checked_members: &Vec<CheckedMember>) {
 
 // region Get parts of the document
 fn get_members_to_check_hidden_input(document: &Document) -> HtmlInputElement {
-    get_element_by_id_dyn(document, "members_to_check")
+    get_element_by_id_dyn(document, "members-to-check")
 }
 
 fn get_members_to_check_table(document: &Document) -> Element {
-    get_element_by_id(document, "members_to_check_table")
+    get_element_by_id(document, "members-to-check-table")
 }
 
 fn get_wrong_line_paragraph(document: &Document) -> Element {
-    get_element_by_id(document, "wrong_lines_paragraph")
+    get_element_by_id(document, "wrong-lines-paragraph")
 }
 
 fn get_submit_button(document: &Document) -> Element {
-    get_element_by_id(document, "submit_members")
+    get_element_by_id(document, "submit-members")
 }
 
 pub fn get_checked_members_container(document: &Document) -> Element {
-    get_element_by_id(document, "checked_members")
+    get_element_by_id(document, "checked-members")
 }
 
 fn get_write_email_container(document: &Document) -> Element {
-    get_element_by_id(document, "write_email_container")
+    get_element_by_id(document, "write-email-container")
 }
 
 pub fn get_email_subject(document: &Document) -> String {
-    get_element_by_id_dyn::<HtmlInputElement>(document, "email_subject").value()
+    get_element_by_id_dyn::<HtmlInputElement>(document, "email-subject").value()
 }
 
 pub fn get_email_body(document: &Document) -> String {
-    get_element_by_id(document, "email_body").inner_html()
+    get_element_by_id(document, "email-body").inner_html()
 }
 // endregion
 

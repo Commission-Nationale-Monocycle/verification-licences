@@ -13,8 +13,8 @@ pub enum AlertLevel {
 #[cfg(not(test))]
 fn get_alert_template(document: &Document, level: &AlertLevel) -> Element {
     match level {
-        AlertLevel::Info => get_template(document, "alert_info"),
-        AlertLevel::Error => get_template(document, "alert_error"),
+        AlertLevel::Info => get_template(document, "alert-info"),
+        AlertLevel::Error => get_template(document, "alert-error"),
     }
 }
 
@@ -32,7 +32,7 @@ pub fn create_alert(document: &Document, text: &str, level: AlertLevel) {
 
     Dismiss::new(
         &alert,
-        &query_selector_single_element(document, &alert, "#close_alert"),
+        &query_selector_single_element(document, &alert, "#close-alert"),
     );
 }
 
@@ -46,7 +46,7 @@ pub fn hide_alert(document: &Document) {
     let element = get_element_by_id(document, "alert");
     let alert = Dismiss::new(
         &element,
-        &query_selector_single_element(document, &element, "#close_alert"),
+        &query_selector_single_element(document, &element, "#close-alert"),
     );
     alert.hide();
 }
