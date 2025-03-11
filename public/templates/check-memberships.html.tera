@@ -5,13 +5,10 @@
 
     <div class="step current-step">
         <div>
-            <label for="members-to-check-picker">Sélectionnez le fichier contenant les licences à vérifier</label>
-            <input id="members-to-check-picker"
-                   name="members-to-check-picker"
-                   type="file"
-                   accept=".text/csv,.csv"
-                   oninput="app.handle_members_to_check_file(this)"/>
+            <label class="file-input-label" for="members-to-check-picker">Sélectionnez le fichier CSV contenant les licences à vérifier</label>
+            <input id="members-to-check-picker" type="file" accept=".text/csv,.csv" oninput="app.handle_members_to_check_file(this)">
         </div>
+
         <form id="check-members-form"
               action="/api/members/check"
               method="post">
