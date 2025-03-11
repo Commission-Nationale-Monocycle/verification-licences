@@ -9,9 +9,7 @@
             <input id="members-to-check-picker" type="file" accept=".text/csv,.csv" oninput="app.handle_members_to_check_file(this)">
         </div>
 
-        <form id="check-members-form"
-              action="/api/members/check"
-              method="post">
+        <div id="check-members-form">
             <input id="members-to-check"
                    name="members_to_check"
                    type="hidden"
@@ -23,8 +21,8 @@
 
             </div>
             <p></p>
-            <input id="submit-members" type="submit" value="Vérifier les licences" disabled>
-        </form>
+            <button id="submit-members" type="button" onclick="app.handle_form_submission(document)" disabled>Vérifier les licences</button>
+        </div>
     </div>
 
     <div class="step">

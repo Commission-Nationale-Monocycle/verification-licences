@@ -30,7 +30,6 @@ fn run() {
 
     let document = &get_document();
     navbar::init_navbar(document);
-    add_submit_event_listener_to_form(document);
 }
 
 // region Handle "members to check" file
@@ -70,23 +69,10 @@ pub async fn handle_members_to_check_file(input: HtmlInputElement) -> Result<(),
 // endregion
 
 // region Handle form submission
-fn add_submit_event_listener_to_form(document: &Document) {
-    let form = get_element_by_id_dyn::<HtmlFormElement>(document, "check-members-form");
-    let closure = Closure::wrap(Box::new(|e: Event| {
-        spawn_local(async move {
-            handle_form_submission(e).await;
-        });
-    }) as Box<dyn Fn(_)>);
-    form.add_event_listener_with_event_listener("submit", closure.as_ref().unchecked_ref())
-        .unwrap();
-    closure.forget();
-}
-
-async fn handle_form_submission(e: Event) {
-    e.prevent_default();
+#[wasm_bindgen]
+pub async fn handle_form_submission(document: &Document) {
     set_loading(true);
-    let document = get_document();
-    let members_to_check_input = get_value_from_input(&document, "members-to-check");
+    let members_to_check_input = get_value_from_input(document, "members-to-check");
 
     let client = build_client();
 
@@ -102,7 +88,7 @@ async fn handle_form_submission(e: Event) {
         .unwrap_or_else(|error| {
             set_loading(false);
             create_alert(
-                &document,
+                document,
                 "Impossible d'envoyer la requête. Veuillez réessayer.",
                 AlertLevel::Error,
             );
@@ -115,12 +101,12 @@ async fn handle_form_submission(e: Event) {
         let checked_members: Vec<CheckedMember> =
             serde_json::from_str(&text).expect("can't deserialize checked members");
         user_interface::handle_checked_members(&checked_members);
-        next_step(&document);
+        next_step(document);
         set_loading(false);
     } else {
         set_loading(false);
         create_alert(
-            &document,
+            document,
             "Le serveur a rencontré une erreur lors du traitement. Veuillez réessayer.",
             AlertLevel::Error,
         );
