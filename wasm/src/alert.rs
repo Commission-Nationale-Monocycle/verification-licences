@@ -1,5 +1,5 @@
 use crate::template::get_template;
-use crate::utils::{get_element_by_id, query_selector_single_element};
+use crate::utils::{append_child, get_body, get_element_by_id, query_selector_single_element};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::{Document, Element, Node};
@@ -29,6 +29,8 @@ pub fn create_alert(document: &Document, text: &str, level: AlertLevel) {
     let alert = get_alert_template(document, &level);
     let content_container = query_selector_single_element(document, &alert, ".alert-content");
     content_container.set_inner_html(text);
+
+    append_child(&get_body(), &alert);
 
     Dismiss::new(
         &alert,
