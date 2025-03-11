@@ -9,7 +9,9 @@
   <body class="text-lg md:text-base">
     {% include "nav" %}
 
-    {% block content %}{% endblock content %}
+    <div id="article">
+        {% block content %}{% endblock content %}
+    </div>
 
     {% include "alert" %}
     {% include "loader" %}

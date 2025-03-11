@@ -6,6 +6,10 @@
 
 @tailwind utilities;
 
+#article {
+    @apply w-11/12 m-auto
+}
+
 /* region alert */
 #alert {
     @apply fixed bottom-0 w-full flex items-center p-4 rounded-t-xs dark:bg-gray-800
