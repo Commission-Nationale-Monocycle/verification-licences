@@ -18,8 +18,6 @@ impl Server for FrontendServer {
             .mount(
                 "/",
                 routes![
-                    frontend_controller::index,
-                    frontend_controller::hello,
                     frontend_controller::list_memberships,
                     frontend_controller::check_memberships,
                 ],
