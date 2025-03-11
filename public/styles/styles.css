@@ -6,6 +6,10 @@
 
 @tailwind utilities;
 
+body {
+    @apply text-lg md:text-base text-gray-900 dark:bg-gray-900 dark:text-white
+}
+
 #article {
     @apply w-11/12 m-auto
 }
@@ -159,11 +163,11 @@ body.loading #spinner-container {
 }
 
 .checked-member-expired {
-    @apply bg-orange-300
+    @apply bg-orange-300 dark:bg-orange-600
 }
 
 .checked-member-unknown {
-    @apply bg-red-300
+    @apply bg-red-300 dark:bg-red-500
 }
 
 .member-to-check {
