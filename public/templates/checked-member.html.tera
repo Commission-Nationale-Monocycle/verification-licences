@@ -1,0 +1,57 @@
+<template id="checked-member-up-to-date">
+    <div class="checked-member">
+        <div class="member-to-check">
+            <div>Membre à vérifier</div>
+            <div>Numéro d'adhésion : <div class="member-to-check-membership-number"></div></div>
+            <div>Nom : <div class="member-to-check-name"></div></div>
+            <div>Prénom : <div class="member-to-check-firstname"></div></div>
+        </div>
+        <div class="membership">
+            <div>Membre associé au numéro d'adhésion fourni</div>
+            <div>Nom : <div class="membership-name"></div></div>
+            <div>Prénom : <div class="membership-firstname"></div></div>
+            <div>Fin de l'adhésion : <div class="membership-end-date"></div></div>
+            <div>Adresse mail :
+                <div class="email-address-container"><a class="membership-email-address"></a></div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="checked-member-expired">
+    <div class="checked-member checked-member-expired">
+        <div class="member-to-check">
+            <div>Membre à vérifier</div>
+            <div>Numéro d'adhésion : <div class="member-to-check-membership-number"></div></div>
+            <div>Nom : <div class="member-to-check-name"></div></div>
+            <div>Prénom : <div class="member-to-check-firstname"></div></div>
+        </div>
+        <div class="membership">
+            <div>Membre associé au numéro d'adhésion fourni</div>
+            <div>Nom : <div class="membership-name"></div></div>
+            <div>Prénom : <div class="membership-firstname"></div></div>
+            <div>Fin de l'adhésion : <div class="membership-end-date"></div></div>
+            <div>Adresse mail :
+                <div class="email-address-container"><a class="membership-email-address"></a>
+                </div>
+            </div>
+            <label class="send-email-checkbox">
+                Envoyer un email <input type="checkbox" checked="">
+            </label>
+        </div>
+    </div>
+</template>
+
+<template id="checked-member-unknown">
+    <div class="checked-member checked-member-unknown">
+        <div class="member-to-check">
+            <div>Membre à vérifier</div>
+            <div>Numéro d'adhésion : <div class="member-to-check-membership-number"></div></div>
+            <div>Nom : <div class="member-to-check-name"></div></div>
+            <div>Prénom : <div class="member-to-check-firstname"></div></div>
+        </div>
+        <div class="membership">
+            <div>Aucune adhésion trouvée</div>
+        </div>
+    </div>
+</template>

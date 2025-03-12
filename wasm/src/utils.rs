@@ -1,6 +1,6 @@
-use crate::toast::{ToastLevel, show_toast};
-use wasm_bindgen::{JsCast, UnwrapThrowExt};
-use web_sys::{Document, Element};
+use crate::alert::{AlertLevel, create_alert};
+use wasm_bindgen::JsCast;
+use web_sys::{Document, Element, HtmlElement, Location, Node};
 
 pub fn set_panic_hook() {
     // When the `console_error_panic_hook` feature is enabled, we can call the
@@ -23,12 +23,17 @@ pub fn get_document() -> Document {
     window.document().expect("should have a document on window")
 }
 
+pub fn get_body() -> HtmlElement {
+    let document = get_document();
+    document.body().expect("should have a document on window")
+}
+
 pub fn get_element_by_id(document: &Document, id: &str) -> Element {
     document.get_element_by_id(id).unwrap_or_else(|| {
-        show_toast(
+        create_alert(
             document,
             "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-            ToastLevel::Error,
+            AlertLevel::Error,
         );
 
         panic!("`{id}` element does not exist");
@@ -39,10 +44,10 @@ pub fn get_element_by_id_dyn<T: JsCast>(document: &Document, id: &str) -> T {
     get_element_by_id(document, id)
         .dyn_into()
         .unwrap_or_else(|error| {
-            show_toast(
+            create_alert(
                 document,
                 "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                ToastLevel::Error,
+                AlertLevel::Error,
             );
             panic!("Can't cast element: {error:?}");
         })
@@ -56,18 +61,18 @@ pub fn query_selector_single_element(
     element
         .query_selector(selector)
         .unwrap_or_else(|error| {
-            show_toast(
+            create_alert(
                 document,
                 "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                ToastLevel::Error,
+                AlertLevel::Error,
             );
             panic!("There should be a single element matching query: {error:?}.")
         })
         .unwrap_or_else(|| {
-            show_toast(
+            create_alert(
                 document,
                 "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                ToastLevel::Error,
+                AlertLevel::Error,
             );
             panic!("There should be a single element matching query.")
         })
@@ -77,10 +82,10 @@ pub fn get_value_from_input(document: &Document, id: &str) -> String {
     get_element_by_id(document, id)
         .get_attribute("value")
         .unwrap_or_else(|| {
-            show_toast(
+            create_alert(
                 document,
                 "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                ToastLevel::Error,
+                AlertLevel::Error,
             );
             panic!("`{id}` input does not contain text");
         })
@@ -88,123 +93,48 @@ pub fn get_value_from_input(document: &Document, id: &str) -> String {
 // endregion
 
 // region Create elements
-pub struct ElementConfig<'a> {
-    classes: Option<&'a [&'a str]>,
-    attributes: Option<&'a [(&'a str, &'a str)]>,
-    children: Option<&'a [&'a Element]>,
+#[derive(Default)]
+pub struct ElementBuilder<'a> {
+    parent: Option<&'a Element>,
+    inner_html: Option<&'a str>,
 }
 
-impl<'a> ElementConfig<'a> {
-    pub fn new(
-        classes: Option<&'a [&'a str]>,
-        attributes: Option<&'a [(&'a str, &'a str)]>,
-        children: Option<&'a [&'a Element]>,
-    ) -> Self {
-        Self {
-            classes,
-            attributes,
-            children,
+impl<'a> ElementBuilder<'a> {
+    pub fn parent(mut self, parent: &'a Element) -> Self {
+        self.parent = Some(parent);
+        self
+    }
+
+    pub fn inner_html(mut self, inner_html: &'a str) -> Self {
+        self.inner_html = Some(inner_html);
+        self
+    }
+
+    pub fn build(&self, document: &Document, name: &str) -> Element {
+        let new_element = document
+            .create_element(name)
+            .expect("can't create elements");
+
+        if let Some(parent) = self.parent {
+            parent
+                .append_child(&new_element)
+                .expect("can't append child");
         }
-    }
+        if let Some(inner_html) = self.inner_html {
+            new_element.set_inner_html(inner_html);
+        }
 
-    pub fn classes(&self) -> Option<&'a [&'a str]> {
-        self.classes
-    }
-
-    pub fn attributes(&self) -> Option<&'a [(&'a str, &'a str)]> {
-        self.attributes
-    }
-
-    pub fn children(&self) -> Option<&'a [&'a Element]> {
-        self.children
+        new_element
     }
 }
 
-pub fn create_element(
-    document: &Document,
-    name: &str,
-    parent: Option<&Element>,
-    inner_html: Option<&str>,
-) -> Element {
-    let new_element = document
-        .create_element(name)
-        .expect("can't create elements");
-
-    if let Some(inner_html) = inner_html {
-        new_element.set_inner_html(inner_html);
-    }
-
-    if let Some(parent) = parent {
-        parent
-            .append_child(&new_element)
-            .expect("can't append child");
-    }
-
-    new_element
-}
-
-pub fn create_element_with_class(
-    document: &Document,
-    name: &str,
-    parent: Option<&Element>,
-    inner_html: Option<&str>,
-    class: &str,
-) -> Element {
-    create_element_with_options(
-        document,
-        name,
-        parent,
-        inner_html,
-        &ElementConfig::new(Some(&[class]), None, None),
-    )
-}
-
-pub fn create_element_with_classes(
-    document: &Document,
-    name: &str,
-    parent: Option<&Element>,
-    inner_html: Option<&str>,
-    classes: &[&str],
-) -> Element {
-    create_element_with_options(
-        document,
-        name,
-        parent,
-        inner_html,
-        &ElementConfig::new(Some(classes), None, None),
-    )
-}
-
-pub fn create_element_with_options(
-    document: &Document,
-    name: &str,
-    parent: Option<&Element>,
-    inner_html: Option<&str>,
-    config: &ElementConfig,
-) -> Element {
-    let new_element = create_element(document, name, parent, inner_html);
-    if let Some(classes) = config.classes() {
-        new_element.set_class_name(&classes.join(" "));
-    }
-    if let Some(attributes) = config.attributes() {
-        attributes.iter().for_each(|(name, value)| {
-            new_element
-                .set_attribute(name, value)
-                .expect_throw("can't set attribute");
-        });
-    }
-    if let Some(children) = config.children() {
-        children.iter().for_each(|child| {
-            append_child(&new_element, child);
-        });
-    }
-
-    new_element
+pub fn create_element(document: &Document, name: &str) -> Element {
+    ElementBuilder::default().build(document, name)
 }
 // endregion
 
 // region Manipulate existing elements
-pub fn append_child(container: &Element, child: &Element) {
+pub fn append_child(container: &Element, child: &Node) {
     container.append_child(child).expect("can't append child");
 }
 
@@ -246,6 +176,38 @@ pub fn remove_class(element: &Element, class_name: &str) {
         .join(" ");
 
     element.set_class_name(&new_set_of_classes);
+}
+// endregion
+
+// region Location
+pub fn get_location() -> Location {
+    get_window().location()
+}
+
+pub fn get_origin() -> String {
+    get_location().origin().unwrap_or_else(|error| {
+        create_alert(
+            &get_document(),
+            "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
+            AlertLevel::Error,
+        );
+        panic!("Couldn't get origin: {error:?}")
+    })
+}
+
+pub fn get_pathname() -> String {
+    get_location().pathname().unwrap_or_else(|error| {
+        create_alert(
+            &get_document(),
+            "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
+            AlertLevel::Error,
+        );
+        panic!("Couldn't get origin: {error:?}")
+    })
+}
+
+pub fn get_url_without_query() -> String {
+    format!("{}{}", get_origin(), get_pathname())
 }
 // endregion
 
@@ -359,7 +321,10 @@ mod tests {
         let parent = document.create_element("p").unwrap();
         let inner_html = "some text";
 
-        let new_element = create_element(&document, name, Some(&parent), Some(inner_html));
+        let new_element = ElementBuilder::default()
+            .parent(&parent)
+            .inner_html(inner_html)
+            .build(&document, name);
 
         assert_eq!(name, new_element.tag_name());
         assert_eq!(parent, new_element.parent_element().unwrap());
@@ -371,45 +336,11 @@ mod tests {
         let document = Document::new().unwrap();
         let name = "p";
 
-        let new_element = create_element(&document, name, None, None);
+        let new_element = create_element(&document, name);
 
         assert_eq!(name, new_element.tag_name());
         assert_eq!(None, new_element.parent_element());
         assert_eq!("", new_element.inner_html());
-    }
-
-    #[wasm_bindgen_test]
-    fn should_create_element_with_class() {
-        let document = Document::new().unwrap();
-        let name = "p";
-        let parent = document.create_element("p").unwrap();
-        let inner_html = "some text";
-        let class = "class";
-
-        let new_element =
-            create_element_with_class(&document, name, Some(&parent), Some(inner_html), class);
-
-        assert_eq!(name, new_element.tag_name());
-        assert_eq!(parent, new_element.parent_element().unwrap());
-        assert_eq!(inner_html, new_element.inner_html());
-        assert_eq!(class, new_element.class_name());
-    }
-
-    #[wasm_bindgen_test]
-    fn should_create_element_with_classes() {
-        let document = Document::new().unwrap();
-        let name = "p";
-        let parent = document.create_element("p").unwrap();
-        let inner_html = "some text";
-        let classes = ["class1", "class2"];
-
-        let new_element =
-            create_element_with_classes(&document, name, Some(&parent), Some(inner_html), &classes);
-
-        assert_eq!(name, new_element.tag_name());
-        assert_eq!(parent, new_element.parent_element().unwrap());
-        assert_eq!(inner_html, new_element.inner_html());
-        assert_eq!(classes.join(" "), new_element.class_name());
     }
 
     #[wasm_bindgen_test]
@@ -418,39 +349,15 @@ mod tests {
         let name = "p";
         let parent = document.create_element("p").unwrap();
         let inner_html = "some text";
-        let classes = ["class1", "class2"];
-        let attributes = [("name1", "value1"), ("name2", "value2")];
-        let child1 = create_element(&document, "p", None, None);
-        let child2 = create_element(&document, "div", None, None);
 
-        let new_element = create_element_with_options(
-            &document,
-            name,
-            Some(&parent),
-            Some(inner_html),
-            &ElementConfig::new(Some(&classes), Some(&attributes), Some(&[&child1, &child2])),
-        );
+        let new_element = ElementBuilder::default()
+            .parent(&parent)
+            .inner_html(inner_html)
+            .build(&document, name);
 
         assert_eq!(name, new_element.tag_name());
         assert_eq!(parent, new_element.parent_element().unwrap());
         assert!(new_element.inner_html().starts_with(inner_html));
-        assert_eq!(classes.join(" "), new_element.class_name());
-        assert_eq!(
-            attributes[0].1,
-            new_element
-                .attributes()
-                .get_with_name(attributes[0].0)
-                .unwrap()
-                .value()
-        );
-        assert_eq!(
-            attributes[1].1,
-            new_element
-                .attributes()
-                .get_with_name(attributes[1].0)
-                .unwrap()
-                .value()
-        );
     }
     // endregion
 

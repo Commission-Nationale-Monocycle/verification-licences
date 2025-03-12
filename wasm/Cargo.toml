@@ -25,18 +25,17 @@ wasm-logger = "0.2.0"
 # code size when deploying.
 console_error_panic_hook = { version = "0.1.7", optional = true }
 
-web-sys = { version = "0.3.77", features = ["DateTimeValue", "Document", "Element", "Event", "EventListener", "File", "FileList", "HtmlButtonElement", "HtmlCollection", "HtmlFormElement", "HtmlInputElement", "Location", "Window"] }
+web-sys = { version = "0.3.77", features = ["DateTimeValue", "Document", "DocumentFragment", "Element", "EventListener", "File", "FileList", "HtmlAnchorElement", "HtmlButtonElement", "HtmlCollection", "HtmlInputElement", "HtmlTemplateElement", "HtmlTextAreaElement", "Location", "Window"] }
 
 # Other tools
 serde = { version = "1.0.218", features = ["derive"] }
 log = "0.4.26"
 reqwest = "0.12.12"
-chrono = { version = "0.4.39", features = ["serde"] }
 serde_json = "1.0.139"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.50"
-web-sys = { version = "0.3.77", features = ["Attr", "NamedNodeMap"]}
+web-sys = { version = "0.3.77", features = ["Attr", "NamedNodeMap"] }
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.

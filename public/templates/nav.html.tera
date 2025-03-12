@@ -1,2 +1,26 @@
-<a href="/memberships">Liste des licences</a>
-<a href="/check-memberships">Vérifier les licences</a>
+<nav id="navbar">
+    <div>
+        <a href="https://monocycle.info/">
+            <img src="logo.png" class="h-8" alt="Logo de la CNM"/>
+            <span>CNM</span>
+        </a>
+        <button data-collapse-toggle="navbar-default" type="button"
+                aria-controls="navbar-default" aria-expanded="false">
+            <span class="sr-only">Ouvrir le menu principal</span>
+            <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 17 14">
+                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M1 1h15M1 7h15M1 13h15"/>
+            </svg>
+        </button>
+        <div id="navbar-default" class="hidden">
+            <ul id="nav-list">
+                <li>
+                    <a href="/memberships">Liste des licences</a>
+                </li>
+                <li>
+                    <a href="/check-memberships">Vérifier les licences</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>

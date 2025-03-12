@@ -1,8 +1,240 @@
 @import "tailwindcss";
-@import "../../node_modules/flowbite/src/themes/default";
+@import "../../node_modules/flowbite/src/themes/default.css";
+
 @plugin "flowbite/plugin";
 @source "../../node_modules/flowbite";
 
-@tailwind base;
-@tailwind components;
 @tailwind utilities;
+
+body {
+    @apply text-lg md:text-base text-gray-900 dark:bg-gray-900 dark:text-white
+}
+
+#article {
+    @apply w-11/12 m-auto
+}
+
+/* region alert */
+#alert {
+    @apply fixed bottom-0 w-full flex items-center p-4 rounded-t-xs dark:bg-gray-800
+}
+
+#alert > svg {
+    @apply shrink-0 w-4 h-4
+}
+
+.alert-info {
+    @apply text-blue-800 bg-blue-50 dark:text-blue-400
+}
+
+.alert-error {
+    @apply text-red-800 bg-red-50 dark:text-red-400
+}
+
+.alert-content {
+    @apply ms-3 text-sm font-medium
+}
+
+#alert-actions {
+    @apply ms-auto
+}
+
+#alert :is(#close-alert, #reload-from-alert) {
+    @apply ms-auto -my-1.5 rounded-lg focus:ring-2 p-1.5 inline-flex items-center justify-center h-8 w-8 dark:bg-gray-800 dark:hover:bg-gray-700
+}
+
+.alert-info #close-alert {
+    @apply bg-blue-50 text-blue-500 focus:ring-blue-400 hover:bg-blue-200 dark:text-blue-400
+}
+
+.alert-error :is(#close-alert, #reload-from-alert) {
+    @apply bg-red-50 text-red-500 focus:ring-red-400 hover:bg-red-200 dark:text-red-400
+}
+
+:is(#close-alert, #reload-from-alert) svg {
+    @apply w-3 h-3
+}
+
+/* endregion */
+
+/* region navbar */
+#navbar {
+    @apply bg-white border-gray-200 dark:bg-gray-900 mb-2
+}
+
+#navbar > div {
+    @apply max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4
+}
+
+#navbar > div > a {
+    @apply flex items-center space-x-3 rtl:space-x-reverse
+}
+
+#navbar > div > a > span {
+    @apply self-center text-2xl font-semibold whitespace-nowrap dark:text-white
+}
+
+#navbar > div > button {
+    @apply inline-flex items-center p-2 w-10 h-10 justify-center text-sm text-gray-500 rounded-lg md:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600
+}
+
+#navbar-default {
+    @apply w-full md:block md:w-auto
+}
+
+#nav-list {
+    @apply font-medium flex flex-col p-4 md:p-0 mt-4 border border-gray-100 rounded-lg bg-gray-50 md:flex-row md:space-x-8 rtl:space-x-reverse md:mt-0 md:border-0 md:bg-white dark:bg-gray-800 md:dark:bg-gray-900 dark:border-gray-700
+}
+
+#nav-list li a[aria-current] {
+    @apply block py-2 px-3 text-white bg-blue-700 rounded-sm md:bg-transparent md:text-blue-700 md:p-0 dark:text-white md:dark:text-blue-500
+}
+
+#nav-list li a {
+    @apply block py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:border-0 md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent
+}
+
+/* endregion */
+
+/* region spinner */
+#spinner-container {
+    @apply hidden
+}
+
+body.loading #spinner-container {
+    @apply fixed flex flex-row justify-center items-center inset-0 bg-gray-500/50
+}
+
+/* endregion */
+
+/* region stepper */
+.stepper {
+    @apply flex items-center w-6/12 sm:m-auto text-sm font-medium text-center text-gray-500 dark:text-gray-400 sm:text-base
+}
+
+.stepper > li {
+    @apply flex items-center
+}
+
+.stepper > li:is(.stepper-current-step, .stepper-validated-step) {
+    @apply text-blue-600 dark:text-blue-500 sm:after:content-['']
+}
+
+.stepper > li > span {
+    @apply flex items-center
+}
+
+.stepper > li.stepper-validated-step > span > svg {
+    @apply w-3.5 h-3.5 sm:w-4 sm:h-4 me-2.5
+}
+
+.stepper > li.stepper-validated-step > span > span {
+    @apply hidden
+}
+
+.stepper > li:not(.stepper-validated-step) > span > svg {
+    @apply hidden
+}
+
+.stepper > li:not(.stepper-validated-step) > span > span {
+    @apply me-2
+}
+
+.stepper > li:not(:last-child) {
+    @apply md:w-full after:content-[''] after:w-full after:h-1 after:border-b after:border-gray-200 after:border-1 after:hidden sm:after:inline-block after:mx-6 xl:after:mx-10 dark:after:border-gray-700
+}
+
+.stepper > li:not(:last-child) > span {
+    @apply after:content-['/'] sm:after:hidden after:mx-2 after:text-gray-200 dark:after:text-gray-500
+}
+
+/* endregion */
+
+/* region steps */
+.step:not(.current-step) {
+    @apply hidden
+}
+
+/* endregion */
+
+/* region cards */
+.checked-member {
+    @apply flex flex-col md:flex-row flex-shrink-0 m-2 border-2 rounded-md
+}
+
+.checked-member-expired {
+    @apply bg-orange-300 dark:bg-orange-600
+}
+
+.checked-member-unknown {
+    @apply bg-red-300 dark:bg-red-500
+}
+
+.member-to-check {
+    @apply flex-shrink-0 m-2
+}
+
+.member-to-check > div:first-child, .membership > div:first-child {
+    @apply font-semibold
+}
+
+.member-to-check div:is(
+.member-to-check-membership-number, .member-to-check-name, .member-to-check-firstname,
+.membership-name, .membership-firstname, .membership-end-date
+) {
+    @apply inline
+}
+
+:not(.checked-member) > .member-to-check {
+    @apply p-2 border-2 rounded-md
+}
+
+.membership {
+    @apply flex flex-col flex-shrink-0 m-2
+}
+
+.membership .email-address-container {
+    @apply inline
+}
+
+.checked-member-expired .send-email-checkbox {
+    @apply border-2 rounded-md flex justify-evenly items-center
+}
+
+.checked-member-unknown .membership {
+    @apply justify-center
+}
+
+/* endregion */
+
+/* region input */
+.input-container {
+    @apply relative m-2
+}
+
+.file-input-label {
+    @apply block mb-2 text-sm font-medium text-gray-900 dark:text-white
+}
+
+input[type=file] {
+    @apply block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400
+}
+
+.text-input-label {
+    @apply absolute text-sm text-gray-500 dark:text-gray-400 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white dark:bg-gray-900 px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-focus:dark:text-blue-500 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1
+}
+
+:is(input[type=text],textarea) {
+    @apply block px-2.5 pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border-1 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600
+}
+/* endregion */
+
+/* region buttons */
+button {
+    @apply text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 inline-flex items-center me-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800 justify-center
+}
+
+button[disabled] {
+    @apply text-white bg-blue-400 dark:bg-blue-500 cursor-not-allowed font-medium rounded-lg text-sm px-5 py-2.5 justify-center
+}
+/* endregion */

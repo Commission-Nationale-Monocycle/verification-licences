@@ -1,4 +1,3 @@
-use rocket::response::Redirect;
 use rocket::{Request, State};
 use std::sync::Mutex;
 
@@ -7,23 +6,6 @@ use crate::member::memberships::Memberships;
 use crate::web::api::members_state::MembersState;
 use dto::membership::Membership;
 use rocket_dyn_templates::{Template, context};
-
-#[get("/")]
-pub async fn index() -> Redirect {
-    Redirect::to(uri!("/", hello(name = "Your Name")))
-}
-
-#[get("/hello/<name>")]
-pub async fn hello(name: &str) -> Template {
-    Template::render(
-        "index",
-        context! {
-            title: "Hello",
-            name: Some(name),
-            items: vec!["One", "Two", "Three"],
-        },
-    )
-}
 
 #[get("/memberships")]
 pub async fn list_memberships(members_state: &State<Mutex<MembersState>>) -> Template {
