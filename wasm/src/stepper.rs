@@ -9,7 +9,6 @@ pub fn next_step(document: &Document) {
     let step_elements = get_step_elements(document);
     if step_elements.length() != step_list.length() {
         create_alert(
-            document,
             "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
             AlertLevel::Error,
         );
