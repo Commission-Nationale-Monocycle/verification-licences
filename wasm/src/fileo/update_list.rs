@@ -1,14 +1,9 @@
 use crate::alert::{AlertLevel, create_alert, unwrap_or_alert, unwrap_without_alert};
 use crate::build_client;
 use crate::user_interface::set_loading;
-use crate::utils::{
-    get_document, get_element_by_id, get_element_by_id_dyn, get_location, get_value_from_element,
-    get_window,
-};
+use crate::utils::{get_document, get_element_by_id, get_window};
 use reqwest::StatusCode;
-use serde_json::json;
 use wasm_bindgen::prelude::wasm_bindgen;
-use web_sys::HtmlInputElement;
 use web_sys::js_sys::Date;
 
 /// Validate the field, then try to log into Fileo app.
