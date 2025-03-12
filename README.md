@@ -70,8 +70,6 @@ To run the app in production, you'll need to pass the following args while start
 
 | Name                   | Description                                                                                                                             | Type   | Required | Default                        |
 |------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|--------|----------|--------------------------------|
-| -l or --login          | The login you use to access the Fileo web app                                                                                           | String | Yes      | None                           |
-| -p or --password       | The password you use to access the Fileo web app                                                                                        | String | Yes      | None                           |
 | --email-sender-name    | The name email recipients should see                                                                                                    | String | Yes      | None                           |
 | --email-sender-address | The address that should be used to send the emails.<br/>⚠ If it doesn't fit with the SMTP login, the SMTP server may reject the emails. | String | Yes      | None                           |
 | --reply-to             | Which address the recipients should reply to                                                                                            | String | No       | `--email-sender-address` value |
@@ -84,8 +82,6 @@ E.g.:
 
 ```shell
 cargo run -- \
-  -l=<login> \
-  -p=<password> \
   --email-sender-name=<sender-name> \
   --email-sender-address=<email-sender-address> \
   --reply-to=<reply-to> \

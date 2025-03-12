@@ -1,47 +1,31 @@
 use std::ffi::{OsStr, OsString};
-use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
 
 use crate::member::config::MembershipsProviderConfig;
 use chrono::Local;
 use encoding::all::ISO_8859_1;
 use encoding::{DecoderTrap, Encoding};
-use log::{debug, error, warn};
+use log::{debug, error};
 use regex::Regex;
 use reqwest::{Client, RequestBuilder};
+use rocket::form::validate::Contains;
 use rocket::http::ContentType;
 
 use crate::member::Result;
 use crate::member::error::Error::{
     CantCreateClient, CantCreateMembershipsFileFolder, CantLoadListOnServer,
     CantReadMembersDownloadResponse, CantReadPageContent, CantRetrieveDownloadLink,
-    CantWriteMembersFile, ConnectionFailed, FileNotFoundOnServer, NoCredentials, NoDownloadLink,
+    CantWriteMembersFile, ConnectionFailed, FileNotFoundOnServer, NoDownloadLink, WrongCredentials,
     WrongEncoding,
 };
 use crate::member::file_details::FileDetails;
-use crate::tools::{env_args, log_error_and_return, log_message_and_return};
-
-#[derive(PartialEq)]
-struct Credentials {
-    login: String,
-    password: String,
-}
-
-impl Credentials {
-    pub fn new(login: String, password: String) -> Self {
-        Self { login, password }
-    }
-}
-
-impl Debug for Credentials {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Credentials {{login={}, password=MASKED}}", self.login)
-    }
-}
+use crate::tools::{log_error_and_return, log_message_and_return};
+use crate::web::credentials::Credentials;
 
 #[cfg(not(feature = "demo"))]
 pub async fn download_memberships_list(
     memberships_provider_config: &MembershipsProviderConfig,
+    credentials: &Credentials,
 ) -> Result<FileDetails> {
     let folder = memberships_provider_config.folder();
     let host = memberships_provider_config.host();
@@ -49,8 +33,7 @@ pub async fn download_memberships_list(
     create_memberships_file_dir(folder)?;
 
     let client = build_client()?;
-    let credentials = retrieve_credentials()?;
-    connect(&client, host, &credentials).await?;
+    login_to_fileo(&client, host, credentials).await?;
     load_list_into_server_session(&client, host).await?;
     let download_url = retrieve_download_link(&client, host, download_link_regex).await?;
     let file_content = download_list(&client, &download_url).await?;
@@ -63,7 +46,7 @@ Doe;Jon;H;01-02-1980;45;123456;jon@doe.com;Oui;30-09-2025;Non;My club;Z01234
 Bob;Alice;F;01-02-2000;25;987654;alice@bobo.com;Non;25-08-2024;Non;Her club;A98765";
 
 #[cfg(not(feature = "demo"))]
-fn build_client() -> Result<Client> {
+pub fn build_client() -> Result<Client> {
     reqwest::ClientBuilder::new()
         .cookie_store(true)
         .build()
@@ -73,49 +56,36 @@ fn build_client() -> Result<Client> {
         ))
 }
 
-// region Retrieve credentials
-#[cfg(not(feature = "demo"))]
-fn retrieve_login_and_password() -> (Option<String>, Option<String>) {
-    let mut login = None;
-    let mut password = None;
-    if let Some(new_login) = env_args::retrieve_arg_value(vec!["--login", "-l"]) {
-        login = Some(new_login);
-    }
-    if let Some(new_password) = env_args::retrieve_arg_value(vec!["--password", "-p"]) {
-        password = Some(new_password);
-    }
-    (login, password)
-}
-
-#[cfg(not(feature = "demo"))]
-fn retrieve_credentials() -> Result<Credentials> {
-    let (login, password) = retrieve_login_and_password();
-
-    if let (Some(l), Some(p)) = (login, password) {
-        Ok(Credentials::new(l, p))
-    } else {
-        warn!(
-            "Args don't contain login or password. It won't be possible to retrieve the members list."
-        );
-        Err(NoCredentials)
-    }
-}
-// endregion
-
 // region Requests
 #[cfg(not(feature = "demo"))]
-async fn connect(client: &Client, domain: &str, credentials: &Credentials) -> Result<()> {
+pub async fn login_to_fileo(
+    client: &Client,
+    domain: &str,
+    credentials: &Credentials,
+) -> Result<()> {
     let request = prepare_request_for_connection(client, domain, credentials);
     let response = request.send().await.map_err(log_message_and_return(
         "Connection failed...",
         ConnectionFailed,
     ))?;
     let status = response.status();
-    if status.is_success() || status.is_redirection() {
-        Ok(())
-    } else {
+    if !status.is_success() {
         error!("Connection failed because of status {status}...");
-        Err(ConnectionFailed)
+        return Err(ConnectionFailed);
+    }
+
+    let text = response.text().await.map_err(log_message_and_return(
+        "Couldn't get text of response",
+        ConnectionFailed,
+    ))?;
+
+    if text.contains("L'identifiant et le mot de passe ne correspondent pas")
+        || text.contains("Le champ 'Identifiant' est obligatoire")
+        || text.contains(" Le champ 'Mot de passe' est obligatoire")
+    {
+        Err(WrongCredentials)
+    } else {
+        Ok(())
     }
 }
 
@@ -202,8 +172,8 @@ fn prepare_request_for_connection(
     let arguments = [
         ("Action", "connect_user"),
         ("requestForm", "formConnecter"),
-        ("login", credentials.login.as_str()),
-        ("password", credentials.password.as_str()),
+        ("login", credentials.login().as_str()),
+        ("password", credentials.password().as_str()),
     ];
     let body = format_arguments_into_body(&arguments);
     client
@@ -323,47 +293,36 @@ mod tests {
     use std::path::PathBuf;
     use std::time::SystemTime;
 
-    use parameterized::{ide, parameterized};
     use regex::Regex;
     use rocket::futures::executor::block_on;
     use rocket::http::ContentType;
     use wiremock::matchers::{body_string_contains, method, path, query_param_contains};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
+    use super::*;
     use crate::member::Error::{
         CantLoadListOnServer, CantRetrieveDownloadLink, ConnectionFailed, FileNotFoundOnServer,
         NoDownloadLink,
     };
     use crate::member::config::MembershipsProviderConfig;
-    use crate::member::download::{
-        Credentials, build_client, connect, create_memberships_file_dir, download_list,
-        download_memberships_list, format_arguments_into_body, load_list_into_server_session,
-        prepare_request_for_connection, prepare_request_for_loading_list_into_server_session,
-        prepare_request_for_retrieving_download_link, retrieve_credentials, retrieve_download_link,
-        retrieve_login_and_password, write_list_to_file,
-    };
     use crate::member::error::Error::CantWriteMembersFile;
-    use crate::member::{Result, get_members_file_folder};
+    use crate::member::get_members_file_folder;
     use crate::tools::env_args::with_env_args;
     use crate::tools::test::tests::temp_dir;
-
-    ide!();
+    use crate::web::credentials::Credentials;
 
     #[async_test]
     async fn should_download_members_list() {
         let mock_server = MockServer::start().await;
 
-        let args = vec![
-            "path/to/executable".to_string(),
-            "--login=test_login".to_string(),
-            "--password=test_password".to_string(),
-        ];
+        let args = vec!["path/to/executable".to_string()];
         let temp_dir = temp_dir();
         let config = MembershipsProviderConfig::new(
             mock_server.uri(),
             Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap(),
             temp_dir.into_os_string(),
         );
+        let credentials = Credentials::new("test_login".to_owned(), "test_password".to_owned());
         let download_filename = "download.csv";
         let download_link = format!("{}/{download_filename}", mock_server.uri());
         let expected_content = "ï";
@@ -400,7 +359,9 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let result = with_env_args(args, || block_on(download_memberships_list(&config)));
+        let result = with_env_args(args, || {
+            block_on(download_memberships_list(&config, &credentials))
+        });
         let file_details = result.unwrap();
         let content = fs::read_to_string(file_details.filepath()).unwrap();
         assert_eq!(expected_content, content);
@@ -430,48 +391,6 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // region Retrieve credentials
-    #[parameterized(
-        args = {
-        vec ! ["--login=test_login".to_string(), "--password=test_password".to_string()],
-        vec ! ["--password=test_password".to_string(), "--login=test_login".to_string()],
-        vec ! ["--login=test_login".to_string()],
-        vec ! ["--password=test_password".to_string()],
-        vec ! []
-        },
-        expected_result = {
-        (Some("test_login".to_owned()), Some("test_password".to_owned())),
-        (Some("test_login".to_owned()), Some("test_password".to_owned())),
-        (Some("test_login".to_owned()), None),
-        (None, Some("test_password".to_owned())),
-        (None, None),
-        }
-    )]
-    fn should_retrieve_login_and_password(
-        args: Vec<String>,
-        expected_result: (Option<String>, Option<String>),
-    ) {
-        let result = with_env_args(args, retrieve_login_and_password);
-        assert_eq!(expected_result, result);
-    }
-
-    #[parameterized(
-        args = {
-        vec ! ["--login=test_login".to_string(), "--password=test_password".to_string()],
-        vec ! ["--login=test_login".to_string(), "--another-argument".to_string()],
-        },
-        expected_result = {
-        Ok(Credentials::new("test_login".to_string(), "test_password".to_string())),
-        Err(crate::member::error::Error::NoCredentials)
-        }
-    )]
-    fn should_retrieve_credentials(args: Vec<String>, expected_result: Result<Credentials>) {
-        let result = with_env_args(args, retrieve_credentials);
-        assert_eq!(expected_result, result);
-    }
-
-    // endregion
-
     // region Requests
     #[async_test]
     async fn should_connect() {
@@ -487,7 +406,7 @@ mod tests {
         let client = build_client().unwrap();
         let credentials = Credentials::new(String::new(), String::new());
 
-        let result = connect(&client, &mock_server.uri(), &credentials).await;
+        let result = login_to_fileo(&client, &mock_server.uri(), &credentials).await;
         assert!(result.is_ok());
     }
 
@@ -505,7 +424,7 @@ mod tests {
         let client = build_client().unwrap();
         let credentials = Credentials::new(String::new(), String::new());
 
-        let result = connect(&client, &mock_server.uri(), &credentials).await;
+        let result = login_to_fileo(&client, &mock_server.uri(), &credentials).await;
         assert!(result.is_err_and(|e| e == ConnectionFailed));
     }
 

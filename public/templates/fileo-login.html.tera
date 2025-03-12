@@ -1,0 +1,18 @@
+{% extends "base" %}
+
+{% block content %}
+    <div class="login-form login-form-fileo">
+        <div>
+            Afin de pouvoir vérifier les licences, il est impératif de se connecter à Fileo.
+        </div>
+        <div>
+            <label for="login">Identifiant</label>
+            <input type="text" id="login" required />
+        </div>
+        <div>
+            <label for="password" class="">Mot de passe</label>
+            <input type="password" id="password" required />
+        </div>
+        <button id="fileo-login-button" type="button" onclick="app.login()">Connexion</button>
+    </div>
+{% endblock %}
