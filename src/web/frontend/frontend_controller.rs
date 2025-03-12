@@ -7,6 +7,16 @@ use crate::web::api::members_state::MembersState;
 use dto::membership::Membership;
 use rocket_dyn_templates::{Template, context};
 
+#[get("/fileo/login")]
+pub async fn fileo_login() -> Template {
+    Template::render(
+        "fileo-login",
+        context! {
+            title: "Connexion à Fileo"
+        },
+    )
+}
+
 #[get("/memberships")]
 pub async fn list_memberships(members_state: &State<Mutex<MembersState>>) -> Template {
     let members = members_state.lock().unwrap();
