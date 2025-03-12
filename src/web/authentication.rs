@@ -24,7 +24,7 @@ impl<'r> FromRequest<'r> for Credentials {
                 try_outcome!(req.guard::<&State<Mutex<CredentialsStorage>>>().await);
             match credentials_storage.lock() {
                 Ok(credentials_storage) => match credentials_storage.get(cookie.value()) {
-                    None => Outcome::Error((Status::Unauthorized, ())),
+                    None => Outcome::Forward(Status::Unauthorized),
                     Some(credentials) => Outcome::Success(credentials.clone()),
                 },
                 Err(error) => {
@@ -32,7 +32,7 @@ impl<'r> FromRequest<'r> for Credentials {
                 }
             }
         } else {
-            Outcome::Error((Status::Unauthorized, ()))
+            Outcome::Forward(Status::Unauthorized)
         }
     }
 }
@@ -88,8 +88,8 @@ mod tests {
         let request = client.get("http://localhost").cookie(cookie);
 
         let outcome = Credentials::from_request(&request).await;
-        assert!(outcome.is_error());
-        assert_eq!(Status::Unauthorized, outcome.failed().unwrap().0);
+        assert!(outcome.is_forward());
+        assert_eq!(Status::Unauthorized, outcome.forwarded().unwrap());
     }
 
     #[async_test]
@@ -102,7 +102,7 @@ mod tests {
         let request = client.get("http://localhost");
 
         let outcome = Credentials::from_request(&request).await;
-        assert!(outcome.is_error());
-        assert_eq!(Status::Unauthorized, outcome.failed().unwrap().0);
+        assert!(outcome.is_forward());
+        assert_eq!(Status::Unauthorized, outcome.forwarded().unwrap());
     }
 }
