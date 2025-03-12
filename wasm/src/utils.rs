@@ -1,7 +1,7 @@
 use crate::Result;
 use crate::error::Error;
 use wasm_bindgen::JsCast;
-use web_sys::{Document, Element, HtmlElement, Location, Node, Window};
+use web_sys::{Document, Element, HtmlElement, HtmlInputElement, Location, Node, Window};
 
 pub fn set_panic_hook() {
     // When the `console_error_panic_hook` feature is enabled, we can call the
@@ -55,6 +55,10 @@ pub fn get_value_from_input(document: &Document, id: &str) -> Result<String> {
     get_element_by_id(document, id)?
         .get_attribute("value")
         .ok_or_else(|| Error::new(format!("`{id}` input does not contain text")))
+}
+
+pub fn get_value_from_element(element: &HtmlInputElement) -> String {
+    element.value()
 }
 // endregion
 
