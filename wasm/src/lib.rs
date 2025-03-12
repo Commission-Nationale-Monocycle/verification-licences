@@ -1,7 +1,7 @@
 mod alert;
 mod card_creator;
 mod error;
-mod fileo_login;
+mod fileo;
 mod navbar;
 mod stepper;
 mod template;
@@ -11,7 +11,7 @@ mod utils;
 use crate::alert::{AlertLevel, create_alert, unwrap_or_alert, unwrap_without_alert};
 use crate::card_creator::EXPIRED_CHECKED_MEMBER_CONTAINER_CLASS_NAME;
 use crate::error::Error;
-use crate::fileo_login::init_login_form_fileo;
+use crate::fileo::login::init_login_form_fileo;
 use crate::stepper::next_step;
 use crate::user_interface::{get_email_body, get_email_subject, set_loading};
 use crate::utils::{

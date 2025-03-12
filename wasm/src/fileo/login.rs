@@ -81,9 +81,8 @@ pub async fn login() {
         let location = unwrap_or_alert(get_location());
         let result = location.set_href("/check-memberships");
         if let Err(error) = result {
-            unwrap_or_alert(set_loading(false));
             create_alert(
-                "Vos identifiants sont incorrects. Veuillez réessayer.",
+                "Erreur lors de la redirection. Veuillez actualiser la page.",
                 AlertLevel::Error,
             );
             log::error!("Can't redirect user: {error:?}");
