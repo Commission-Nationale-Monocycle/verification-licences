@@ -3,10 +3,12 @@ use crate::member::download::{build_client, download_memberships_list, login_to_
 use crate::member::import_from_file::{clean_old_files, import_from_file};
 use crate::tools::{log_message, log_message_and_return};
 use crate::web::api::members_state::MembersState;
+use crate::web::authentication::AUTHENTICATION_COOKIE;
 use crate::web::credentials::{Credentials, CredentialsStorage};
 use rocket::State;
-use rocket::http::Status;
+use rocket::http::{Cookie, CookieJar, Status};
 use rocket::serde::json::Json;
+use rocket::time::Duration;
 use serde_json::json;
 use std::sync::Mutex;
 use uuid::Uuid;
@@ -14,13 +16,14 @@ use uuid::Uuid;
 /// Try and log a user onto Fileo app.
 /// If the login operation succeeds,
 /// then a new UUID is created and credentials are stored with this UUID.
-/// The UUID is returned to the caller, so that it is their new access token.
+/// The UUID is returned to the caller through a private cookie, so that it is their new access token.
 #[post("/fileo/login", format = "application/json", data = "<credentials>")]
 pub async fn login(
     memberships_provider_config: &State<MembershipsProviderConfig>,
     credentials_storage: &State<Mutex<CredentialsStorage>>,
+    cookie_jar: &CookieJar<'_>,
     credentials: Json<Credentials>,
-) -> Result<(Status, String), Status> {
+) -> Result<(Status, ()), Status> {
     let client = build_client();
     if let Ok(client) = client {
         let host = memberships_provider_config.inner().host();
@@ -31,8 +34,12 @@ pub async fn login(
                     .lock()
                     .map_err(|_| Status::InternalServerError)?;
                 let uuid = Uuid::new_v4().to_string();
+                let cookie = Cookie::build((AUTHENTICATION_COOKIE.to_owned(), uuid.clone()))
+                    .max_age(Duration::days(365))
+                    .build();
+                cookie_jar.add_private(cookie);
                 (*mutex).store(uuid.clone(), credentials);
-                Ok((Status::Ok, uuid))
+                Ok((Status::Ok, ()))
             }
             Err(_) => Err(Status::Unauthorized),
         }
@@ -88,36 +95,129 @@ mod tests {
     use encoding::all::ISO_8859_1;
     use encoding::{EncoderTrap, Encoding};
     use regex::Regex;
+    use reqwest::header::CONTENT_TYPE;
     use rocket::State;
+    use rocket::http::{ContentType, Header};
+    use rocket::local::asynchronous::Client;
     use std::fs;
+    use std::path::PathBuf;
     use std::sync::Mutex;
     use wiremock::matchers::{body_string_contains, method, path, query_param_contains};
     use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    fn create_memberships_provider_test_config(uri: &str) -> MembershipsProviderConfig {
+        let temp_dir = temp_dir();
+        MembershipsProviderConfig::new(
+            uri.to_owned(),
+            Regex::new(&format!("{}/download\\.csv", uri)).unwrap(),
+            temp_dir.into_os_string(),
+        )
+    }
+
+    fn create_member_state_mutex() -> Mutex<MembersState> {
+        Mutex::new(MembersState::default())
+    }
+
+    async fn setup_login(mock_server: &MockServer) {
+        Mock::given(method("POST"))
+            .and(path("/page.php"))
+            .and(body_string_contains("Action=connect_user"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(mock_server)
+            .await;
+    }
+
+    // region login
+    #[async_test]
+    async fn should_login() {
+        let mock_server = MockServer::start().await;
+        setup_login(&mock_server).await;
+
+        let config = create_memberships_provider_test_config(&mock_server.uri());
+
+        let credentials = Credentials::new("test_login".to_owned(), "test_password".to_owned());
+        let credentials_storage_mutex = Mutex::new(CredentialsStorage::default());
+
+        let rocket = rocket::build()
+            .manage(config)
+            .manage(credentials_storage_mutex)
+            .manage(create_member_state_mutex())
+            .mount("/", routes![login]);
+        let client = Client::tracked(rocket).await.unwrap();
+        let credentials_as_json = json!(credentials).to_string();
+        let request = client
+            .post("/fileo/login")
+            .body(credentials_as_json.as_bytes())
+            .header(Header::new(
+                CONTENT_TYPE.to_string(),
+                ContentType::JSON.to_string(),
+            ));
+
+        let response = request.dispatch().await;
+        assert_eq!(Status::Ok, response.status());
+        assert!(
+            response
+                .cookies()
+                .get_private(AUTHENTICATION_COOKIE)
+                .is_some()
+        );
+    }
+
+    #[async_test]
+    async fn should_not_login_when_fileo_login_failed() {
+        let mock_server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/page.php"))
+            .and(body_string_contains("Action=connect_user"))
+            .respond_with(ResponseTemplate::new(401))
+            .mount(&mock_server)
+            .await;
+
+        let config = create_memberships_provider_test_config(&mock_server.uri());
+
+        let credentials = Credentials::new("test_login".to_owned(), "test_password".to_owned());
+        let credentials_storage_mutex = Mutex::new(CredentialsStorage::default());
+
+        let rocket = rocket::build()
+            .manage(config)
+            .manage(credentials_storage_mutex)
+            .manage(create_member_state_mutex())
+            .mount("/", routes![login]);
+        let client = Client::tracked(rocket).await.unwrap();
+        let credentials_as_json = json!(credentials).to_string();
+        let request = client
+            .post("/fileo/login")
+            .body(credentials_as_json.as_bytes())
+            .header(Header::new(
+                CONTENT_TYPE.to_string(),
+                ContentType::JSON.to_string(),
+            ));
+
+        let response = request.dispatch().await;
+        assert_eq!(Status::Unauthorized, response.status());
+        assert!(
+            response
+                .cookies()
+                .get_private(AUTHENTICATION_COOKIE)
+                .is_none()
+        );
+    }
+    // endregion
 
     // region download_members
     #[async_test]
     async fn should_download_members() {
         let mock_server = MockServer::start().await;
 
-        let temp_dir = temp_dir();
-        let old_file_path = temp_dir.join("memberships-1980-01-01.csv");
-        let config = MembershipsProviderConfig::new(
-            mock_server.uri(),
-            Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap(),
-            temp_dir.into_os_string(),
-        );
+        let config = create_memberships_provider_test_config(&mock_server.uri());
+        let old_file_path = PathBuf::from(config.folder()).join("memberships-1980-01-01.csv");
         let download_filename = "download.csv";
         let download_link = format!("{}/{download_filename}", mock_server.uri());
 
         fs::write(&old_file_path, "").unwrap();
         assert!(fs::exists(&old_file_path).ok().unwrap());
 
-        Mock::given(method("POST"))
-            .and(path("/page.php"))
-            .and(body_string_contains("Action=connect_user"))
-            .respond_with(ResponseTemplate::new(200))
-            .mount(&mock_server)
-            .await;
+        setup_login(&mock_server).await;
         Mock::given(method("POST"))
             .and(path("/page.php"))
             .and(query_param_contains(
@@ -179,12 +279,7 @@ mod tests {
     async fn should_not_download_members_when_error() {
         let mock_server = MockServer::start().await;
 
-        let temp_dir = temp_dir();
-        let config = MembershipsProviderConfig::new(
-            mock_server.uri(),
-            Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap(),
-            temp_dir.into_os_string(),
-        );
+        let config = create_memberships_provider_test_config(&mock_server.uri());
 
         let config_state = State::from(&config);
         let members_state_mutex = Mutex::new(MembersState::new(None, Members::default()));

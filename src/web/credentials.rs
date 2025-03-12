@@ -1,9 +1,9 @@
 use derive_getters::Getters;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-#[derive(Deserialize, Getters, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Getters, PartialEq, Clone)]
 pub struct Credentials {
     login: String,
     password: String,
