@@ -5,13 +5,16 @@
 
     <div class="step current-step">
         <div>
-            <div>Si vous ne l'avez pas fait depuis longtemps, pensez à mettre à jour la liste des membres. Dernière mise à jour : <span id="last-update">{{ last_update }}</span></div>
+            <div>Si vous ne l'avez pas fait depuis longtemps, pensez à mettre à jour la liste des membres. Dernière mise
+                à jour : <span id="last-update">{{ last_update }}</span></div>
             <button onclick="app.update_fileo_list()">Mettre la liste à jour</button>
         </div>
 
         <div class="input-container">
-            <label class="file-input-label" for="members-to-check-picker">Sélectionnez le fichier CSV contenant les licences à vérifier</label>
-            <input id="members-to-check-picker" type="file" accept=".text/csv,.csv" oninput="app.handle_members_to_check_file(this)">
+            <label class="file-input-label" for="members-to-check-picker">Sélectionnez le fichier CSV contenant les
+                licences à vérifier</label>
+            <input id="members-to-check-picker" type="file" accept=".text/csv,.csv"
+                   oninput="app.handle_members_to_check_file(this)">
         </div>
 
         <div id="check-members-form">
@@ -26,13 +29,15 @@
 
             </div>
             <p></p>
-            <button id="submit-members" type="button" onclick="app.handle_form_submission(document)" disabled>Vérifier les licences</button>
+            <button id="submit-members" type="button" onclick="app.handle_form_submission(document)" disabled>Vérifier
+                les licences
+            </button>
         </div>
     </div>
 
     <div class="step">
         <div id="checked-members" class="flex flex-col md:flex-row flex-wrap"></div>
-         <button type="button" onclick="app.go_to_notification_step(document)">Étape suivante</button>
+        <button type="button" id="go-to-send-email-step" onclick="app.go_to_notification_step(document)">Étape suivante</button>
     </div>
 
     <div class="step">
@@ -42,11 +47,13 @@
                 <label for="email-recipients" class="text-input-label peer">Destinataires</label>
             </div>
             <div class="input-container">
-                <input type="text" id="email-subject" class="peer" placeholder=" " value="Votre licence CNM/UNSLL a expiré"/>
+                <input type="text" id="email-subject" class="peer" placeholder=" "
+                       value="Votre licence CNM/UNSLL a expiré"/>
                 <label for="email-subject" class="text-input-label peer">Sujet</label>
             </div>
             <div class="input-container">
-                <textarea id="email-body" class="block w-full h-64" placeholder=" ">{% include "default-email-body" %}</textarea>
+                <textarea id="email-body" class="block w-full h-64"
+                          placeholder=" ">{% include "default-email-body" %}</textarea>
                 <label for="email-body" class="text-input-label peer">Corps du message</label>
             </div>
             <button id="send-email" type="button" onclick="app.handle_email_sending()">Envoyer</button>
