@@ -10,7 +10,7 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::{Document, Event, HtmlInputElement, KeyboardEvent};
+use web_sys::{Document, HtmlInputElement, KeyboardEvent};
 
 /// Add a simple event handler to allow submitting the login form using any of the Enter keys.
 pub fn init_login_form_fileo(document: &Document) {

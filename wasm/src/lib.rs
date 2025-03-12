@@ -34,7 +34,7 @@ fn run() {
     let document = &unwrap_without_alert(get_document());
     unwrap_or_alert(navbar::init_navbar(document));
 
-    init_login_form_fileo(&document);
+    init_login_form_fileo(document);
 }
 
 // region Handle "members to check" file
