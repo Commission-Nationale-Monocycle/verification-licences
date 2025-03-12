@@ -61,7 +61,7 @@ pub fn create_card_for_checked_member(
             query_selector_single_element(document, &card, "a.membership-email-address")
                 .dyn_into::<HtmlAnchorElement>()
                 .unwrap();
-        email_address_container.set_inner_html(&membership.email_address());
+        email_address_container.set_inner_html(membership.email_address());
         email_address_container.set_href(&format!("mailto:{}", &membership.email_address()));
     }
 

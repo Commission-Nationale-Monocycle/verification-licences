@@ -1,4 +1,3 @@
-use rocket::response::Redirect;
 use rocket::{Request, State};
 use std::sync::Mutex;
 
