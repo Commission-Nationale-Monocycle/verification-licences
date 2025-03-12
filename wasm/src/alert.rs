@@ -2,12 +2,12 @@ use crate::Result;
 #[cfg(not(test))]
 use crate::template::get_template;
 #[cfg(not(test))]
-use crate::utils::{append_child, get_body, get_document};
-use crate::utils::{get_element_by_id, query_selector_single_element};
+use crate::utils::{append_child, get_body};
+use crate::utils::{get_document, get_element_by_id, query_selector_single_element};
 use wasm_bindgen::prelude::wasm_bindgen;
+use web_sys::Node;
 #[cfg(not(test))]
-use web_sys::Element;
-use web_sys::{Document, Node};
+use web_sys::{Document, Element};
 
 #[wasm_bindgen]
 pub enum AlertLevel {
