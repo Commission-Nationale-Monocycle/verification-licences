@@ -1,13 +1,15 @@
 mod alert;
 mod card_creator;
+mod error;
 mod navbar;
 mod stepper;
 mod template;
 mod user_interface;
 mod utils;
 
-use crate::alert::{AlertLevel, create_alert};
+use crate::alert::{AlertLevel, create_alert, unwrap_or_alert, unwrap_without_alert};
 use crate::card_creator::EXPIRED_CHECKED_MEMBER_CONTAINER_CLASS_NAME;
+use crate::error::Error;
 use crate::stepper::next_step;
 use crate::user_interface::{get_email_body, get_email_subject, set_loading};
 use crate::utils::{
@@ -27,16 +29,16 @@ fn run() {
     utils::set_panic_hook();
     wasm_logger::init(wasm_logger::Config::default());
 
-    let document = &get_document();
-    navbar::init_navbar(document);
+    let document = &unwrap_without_alert(get_document());
+    unwrap_or_alert(navbar::init_navbar(document));
 }
 
 // region Handle "members to check" file
 #[wasm_bindgen]
 pub async fn handle_members_to_check_file(input: HtmlInputElement) -> Result<(), JsValue> {
-    set_loading(true);
+    unwrap_or_alert(set_loading(true));
 
-    let document = get_document();
+    let document = unwrap_without_alert(get_document());
 
     let csv_file = input
         .files()
@@ -47,9 +49,8 @@ pub async fn handle_members_to_check_file(input: HtmlInputElement) -> Result<(),
     let promise = csv_file.text();
     let text_jsvalue = wasm_bindgen_futures::JsFuture::from(promise).await?;
     let csv_content = text_jsvalue.as_string().unwrap_or_else(|| {
-        set_loading(false);
+        unwrap_or_alert(set_loading(false));
         create_alert(
-            &document,
             "Le fichier CSV contient des caractères incorrects. Vérifiez l'encodage UTF-8 du fichier.",
             AlertLevel::Error,
         );
@@ -59,9 +60,14 @@ pub async fn handle_members_to_check_file(input: HtmlInputElement) -> Result<(),
     let (members_to_check, wrong_lines) =
         MemberToCheck::load_members_to_check_from_csv_string(&csv_content);
 
-    user_interface::render_lines(&document, &csv_content, &members_to_check, &wrong_lines);
+    unwrap_or_alert(user_interface::render_lines(
+        &document,
+        &csv_content,
+        &members_to_check,
+        &wrong_lines,
+    ));
 
-    set_loading(false);
+    unwrap_or_alert(set_loading(false));
     Ok(())
 }
 
@@ -70,12 +76,14 @@ pub async fn handle_members_to_check_file(input: HtmlInputElement) -> Result<(),
 // region Handle form submission
 #[wasm_bindgen]
 pub async fn handle_form_submission(document: &Document) {
-    set_loading(true);
-    let members_to_check_input = get_value_from_input(document, "members-to-check");
+    unwrap_or_alert(set_loading(true));
+    let members_to_check_input =
+        unwrap_or_alert(get_value_from_input(document, "members-to-check"));
 
     let client = build_client();
 
-    let origin = get_window().location().origin().unwrap();
+    let window = unwrap_without_alert(get_window());
+    let origin = window.location().origin().unwrap();
     let url = format!("{origin}/api/members/check");
     let body = format!("members_to_check={members_to_check_input}");
     let response = client
@@ -85,9 +93,8 @@ pub async fn handle_form_submission(document: &Document) {
         .send()
         .await
         .unwrap_or_else(|error| {
-            set_loading(false);
+            unwrap_or_alert(set_loading(false));
             create_alert(
-                document,
                 "Impossible d'envoyer la requête. Veuillez réessayer.",
                 AlertLevel::Error,
             );
@@ -99,13 +106,12 @@ pub async fn handle_form_submission(document: &Document) {
         let text = response.text().await.expect("can't get text");
         let checked_members: Vec<CheckedMember> =
             serde_json::from_str(&text).expect("can't deserialize checked members");
-        user_interface::handle_checked_members(&checked_members);
+        unwrap_or_alert(user_interface::handle_checked_members(&checked_members));
         next_step(document);
-        set_loading(false);
+        unwrap_or_alert(set_loading(false));
     } else {
-        set_loading(false);
+        unwrap_or_alert(set_loading(false));
         create_alert(
-            document,
             "Le serveur a rencontré une erreur lors du traitement. Veuillez réessayer.",
             AlertLevel::Error,
         );
@@ -115,9 +121,12 @@ pub async fn handle_form_submission(document: &Document) {
 
 #[wasm_bindgen]
 pub fn go_to_notification_step(document: &Document) {
-    let addresses_to_notify = get_email_addresses_to_notify(document);
+    let addresses_to_notify = unwrap_or_alert(get_email_addresses_to_notify(document));
     let text = addresses_to_notify.join("\n");
-    let element = get_element_by_id_dyn::<HtmlTextAreaElement>(document, "email-recipients");
+    let element = unwrap_or_alert(get_element_by_id_dyn::<HtmlTextAreaElement>(
+        document,
+        "email-recipients",
+    ));
     element.set_value(&text);
 
     next_step(document);
@@ -127,14 +136,17 @@ pub fn go_to_notification_step(document: &Document) {
 // region Handle email sending
 #[wasm_bindgen]
 pub async fn handle_email_sending() {
-    set_loading(true);
-    let document = &get_document();
-    let email_addresses_to_notify = get_email_addresses_to_notify(document);
-    let email_subject = get_email_subject(document);
-    let email_body = get_email_body(document);
+    unwrap_or_alert(set_loading(true));
+    let document = &unwrap_without_alert(get_document());
+    let email_addresses_to_notify = unwrap_or_alert(get_email_addresses_to_notify(document));
+    let email_subject = unwrap_or_alert(get_email_subject(document));
+    let email_body = unwrap_or_alert(get_email_body(document));
 
     let client = build_client();
-    let origin = get_window().location().origin().unwrap();
+    let origin = unwrap_without_alert(get_window())
+        .location()
+        .origin()
+        .unwrap();
     let url = format!("{origin}/api/members/notify");
     let body = json!(Email::new(
         email_addresses_to_notify.clone(),
@@ -149,9 +161,8 @@ pub async fn handle_email_sending() {
         .send()
         .await
         .unwrap_or_else(|error| {
-            set_loading(false);
+            unwrap_or_alert(set_loading(false));
             create_alert(
-                document,
                 "Impossible d'envoyer la requête. Veuillez réessayer.",
                 AlertLevel::Error,
             );
@@ -162,7 +173,6 @@ pub async fn handle_email_sending() {
     if status.is_success() || status.is_redirection() {
         let addresses_count = email_addresses_to_notify.len();
         create_alert(
-            document,
             &format!(
                 "L'email a bien été envoyé à {} adresse{}.",
                 &addresses_count,
@@ -171,11 +181,10 @@ pub async fn handle_email_sending() {
             AlertLevel::Info,
         );
         log::info!("Email sent to {:?}!", email_addresses_to_notify);
-        set_loading(false);
+        unwrap_or_alert(set_loading(false));
     } else {
-        set_loading(false);
+        unwrap_or_alert(set_loading(false));
         create_alert(
-            document,
             "Impossible d'envoyer l'email. Veuillez réessayer.",
             AlertLevel::Error,
         );
@@ -183,18 +192,17 @@ pub async fn handle_email_sending() {
     }
 }
 
-fn get_email_addresses_to_notify(document: &Document) -> Vec<String> {
+fn get_email_addresses_to_notify(document: &Document) -> Result<Vec<String>> {
     let checked_members_container = user_interface::get_checked_members_container(document);
-    let expired_members = checked_members_container
+    let expired_members = checked_members_container?
         .get_elements_by_class_name(EXPIRED_CHECKED_MEMBER_CONTAINER_CLASS_NAME);
     let mut email_addresses_to_notify = vec![];
     for index in 0..expired_members.length() {
         let expired_member = expired_members.get_with_index(index).unwrap();
         let checkboxes = expired_member.get_elements_by_tag_name("input");
         if checkboxes.length() != 1 {
-            set_loading(false);
+            set_loading(false)?;
             create_alert(
-                document,
                 "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
                 AlertLevel::Error,
             );
@@ -206,39 +214,30 @@ fn get_email_addresses_to_notify(document: &Document) -> Vec<String> {
             let checkbox = checkboxes
                 .get_with_index(0)
                 .unwrap()
-                .dyn_into::<HtmlInputElement>()
-                .unwrap();
+                .dyn_into::<HtmlInputElement>()?;
             let is_checked = checkbox.checked();
             if is_checked {
-                let address_container = query_selector_single_element(
-                    document,
-                    &expired_member,
-                    ".email-address-container a",
-                );
-                let email_address = address_container.text_content().unwrap_or_else(|| {
-                    set_loading(false);
-                    create_alert(
-                        document,
-                        "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                        AlertLevel::Error,
-                    );
-                    panic!("There should be a single email address in each box.")
-                });
-                email_addresses_to_notify.push(email_address);
+                let address_container =
+                    query_selector_single_element(&expired_member, ".email-address-container a")?;
+                match address_container.text_content() {
+                    None => set_loading(false)?,
+                    Some(email_address) => email_addresses_to_notify.push(email_address),
+                };
             }
         }
     }
-    email_addresses_to_notify
+    Ok(email_addresses_to_notify)
 }
 // endregion
 
 fn build_client() -> Client {
     Client::builder().build().unwrap_or_else(|error| {
         create_alert(
-            &get_document(),
             "Impossible d'envoyer la requête. Veuillez réessayer.",
             AlertLevel::Error,
         );
         panic!("could not build client: {error:?}")
     })
 }
+
+pub type Result<T, E = Error> = std::result::Result<T, E>;

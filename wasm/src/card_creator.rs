@@ -1,3 +1,4 @@
+use crate::Result;
 use crate::template::get_template;
 use crate::utils::{append_child, create_element, query_selector_single_element};
 use MemberStatus::Unknown;
@@ -12,67 +13,68 @@ pub const EXPIRED_CHECKED_MEMBER_CONTAINER_CLASS_NAME: &str = "checked-member-ex
 pub fn create_card_for_member_to_check(
     document: &Document,
     member_to_check: &MemberToCheck,
-) -> Element {
-    let container = create_element(document, "div");
+) -> Result<Element> {
+    let container = create_element(document, "div")?;
 
-    let card_template = get_member_to_check_template(document);
-    append_child(&container, &card_template);
+    let card_template = get_member_to_check_template(document)?;
+    append_child(&container, &card_template)?;
 
-    let card = query_selector_single_element(document, &container, "div");
+    let card = query_selector_single_element(&container, "div")?;
 
-    query_selector_single_element(document, &card, ".member-to-check-membership-number")
+    query_selector_single_element(&card, ".member-to-check-membership-number")?
         .set_inner_html(member_to_check.membership_num());
-    query_selector_single_element(document, &card, ".member-to-check-name")
+    query_selector_single_element(&card, ".member-to-check-name")?
         .set_inner_html(member_to_check.name());
-    query_selector_single_element(document, &card, ".member-to-check-firstname")
+    query_selector_single_element(&card, ".member-to-check-firstname")?
         .set_inner_html(member_to_check.firstname());
 
-    card
+    Ok(card)
 }
 
 pub fn create_card_for_checked_member(
     document: &Document,
     checked_member: &CheckedMember,
-) -> Element {
-    let container = create_element(document, "div");
+) -> Result<Element> {
+    let container = create_element(document, "div")?;
 
     let status = checked_member.compute_member_status();
-    let card_template = get_checked_member_template(document, &status);
-    append_child(&container, &card_template);
+    let card_template = get_checked_member_template(document, &status)?;
+    append_child(&container, &card_template)?;
 
-    let card = query_selector_single_element(document, &container, "div");
+    let card = query_selector_single_element(&container, "div")?;
 
-    query_selector_single_element(document, &card, ".member-to-check-membership-number")
+    query_selector_single_element(&card, ".member-to-check-membership-number")?
         .set_inner_html(checked_member.member_to_check().membership_num());
-    query_selector_single_element(document, &card, ".member-to-check-name")
+    query_selector_single_element(&card, ".member-to-check-name")?
         .set_inner_html(checked_member.member_to_check().name());
-    query_selector_single_element(document, &card, ".member-to-check-firstname")
+    query_selector_single_element(&card, ".member-to-check-firstname")?
         .set_inner_html(checked_member.member_to_check().firstname());
 
     if status == UpToDate || status == Expired {
         let membership = checked_member.membership().as_ref().unwrap();
-        query_selector_single_element(document, &card, ".membership-name")
-            .set_inner_html(membership.name());
-        query_selector_single_element(document, &card, ".membership-firstname")
+        query_selector_single_element(&card, ".membership-name")?.set_inner_html(membership.name());
+        query_selector_single_element(&card, ".membership-firstname")?
             .set_inner_html(membership.firstname());
-        query_selector_single_element(document, &card, ".membership-end-date")
+        query_selector_single_element(&card, ".membership-end-date")?
             .set_inner_html(&membership.end_date().format("%d/%m/%Y").to_string());
         let email_address_container =
-            query_selector_single_element(document, &card, "a.membership-email-address")
-                .dyn_into::<HtmlAnchorElement>()
-                .unwrap();
+            query_selector_single_element(&card, "a.membership-email-address")?
+                .dyn_into::<HtmlAnchorElement>()?;
         email_address_container.set_inner_html(membership.email_address());
         email_address_container.set_href(&format!("mailto:{}", &membership.email_address()));
     }
 
-    card
+    Ok(card)
 }
 
-fn get_member_to_check_template(document: &Document) -> Element {
+fn get_member_to_check_template(document: &Document) -> Result<Element> {
     get_template(document, "member-to-check")
 }
 
-fn get_checked_member_template(document: &Document, member_status: &MemberStatus) -> Element {
+fn get_checked_member_template(
+    document: &Document,
+    member_status: &MemberStatus,
+) -> Result<Element> {
     match member_status {
         UpToDate => get_template(document, "checked-member-up-to-date"),
         Expired => get_template(document, "checked-member-expired"),

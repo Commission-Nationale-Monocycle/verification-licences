@@ -1,6 +1,7 @@
-use crate::alert::{AlertLevel, create_alert};
+use crate::Result;
+use crate::error::Error;
 use wasm_bindgen::JsCast;
-use web_sys::{Document, Element, HtmlElement, Location, Node};
+use web_sys::{Document, Element, HtmlElement, Location, Node, Window};
 
 pub fn set_panic_hook() {
     // When the `console_error_panic_hook` feature is enabled, we can call the
@@ -14,81 +15,46 @@ pub fn set_panic_hook() {
 }
 
 // region Get elements
-pub fn get_window() -> web_sys::Window {
-    web_sys::window().expect("no global `window` exists")
+pub fn get_window() -> Result<Window> {
+    web_sys::window().ok_or_else(|| Error::new("no global `window` exists".to_owned()))
 }
 
-pub fn get_document() -> Document {
-    let window = get_window();
-    window.document().expect("should have a document on window")
+pub fn get_document() -> Result<Document> {
+    let window = get_window()?;
+    window
+        .document()
+        .ok_or_else(|| Error::new("should have a document on window".to_owned()))
 }
 
-pub fn get_body() -> HtmlElement {
-    let document = get_document();
-    document.body().expect("should have a document on window")
+pub fn get_body() -> Result<HtmlElement> {
+    let document = get_document()?;
+    document
+        .body()
+        .ok_or_else(|| Error::new("should have a document on window".to_owned()))
 }
 
-pub fn get_element_by_id(document: &Document, id: &str) -> Element {
-    document.get_element_by_id(id).unwrap_or_else(|| {
-        create_alert(
-            document,
-            "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-            AlertLevel::Error,
-        );
-
-        panic!("`{id}` element does not exist");
-    })
+pub fn get_element_by_id(document: &Document, id: &str) -> Result<Element> {
+    document
+        .get_element_by_id(id)
+        .ok_or_else(|| Error::new(format!("`{id}` element does not exist")))
 }
 
-pub fn get_element_by_id_dyn<T: JsCast>(document: &Document, id: &str) -> T {
-    get_element_by_id(document, id)
+pub fn get_element_by_id_dyn<T: JsCast>(document: &Document, id: &str) -> Result<T> {
+    get_element_by_id(document, id)?
         .dyn_into()
-        .unwrap_or_else(|error| {
-            create_alert(
-                document,
-                "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                AlertLevel::Error,
-            );
-            panic!("Can't cast element: {error:?}");
-        })
+        .map_err(|error| Error::new(format!("Can't cast element: {error:?}")))
 }
 
-pub fn query_selector_single_element(
-    document: &Document,
-    element: &Element,
-    selector: &str,
-) -> Element {
+pub fn query_selector_single_element(element: &Element, selector: &str) -> Result<Element> {
     element
-        .query_selector(selector)
-        .unwrap_or_else(|error| {
-            create_alert(
-                document,
-                "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                AlertLevel::Error,
-            );
-            panic!("There should be a single element matching query: {error:?}.")
-        })
-        .unwrap_or_else(|| {
-            create_alert(
-                document,
-                "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                AlertLevel::Error,
-            );
-            panic!("There should be a single element matching query.")
-        })
+        .query_selector(selector)?
+        .ok_or_else(|| Error::new("There should be a single element matching query.".to_owned()))
 }
 
-pub fn get_value_from_input(document: &Document, id: &str) -> String {
-    get_element_by_id(document, id)
+pub fn get_value_from_input(document: &Document, id: &str) -> Result<String> {
+    get_element_by_id(document, id)?
         .get_attribute("value")
-        .unwrap_or_else(|| {
-            create_alert(
-                document,
-                "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-                AlertLevel::Error,
-            );
-            panic!("`{id}` input does not contain text");
-        })
+        .ok_or_else(|| Error::new(format!("`{id}` input does not contain text")))
 }
 // endregion
 
@@ -110,48 +76,40 @@ impl<'a> ElementBuilder<'a> {
         self
     }
 
-    pub fn build(&self, document: &Document, name: &str) -> Element {
-        let new_element = document
-            .create_element(name)
-            .expect("can't create elements");
+    pub fn build(&self, document: &Document, name: &str) -> Result<Element> {
+        let new_element = document.create_element(name)?;
 
         if let Some(parent) = self.parent {
-            parent
-                .append_child(&new_element)
-                .expect("can't append child");
+            parent.append_child(&new_element)?;
         }
         if let Some(inner_html) = self.inner_html {
             new_element.set_inner_html(inner_html);
         }
 
-        new_element
+        Ok(new_element)
     }
 }
 
-pub fn create_element(document: &Document, name: &str) -> Element {
+pub fn create_element(document: &Document, name: &str) -> Result<Element> {
     ElementBuilder::default().build(document, name)
 }
 // endregion
 
 // region Manipulate existing elements
-pub fn append_child(container: &Element, child: &Node) {
-    container.append_child(child).expect("can't append child");
+pub fn append_child(container: &Element, child: &Node) -> Result<Node> {
+    Ok(container.append_child(child)?)
 }
 
 pub fn clear_element(element: &Element) {
     element.set_inner_html("");
 }
 
-pub fn set_attribute(element: &Element, name: &str, value: &str) {
-    element
-        .set_attribute(name, value)
-        .expect("can't set attribute");
+pub fn set_attribute(element: &Element, name: &str, value: &str) -> Result<()> {
+    Ok(element.set_attribute(name, value)?)
 }
 
-pub fn remove_attribute(element: &Element, name: &str) {
-    element
-        .remove_attribute(name)
-        .expect("can't remove attribute");
+pub fn remove_attribute(element: &Element, name: &str) -> Result<()> {
+    Ok(element.remove_attribute(name)?)
 }
 
 pub fn add_class(element: &Element, class_name: &str) {
@@ -180,34 +138,23 @@ pub fn remove_class(element: &Element, class_name: &str) {
 // endregion
 
 // region Location
-pub fn get_location() -> Location {
-    get_window().location()
+pub fn get_location() -> Result<Location> {
+    let window = get_window()?;
+    Ok(window.location())
 }
 
-pub fn get_origin() -> String {
-    get_location().origin().unwrap_or_else(|error| {
-        create_alert(
-            &get_document(),
-            "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-            AlertLevel::Error,
-        );
-        panic!("Couldn't get origin: {error:?}")
-    })
+pub fn get_origin() -> Result<String> {
+    let location = get_location()?;
+    Ok(location.origin()?)
 }
 
-pub fn get_pathname() -> String {
-    get_location().pathname().unwrap_or_else(|error| {
-        create_alert(
-            &get_document(),
-            "Erreur lors du traitement. Veuillez actualiser la page et réessayer.",
-            AlertLevel::Error,
-        );
-        panic!("Couldn't get origin: {error:?}")
-    })
+pub fn get_pathname() -> Result<String> {
+    let location = get_location()?;
+    Ok(location.pathname()?)
 }
 
-pub fn get_url_without_query() -> String {
-    format!("{}{}", get_origin(), get_pathname())
+pub fn get_url_without_query() -> Result<String> {
+    Ok(format!("{}{}", get_origin()?, get_pathname()?))
 }
 // endregion
 
@@ -224,12 +171,12 @@ mod tests {
     // region Get elements
     #[wasm_bindgen_test]
     fn should_get_window() {
-        get_window();
+        get_window().unwrap();
     }
 
     #[wasm_bindgen_test]
     fn should_get_document() {
-        get_document();
+        get_document().unwrap();
     }
 
     #[wasm_bindgen_test]
@@ -242,7 +189,7 @@ mod tests {
 
         document.get_root_node().append_child(&element).unwrap();
 
-        get_element_by_id(&document, id);
+        get_element_by_id(&document, id).unwrap();
     }
 
     #[wasm_bindgen_test]
@@ -251,7 +198,7 @@ mod tests {
         let id = "id";
 
         let document = get_new_document();
-        get_element_by_id(&document, id);
+        get_element_by_id(&document, id).unwrap();
     }
 
     #[wasm_bindgen_test]
@@ -262,7 +209,7 @@ mod tests {
         element.set_id(id);
 
         document.get_root_node().append_child(&element).unwrap();
-        get_element_by_id_dyn::<Element>(&document, id);
+        get_element_by_id_dyn::<Element>(&document, id).unwrap();
     }
 
     #[wasm_bindgen_test]
@@ -271,7 +218,7 @@ mod tests {
         let id = "id";
 
         let document = get_new_document();
-        get_element_by_id_dyn::<Element>(&document, id);
+        get_element_by_id_dyn::<Element>(&document, id).unwrap();
     }
 
     #[wasm_bindgen_test]
@@ -286,7 +233,7 @@ mod tests {
 
         document.get_root_node().append_child(&element).unwrap();
 
-        assert_eq!(value, get_value_from_input(&document, id));
+        assert_eq!(value, get_value_from_input(&document, id).unwrap());
     }
 
     #[wasm_bindgen_test]
@@ -295,7 +242,7 @@ mod tests {
         let id = "id";
 
         let document = get_new_document();
-        get_value_from_input(&document, id);
+        get_value_from_input(&document, id).unwrap();
     }
 
     #[wasm_bindgen_test]
@@ -309,7 +256,7 @@ mod tests {
 
         document.get_root_node().append_child(&element).unwrap();
 
-        get_value_from_input(&document, id);
+        get_value_from_input(&document, id).unwrap();
     }
     // endregion
 
@@ -324,7 +271,8 @@ mod tests {
         let new_element = ElementBuilder::default()
             .parent(&parent)
             .inner_html(inner_html)
-            .build(&document, name);
+            .build(&document, name)
+            .unwrap();
 
         assert_eq!(name, new_element.tag_name());
         assert_eq!(parent, new_element.parent_element().unwrap());
@@ -336,7 +284,7 @@ mod tests {
         let document = Document::new().unwrap();
         let name = "p";
 
-        let new_element = create_element(&document, name);
+        let new_element = create_element(&document, name).unwrap();
 
         assert_eq!(name, new_element.tag_name());
         assert_eq!(None, new_element.parent_element());
@@ -353,7 +301,8 @@ mod tests {
         let new_element = ElementBuilder::default()
             .parent(&parent)
             .inner_html(inner_html)
-            .build(&document, name);
+            .build(&document, name)
+            .unwrap();
 
         assert_eq!(name, new_element.tag_name());
         assert_eq!(parent, new_element.parent_element().unwrap());
@@ -368,7 +317,7 @@ mod tests {
         let child = document.create_element("p").unwrap();
         let container = document.create_element("p").unwrap();
 
-        append_child(&container, &child);
+        append_child(&container, &child).unwrap();
     }
 
     #[wasm_bindgen_test]
@@ -393,7 +342,7 @@ mod tests {
         let value = "value";
 
         assert_eq!(None, element.get_attribute(key));
-        set_attribute(&element, key, value);
+        set_attribute(&element, key, value).unwrap();
         assert_eq!(value, element.get_attribute(key).unwrap());
     }
 
@@ -408,7 +357,7 @@ mod tests {
             .set_attribute(key, value)
             .expect("can't set attribute");
         assert_eq!(value, element.get_attribute(key).unwrap());
-        remove_attribute(&element, key);
+        remove_attribute(&element, key).unwrap();
         assert_eq!(None, element.get_attribute(key));
     }
 
