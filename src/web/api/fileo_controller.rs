@@ -1,7 +1,7 @@
 use crate::member::config::MembershipsProviderConfig;
 use crate::member::download::{build_client, download_memberships_list, login_to_fileo};
 use crate::member::import_from_file::{clean_old_files, import_from_file};
-use crate::tools::{log_message, log_message_and_return};
+use crate::tools::{log_error_and_return, log_message, log_message_and_return};
 use crate::web::api::members_state::MembersState;
 use crate::web::authentication::AUTHENTICATION_COOKIE;
 use crate::web::credentials::{Credentials, CredentialsStorage};
@@ -32,7 +32,7 @@ pub async fn login(
             Ok(_) => {
                 let mut mutex = credentials_storage
                     .lock()
-                    .map_err(|_| Status::InternalServerError)?;
+                    .map_err(log_error_and_return(Status::InternalServerError))?;
                 let uuid = Uuid::new_v4().to_string();
                 let cookie = Cookie::build((AUTHENTICATION_COOKIE.to_owned(), uuid.clone()))
                     .max_age(Duration::days(365))
@@ -41,10 +41,11 @@ pub async fn login(
                 (*mutex).store(uuid.clone(), credentials);
                 Ok((Status::Ok, ()))
             }
-            Err(_) => Err(Status::Unauthorized),
+            Err(error) => log_error_and_return(Err(Status::Unauthorized))(error),
         }
     } else {
-        Err(Status::InternalServerError)
+        let error = client.unwrap_err();
+        log_error_and_return(Err(Status::InternalServerError))(error)
     }
 }
 
