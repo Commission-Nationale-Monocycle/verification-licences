@@ -5,6 +5,7 @@ pub enum Error {
     WrongEncoding,
     NoCredentials,
 
+    WrongCredentials,
     ConnectionFailed,
     CantLoadListOnServer,
     CantRetrieveDownloadLink,

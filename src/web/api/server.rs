@@ -1,7 +1,7 @@
 use crate::member::config::MembershipsProviderConfig;
 use crate::member::get_members_file_folder;
 use crate::web::api::members_state::MembersState;
-use crate::web::api::memberships_controller;
+use crate::web::api::{fileo_controller, memberships_controller};
 use crate::web::server::Server;
 use regex::Regex;
 use rocket::{Build, Rocket};
@@ -35,6 +35,7 @@ impl Server for ApiServer {
                     memberships_controller::download_memberships,
                     memberships_controller::check_memberships,
                     memberships_controller::notify_members,
+                    fileo_controller::login,
                 ],
             )
     }
