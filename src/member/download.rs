@@ -5,7 +5,7 @@ use crate::member::config::MembershipsProviderConfig;
 use chrono::Local;
 use encoding::all::ISO_8859_1;
 use encoding::{DecoderTrap, Encoding};
-use log::{debug, error, warn};
+use log::{debug, error};
 use regex::Regex;
 use reqwest::{Client, RequestBuilder};
 use rocket::form::validate::Contains;
@@ -15,11 +15,11 @@ use crate::member::Result;
 use crate::member::error::Error::{
     CantCreateClient, CantCreateMembershipsFileFolder, CantLoadListOnServer,
     CantReadMembersDownloadResponse, CantReadPageContent, CantRetrieveDownloadLink,
-    CantWriteMembersFile, ConnectionFailed, FileNotFoundOnServer, NoCredentials, NoDownloadLink,
-    WrongCredentials, WrongEncoding,
+    CantWriteMembersFile, ConnectionFailed, FileNotFoundOnServer, NoDownloadLink, WrongCredentials,
+    WrongEncoding,
 };
 use crate::member::file_details::FileDetails;
-use crate::tools::{env_args, log_error_and_return, log_message_and_return};
+use crate::tools::{log_error_and_return, log_message_and_return};
 use crate::web::credentials::Credentials;
 
 #[cfg(not(feature = "demo"))]
@@ -55,35 +55,6 @@ pub fn build_client() -> Result<Client> {
             CantCreateClient,
         ))
 }
-
-// region Retrieve credentials
-#[cfg(not(feature = "demo"))]
-fn retrieve_login_and_password() -> (Option<String>, Option<String>) {
-    let mut login = None;
-    let mut password = None;
-    if let Some(new_login) = env_args::retrieve_arg_value(vec!["--login", "-l"]) {
-        login = Some(new_login);
-    }
-    if let Some(new_password) = env_args::retrieve_arg_value(vec!["--password", "-p"]) {
-        password = Some(new_password);
-    }
-    (login, password)
-}
-
-#[cfg(not(feature = "demo"))]
-fn retrieve_credentials() -> Result<Credentials> {
-    let (login, password) = retrieve_login_and_password();
-
-    if let (Some(l), Some(p)) = (login, password) {
-        Ok(Credentials::new(l, p))
-    } else {
-        warn!(
-            "Args don't contain login or password. It won't be possible to retrieve the members list."
-        );
-        Err(NoCredentials)
-    }
-}
-// endregion
 
 // region Requests
 #[cfg(not(feature = "demo"))]
@@ -322,32 +293,23 @@ mod tests {
     use std::path::PathBuf;
     use std::time::SystemTime;
 
-    use parameterized::{ide, parameterized};
     use regex::Regex;
     use rocket::futures::executor::block_on;
     use rocket::http::ContentType;
     use wiremock::matchers::{body_string_contains, method, path, query_param_contains};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
+    use super::*;
     use crate::member::Error::{
         CantLoadListOnServer, CantRetrieveDownloadLink, ConnectionFailed, FileNotFoundOnServer,
         NoDownloadLink,
     };
     use crate::member::config::MembershipsProviderConfig;
-    use crate::member::download::{
-        build_client, create_memberships_file_dir, download_list, download_memberships_list,
-        format_arguments_into_body, load_list_into_server_session, login_to_fileo,
-        prepare_request_for_connection, prepare_request_for_loading_list_into_server_session,
-        prepare_request_for_retrieving_download_link, retrieve_credentials, retrieve_download_link,
-        retrieve_login_and_password, write_list_to_file,
-    };
     use crate::member::error::Error::CantWriteMembersFile;
-    use crate::member::{Result, get_members_file_folder};
+    use crate::member::get_members_file_folder;
     use crate::tools::env_args::with_env_args;
     use crate::tools::test::tests::temp_dir;
     use crate::web::credentials::Credentials;
-
-    ide!();
 
     #[async_test]
     async fn should_download_members_list() {
@@ -428,48 +390,6 @@ mod tests {
         let result = build_client();
         assert!(result.is_ok());
     }
-
-    // region Retrieve credentials
-    #[parameterized(
-        args = {
-        vec ! ["--login=test_login".to_string(), "--password=test_password".to_string()],
-        vec ! ["--password=test_password".to_string(), "--login=test_login".to_string()],
-        vec ! ["--login=test_login".to_string()],
-        vec ! ["--password=test_password".to_string()],
-        vec ! []
-        },
-        expected_result = {
-        (Some("test_login".to_owned()), Some("test_password".to_owned())),
-        (Some("test_login".to_owned()), Some("test_password".to_owned())),
-        (Some("test_login".to_owned()), None),
-        (None, Some("test_password".to_owned())),
-        (None, None),
-        }
-    )]
-    fn should_retrieve_login_and_password(
-        args: Vec<String>,
-        expected_result: (Option<String>, Option<String>),
-    ) {
-        let result = with_env_args(args, retrieve_login_and_password);
-        assert_eq!(expected_result, result);
-    }
-
-    #[parameterized(
-        args = {
-        vec ! ["--login=test_login".to_string(), "--password=test_password".to_string()],
-        vec ! ["--login=test_login".to_string(), "--another-argument".to_string()],
-        },
-        expected_result = {
-        Ok(Credentials::new("test_login".to_string(), "test_password".to_string())),
-        Err(crate::member::error::Error::NoCredentials)
-        }
-    )]
-    fn should_retrieve_credentials(args: Vec<String>, expected_result: Result<Credentials>) {
-        let result = with_env_args(args, retrieve_credentials);
-        assert_eq!(expected_result, result);
-    }
-
-    // endregion
 
     // region Requests
     #[async_test]

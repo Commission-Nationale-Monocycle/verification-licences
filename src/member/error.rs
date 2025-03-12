@@ -3,7 +3,6 @@ pub enum Error {
     CantCreateClient,
     CantCreateMembershipsFileFolder,
     WrongEncoding,
-    NoCredentials,
 
     WrongCredentials,
     ConnectionFailed,

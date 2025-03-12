@@ -1,4 +1,3 @@
-use crate::member::file_details::FileDetails;
 use crate::member::members::Members;
 use crate::member::memberships::Memberships;
 use crate::tools::log_error_and_return;
@@ -9,7 +8,7 @@ use rocket::http::Status;
 use rocket::response::Redirect;
 use rocket::{Request, State};
 use rocket_dyn_templates::{Template, context};
-use std::sync::{LockResult, Mutex};
+use std::sync::Mutex;
 
 #[get("/fileo/login")]
 pub async fn fileo_login() -> Template {

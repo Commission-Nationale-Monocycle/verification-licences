@@ -9,12 +9,6 @@ pub struct Credentials {
     password: String,
 }
 
-impl Credentials {
-    pub fn new(login: String, password: String) -> Self {
-        Self { login, password }
-    }
-}
-
 impl Debug for Credentials {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Credentials {{login={}, password=MASKED}}", self.login)
@@ -34,8 +28,11 @@ impl CredentialsStorage {
     pub fn get(&self, id: &str) -> Option<&Credentials> {
         self.credentials.get(id)
     }
+}
 
-    pub fn is_logged_in(&self, id: &str) -> bool {
-        self.credentials.contains_key(id)
+#[cfg(test)]
+impl Credentials {
+    pub fn new(login: String, password: String) -> Self {
+        Self { login, password }
     }
 }
