@@ -15,7 +15,7 @@ use crate::fileo::login::init_login_form_fileo;
 use crate::stepper::next_step;
 use crate::user_interface::{get_email_body, get_email_subject, set_loading};
 use crate::utils::{
-    get_document, get_element_by_id_dyn, get_value_from_input, get_window,
+    get_document, get_element_by_id_dyn, get_value_from_element, get_window,
     query_selector_single_element,
 };
 use dto::checked_member::CheckedMember;
@@ -81,15 +81,27 @@ pub async fn handle_members_to_check_file(input: HtmlInputElement) -> Result<(),
 #[wasm_bindgen]
 pub async fn handle_form_submission(document: &Document) {
     unwrap_or_alert(set_loading(true));
-    let members_to_check_input =
-        unwrap_or_alert(get_value_from_input(document, "members-to-check"));
+
+    let members_to_check_input = unwrap_or_alert(get_element_by_id_dyn::<HtmlInputElement>(
+        document,
+        "members-to-check",
+    ));
+    let members_to_check = get_value_from_element(&members_to_check_input);
+    if members_to_check.trim().is_empty() {
+        unwrap_or_alert(set_loading(false));
+        create_alert(
+            "Impossible de valider un fichier vide. Veuillez réessayer.",
+            AlertLevel::Error,
+        );
+        return;
+    }
 
     let client = build_client();
 
     let window = unwrap_without_alert(get_window());
     let origin = window.location().origin().unwrap();
     let url = format!("{origin}/api/members/check");
-    let body = format!("members_to_check={members_to_check_input}");
+    let body = format!("members_to_check={members_to_check}");
     let response = client
         .post(&url)
         .header("Content-Type", "application/x-www-form-urlencoded")

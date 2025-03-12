@@ -51,12 +51,6 @@ pub fn query_selector_single_element(element: &Element, selector: &str) -> Resul
         .ok_or_else(|| Error::new("There should be a single element matching query.".to_owned()))
 }
 
-pub fn get_value_from_input(document: &Document, id: &str) -> Result<String> {
-    get_element_by_id(document, id)?
-        .get_attribute("value")
-        .ok_or_else(|| Error::new(format!("`{id}` input does not contain text")))
-}
-
 pub fn get_value_from_element(element: &HtmlInputElement) -> String {
     element.value()
 }
@@ -223,44 +217,6 @@ mod tests {
 
         let document = get_new_document();
         get_element_by_id_dyn::<Element>(&document, id).unwrap();
-    }
-
-    #[wasm_bindgen_test]
-    fn should_get_value_from_input() {
-        let id = "id";
-        let value = "value";
-
-        let document = get_new_document();
-        let element = document.create_element("p").unwrap();
-        element.set_id(id);
-        element.set_attribute("value", value).unwrap();
-
-        document.get_root_node().append_child(&element).unwrap();
-
-        assert_eq!(value, get_value_from_input(&document, id).unwrap());
-    }
-
-    #[wasm_bindgen_test]
-    #[should_panic(expected = "element does not exist")]
-    fn should_not_get_value_when_element_does_not_exist() {
-        let id = "id";
-
-        let document = get_new_document();
-        get_value_from_input(&document, id).unwrap();
-    }
-
-    #[wasm_bindgen_test]
-    #[should_panic(expected = "input does not contain text")]
-    fn should_not_get_value_when_element_does_not_not_contain_text() {
-        let id = "id";
-
-        let document = get_new_document();
-        let element = document.create_element("p").unwrap();
-        element.set_id(id);
-
-        document.get_root_node().append_child(&element).unwrap();
-
-        get_value_from_input(&document, id).unwrap();
     }
     // endregion
 
