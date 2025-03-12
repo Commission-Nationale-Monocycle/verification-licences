@@ -3,7 +3,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-#[derive(Deserialize, Getters, PartialEq)]
+#[derive(Deserialize, Getters, PartialEq, Clone)]
 pub struct Credentials {
     login: String,
     password: String,

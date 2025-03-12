@@ -12,7 +12,7 @@ use std::sync::Mutex;
 use uuid::Uuid;
 
 /// Try and log a user onto Fileo app.
-/// If the login operation successes,
+/// If the login operation succeeds,
 /// then a new UUID is created and credentials are stored with this UUID.
 /// The UUID is returned to the caller, so that it is their new access token.
 #[post("/fileo/login", format = "application/json", data = "<credentials>")]
@@ -45,25 +45,26 @@ pub async fn login(
 /// write said file into filesystem
 /// and load it into memory.
 /// Finally, clean all old memberships files.
-#[get("/fileo/memberships")]
+#[get("/fileo/memberships", format = "text/plain-text")]
 pub async fn download_memberships(
     memberships_provider_config: &State<MembershipsProviderConfig>,
     members_state: &State<Mutex<MembersState>>,
-) -> Result<String, String> {
-    let file_details = download_memberships_list(memberships_provider_config)
+    credentials: Credentials,
+) -> Result<String, Status> {
+    let file_details = download_memberships_list(memberships_provider_config, &credentials)
         .await
         .map_err(log_message_and_return(
             "Can't download memberships list",
-            "Can't download memberships list",
+            Status::InternalServerError,
         ))?;
 
     let members = import_from_file(file_details.filepath()).map_err(log_message_and_return(
         "Error while reading memberships file.",
-        "Error while reading memberships file.",
+        Status::InternalServerError,
     ))?;
     let mut members_state = members_state.lock().map_err(log_message_and_return(
         "Couldn't acquire lock",
-        "Error while updating memberships.",
+        Status::InternalServerError,
     ))?;
 
     let file_update_date = *file_details.update_date();
@@ -81,7 +82,6 @@ mod tests {
 
     use crate::member::config::MembershipsProviderConfig;
     use crate::member::members::Members;
-    use crate::tools::env_args::with_env_args;
     use crate::tools::test::tests::temp_dir;
     use crate::web::api::members_state::MembersState;
     use dto::membership::tests::{MEMBERSHIP_NUMBER, get_expected_member, get_member_as_csv};
@@ -89,7 +89,6 @@ mod tests {
     use encoding::{EncoderTrap, Encoding};
     use regex::Regex;
     use rocket::State;
-    use rocket::futures::executor::block_on;
     use std::fs;
     use std::sync::Mutex;
     use wiremock::matchers::{body_string_contains, method, path, query_param_contains};
@@ -100,10 +99,6 @@ mod tests {
     async fn should_download_members() {
         let mock_server = MockServer::start().await;
 
-        let args = vec![
-            "--login=test_login".to_string(),
-            "--password=test_password".to_string(),
-        ];
         let temp_dir = temp_dir();
         let old_file_path = temp_dir.join("memberships-1980-01-01.csv");
         let config = MembershipsProviderConfig::new(
@@ -156,11 +151,14 @@ mod tests {
         let config_state = State::from(&config);
         let members_state_mutex = Mutex::new(MembersState::new(None, Members::default()));
         let members_state = State::from(&members_state_mutex);
+        let credentials = Credentials::new("test_login".to_owned(), "test_password".to_owned());
+        let mut credentials_storage = CredentialsStorage::default();
+        let credentials_uuid = "id".to_owned();
+        credentials_storage.store(credentials_uuid.clone(), credentials.clone());
 
-        let result = with_env_args(args, || {
-            block_on(download_memberships(config_state, members_state))
-        })
-        .unwrap();
+        let result = download_memberships(config_state, members_state, credentials)
+            .await
+            .unwrap();
         let members: Members = serde_json::from_str(&result).unwrap();
         assert_eq!(
             &get_expected_member(),
@@ -181,7 +179,6 @@ mod tests {
     async fn should_not_download_members_when_error() {
         let mock_server = MockServer::start().await;
 
-        let args = vec![];
         let temp_dir = temp_dir();
         let config = MembershipsProviderConfig::new(
             mock_server.uri(),
@@ -192,11 +189,10 @@ mod tests {
         let config_state = State::from(&config);
         let members_state_mutex = Mutex::new(MembersState::new(None, Members::default()));
         let members_state = State::from(&members_state_mutex);
+        let credentials = Credentials::new("test_login".to_owned(), "test_password".to_owned());
 
-        let result = with_env_args(args, || {
-            block_on(download_memberships(config_state, members_state))
-        });
-        assert!(result.err().is_some());
+        let result = download_memberships(config_state, members_state, credentials).await;
+        assert_eq!(Status::InternalServerError, result.unwrap_err());
     }
     // endregion
 }

@@ -25,6 +25,7 @@ use crate::web::credentials::Credentials;
 #[cfg(not(feature = "demo"))]
 pub async fn download_memberships_list(
     memberships_provider_config: &MembershipsProviderConfig,
+    credentials: &Credentials,
 ) -> Result<FileDetails> {
     let folder = memberships_provider_config.folder();
     let host = memberships_provider_config.host();
@@ -32,8 +33,7 @@ pub async fn download_memberships_list(
     create_memberships_file_dir(folder)?;
 
     let client = build_client()?;
-    let credentials = retrieve_credentials()?;
-    login_to_fileo(&client, host, &credentials).await?;
+    login_to_fileo(&client, host, credentials).await?;
     load_list_into_server_session(&client, host).await?;
     let download_url = retrieve_download_link(&client, host, download_link_regex).await?;
     let file_content = download_list(&client, &download_url).await?;
@@ -353,17 +353,14 @@ mod tests {
     async fn should_download_members_list() {
         let mock_server = MockServer::start().await;
 
-        let args = vec![
-            "path/to/executable".to_string(),
-            "--login=test_login".to_string(),
-            "--password=test_password".to_string(),
-        ];
+        let args = vec!["path/to/executable".to_string()];
         let temp_dir = temp_dir();
         let config = MembershipsProviderConfig::new(
             mock_server.uri(),
             Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap(),
             temp_dir.into_os_string(),
         );
+        let credentials = Credentials::new("test_login".to_owned(), "test_password".to_owned());
         let download_filename = "download.csv";
         let download_link = format!("{}/{download_filename}", mock_server.uri());
         let expected_content = "ï";
@@ -400,7 +397,9 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let result = with_env_args(args, || block_on(download_memberships_list(&config)));
+        let result = with_env_args(args, || {
+            block_on(download_memberships_list(&config, &credentials))
+        });
         let file_details = result.unwrap();
         let content = fs::read_to_string(file_details.filepath()).unwrap();
         assert_eq!(expected_content, content);
