@@ -1,6 +1,7 @@
 use crate::member::config::MembershipsProviderConfig;
-use crate::member::download::{build_client, download_memberships_list, login_to_fileo};
+use crate::member::download::{download_memberships_list, login_to_fileo};
 use crate::member::import_from_file::{clean_old_files, import_from_file};
+use crate::tools::web::build_client;
 use crate::tools::{log_error_and_return, log_message, log_message_and_return};
 use crate::web::api::members_state::MembersState;
 use crate::web::authentication::AUTHENTICATION_COOKIE;

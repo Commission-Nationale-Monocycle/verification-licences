@@ -1,6 +1,6 @@
 use std::ffi::OsStr;
 
-use crate::member::error::Error;
+use crate::tools::error::Error;
 use chrono::NaiveDate;
 use derive_getters::Getters;
 use dto::membership::Membership;
@@ -8,13 +8,10 @@ use serde::Deserialize;
 
 pub mod config;
 pub mod download;
-pub mod error;
 pub mod file_details;
 pub mod import_from_file;
 pub mod members;
 pub mod memberships;
-
-type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[cfg(not(feature = "demo"))]
 const MEMBERS_FILE_FOLDER: &str = "data";

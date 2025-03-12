@@ -2,10 +2,10 @@ use std::ffi::OsStr;
 
 use derive_getters::Getters;
 
-use crate::member::error::Error;
 use crate::member::file_details::FileDetails;
 use crate::member::import_from_file::{find_file, import_from_file};
 use crate::member::members::Members;
+use crate::tools::error::Error;
 use crate::tools::log_message;
 
 type Result<T, E = Error> = std::result::Result<T, E>;
@@ -63,10 +63,10 @@ mod tests {
     use std::fs;
     use std::fs::File;
 
-    use crate::member::error::Error::CantBrowseThroughFiles;
     use crate::member::file_details::FileDetails;
     use crate::member::members::Members;
     use crate::member::memberships::Memberships;
+    use crate::tools::error::Error::CantBrowseThroughFiles;
     use crate::tools::test::tests::temp_dir;
     use crate::web::api::members_state::MembersState;
     use chrono::NaiveDate;

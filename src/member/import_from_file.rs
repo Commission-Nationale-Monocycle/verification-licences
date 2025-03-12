@@ -8,15 +8,15 @@ use chrono::NaiveDate;
 use csv::Reader;
 use regex::bytes::{Captures, Regex};
 
-use crate::member::Result;
-use crate::member::error::Error::{
-    CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile,
-    CantOpenMembersFileFolder, InvalidDate, NoFileFound, WrongRegex,
-};
 use crate::member::file_details::FileDetails;
 use crate::member::members::Members;
 use crate::member::memberships::Memberships;
 use crate::member::{ImportedMembership, Membership};
+use crate::tools::error::Error::{
+    CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile,
+    CantOpenMembersFileFolder, InvalidDate, NoFileFound, WrongRegex,
+};
+use crate::tools::error::Result;
 use crate::tools::{log_message, log_message_and_return};
 
 pub fn import_from_file(filepath: &OsStr) -> Result<Members> {
@@ -139,15 +139,15 @@ mod tests {
     use std::io::BufReader;
 
     use crate::member::Membership;
-    use crate::member::error::Error::{
-        CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound,
-    };
     use crate::member::import_from_file::{
         build_members_file_regex, check_folder, convert_captures_to_date, convert_match_to_integer,
         find_file, group_members_by_membership, import_from_file, load_memberships,
     };
     use crate::member::members::Members;
     use crate::member::memberships::Memberships;
+    use crate::tools::error::Error::{
+        CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound,
+    };
     use crate::tools::test::tests::temp_dir;
     use chrono::NaiveDate;
     use dto::membership::tests::{
