@@ -209,7 +209,7 @@ body.loading #spinner-container {
 
 /* region input */
 .input-container {
-    @apply relative
+    @apply relative m-2
 }
 
 .file-input-label {
