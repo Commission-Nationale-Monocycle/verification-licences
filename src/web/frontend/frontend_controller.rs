@@ -43,7 +43,7 @@ pub async fn list_memberships(
 
 #[get("/memberships", rank = 2)]
 pub async fn list_memberships_unauthenticated() -> Redirect {
-    Redirect::to(uri!("/fileo/login/?page=memberships"))
+    Redirect::to(uri!("/fileo/login/?page=/memberships"))
 }
 
 #[get("/check-memberships")]
@@ -73,7 +73,7 @@ pub async fn check_memberships(
 
 #[get("/check-memberships", rank = 2)]
 pub async fn check_memberships_unauthenticated() -> Redirect {
-    Redirect::to(uri!("/fileo/login/?page=check-memberships"))
+    Redirect::to(uri!("/fileo/login/?page=/check-memberships"))
 }
 
 #[catch(404)]

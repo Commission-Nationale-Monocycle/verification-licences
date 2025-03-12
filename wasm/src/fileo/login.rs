@@ -1,5 +1,6 @@
 use crate::alert::{AlertLevel, create_alert, unwrap_or_alert, unwrap_without_alert};
 use crate::build_client;
+use crate::error::Error;
 use crate::user_interface::set_loading;
 use crate::utils::{
     get_document, get_element_by_id_dyn, get_location, get_value_from_element, get_window,
@@ -10,7 +11,7 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::{Document, HtmlInputElement, KeyboardEvent};
+use web_sys::{Document, HtmlInputElement, KeyboardEvent, UrlSearchParams};
 
 /// Add a simple event handler to allow submitting the login form using any of the Enter keys.
 pub fn init_login_form_fileo(document: &Document) {
@@ -79,7 +80,26 @@ pub async fn login() {
     if status.is_success() {
         unwrap_or_alert(set_loading(false));
         let location = unwrap_or_alert(get_location());
-        let result = location.set_href("/check-memberships");
+        let query_params = unwrap_or_alert(location.search().map_err(|error| {
+            Error::from_parent(
+                "Erreur, veuillez réessayer.".to_owned(),
+                Error::new(error.as_string().unwrap()),
+            )
+        }));
+        let query_params = unwrap_or_alert(UrlSearchParams::new_with_str(&query_params).map_err(
+            |error| {
+                Error::from_parent(
+                    "Erreur, veuillez réessayer.".to_owned(),
+                    Error::new(error.as_string().unwrap()),
+                )
+            },
+        ));
+        let url_to_redirect = if let Some(redirect) = query_params.get("page") {
+            redirect
+        } else {
+            "/check-memberships".to_owned()
+        };
+        let result = location.set_href(&url_to_redirect);
         if let Err(error) = result {
             create_alert(
                 "Erreur lors de la redirection. Veuillez actualiser la page.",
