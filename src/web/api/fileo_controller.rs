@@ -253,9 +253,6 @@ mod tests {
         let members_state_mutex = Mutex::new(MembersState::new(None, Members::default()));
         let members_state = State::from(&members_state_mutex);
         let credentials = Credentials::new("test_login".to_owned(), "test_password".to_owned());
-        let mut credentials_storage = CredentialsStorage::default();
-        let credentials_uuid = "id".to_owned();
-        credentials_storage.store(credentials_uuid.clone(), credentials.clone());
 
         let result = download_memberships(config_state, members_state, credentials)
             .await

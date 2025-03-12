@@ -52,7 +52,7 @@ fn get_authentication_cookie<'a>(req: &'a Request) -> Option<Cookie<'a>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rocket::http::{Cookie, CookieJar};
+    use rocket::http::Cookie;
     use rocket::local::asynchronous::Client;
 
     #[async_test]
@@ -66,10 +66,6 @@ mod tests {
         let rocket = rocket::build().manage(credentials_storage_mutex);
         let client = Client::tracked(rocket).await.unwrap();
         let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
-        let request = client.get("http://localhost").cookie(cookie.clone());
-        let cookie_jar = request.guard::<&CookieJar<'_>>().await.unwrap();
-        cookie_jar.add_private(cookie.clone());
-        let cookie = cookie_jar.get_pending(AUTHENTICATION_COOKIE).unwrap();
         let request = client.get("http://localhost").cookie(cookie.clone());
 
         let outcome = Credentials::from_request(&request).await;
