@@ -2,6 +2,7 @@ use crate::member::config::MembershipsProviderConfig;
 use crate::member::get_members_file_folder;
 use crate::web::api::members_state::MembersState;
 use crate::web::api::{fileo_controller, memberships_controller};
+use crate::web::credentials::CredentialsStorage;
 use crate::web::server::Server;
 use regex::Regex;
 use rocket::{Build, Rocket};
@@ -29,6 +30,7 @@ impl Server for ApiServer {
         rocket_build
             .manage(members_provider_config)
             .manage(Mutex::new(members_state))
+            .manage(Mutex::new(CredentialsStorage::default()))
             .mount(
                 "/api/",
                 routes![
