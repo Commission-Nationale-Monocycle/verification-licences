@@ -4,8 +4,8 @@ use crate::member::import_from_file::{clean_old_files, import_from_file};
 use crate::tools::web::build_client;
 use crate::tools::{log_error_and_return, log_message, log_message_and_return};
 use crate::web::api::members_state::MembersState;
-use crate::web::authentication::AUTHENTICATION_COOKIE;
-use crate::web::credentials::{Credentials, CredentialsStorage};
+use crate::web::authentication::FILEO_AUTHENTICATION_COOKIE;
+use crate::web::credentials::{CredentialsStorage, FileoCredentials};
 use rocket::State;
 use rocket::http::{Cookie, CookieJar, Status};
 use rocket::serde::json::Json;
@@ -23,7 +23,7 @@ pub async fn login(
     memberships_provider_config: &State<MembershipsProviderConfig>,
     credentials_storage: &State<Mutex<CredentialsStorage>>,
     cookie_jar: &CookieJar<'_>,
-    credentials: Json<Credentials>,
+    credentials: Json<FileoCredentials>,
 ) -> Result<(Status, ()), Status> {
     let client = build_client();
     if let Ok(client) = client {
@@ -35,11 +35,11 @@ pub async fn login(
                     .lock()
                     .map_err(log_error_and_return(Status::InternalServerError))?;
                 let uuid = Uuid::new_v4().to_string();
-                let cookie = Cookie::build((AUTHENTICATION_COOKIE.to_owned(), uuid.clone()))
+                let cookie = Cookie::build((FILEO_AUTHENTICATION_COOKIE.to_owned(), uuid.clone()))
                     .max_age(Duration::days(365))
                     .build();
                 cookie_jar.add_private(cookie);
-                (*mutex).store(uuid.clone(), credentials);
+                (*mutex).store_fileo(uuid.clone(), credentials);
                 Ok((Status::Ok, ()))
             }
             Err(error) => log_error_and_return(Err(Status::Unauthorized))(error),
@@ -58,7 +58,7 @@ pub async fn login(
 pub async fn download_memberships(
     memberships_provider_config: &State<MembershipsProviderConfig>,
     members_state: &State<Mutex<MembersState>>,
-    credentials: Credentials,
+    credentials: FileoCredentials,
 ) -> Result<String, Status> {
     let file_details = download_memberships_list(memberships_provider_config, &credentials)
         .await
@@ -137,7 +137,8 @@ mod tests {
 
         let config = create_memberships_provider_test_config(&mock_server.uri());
 
-        let credentials = Credentials::new("test_login".to_owned(), "test_password".to_owned());
+        let credentials =
+            FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
         let credentials_storage_mutex = Mutex::new(CredentialsStorage::default());
 
         let rocket = rocket::build()
@@ -160,7 +161,7 @@ mod tests {
         assert!(
             response
                 .cookies()
-                .get_private(AUTHENTICATION_COOKIE)
+                .get_private(FILEO_AUTHENTICATION_COOKIE)
                 .is_some()
         );
     }
@@ -177,7 +178,8 @@ mod tests {
 
         let config = create_memberships_provider_test_config(&mock_server.uri());
 
-        let credentials = Credentials::new("test_login".to_owned(), "test_password".to_owned());
+        let credentials =
+            FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
         let credentials_storage_mutex = Mutex::new(CredentialsStorage::default());
 
         let rocket = rocket::build()
@@ -200,7 +202,7 @@ mod tests {
         assert!(
             response
                 .cookies()
-                .get_private(AUTHENTICATION_COOKIE)
+                .get_private(FILEO_AUTHENTICATION_COOKIE)
                 .is_none()
         );
     }
@@ -253,7 +255,8 @@ mod tests {
         let config_state = State::from(&config);
         let members_state_mutex = Mutex::new(MembersState::new(None, Members::default()));
         let members_state = State::from(&members_state_mutex);
-        let credentials = Credentials::new("test_login".to_owned(), "test_password".to_owned());
+        let credentials =
+            FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
 
         let result = download_memberships(config_state, members_state, credentials)
             .await
@@ -283,7 +286,8 @@ mod tests {
         let config_state = State::from(&config);
         let members_state_mutex = Mutex::new(MembersState::new(None, Members::default()));
         let members_state = State::from(&members_state_mutex);
-        let credentials = Credentials::new("test_login".to_owned(), "test_password".to_owned());
+        let credentials =
+            FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
 
         let result = download_memberships(config_state, members_state, credentials).await;
         assert_eq!(Status::InternalServerError, result.unwrap_err());

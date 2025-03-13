@@ -1,12 +1,11 @@
 use crate::tools::error::Error::{ConnectionFailed, WrongCredentials};
 use crate::tools::error::Result;
 use crate::tools::{log_error_and_return, log_message_and_return};
-use crate::web::credentials::Credentials;
 use reqwest::Client;
 use scraper::{Html, Selector};
 
 #[allow(dead_code)]
-async fn get_authenticity_token(client: &Client, base_url: &str) -> Result<String> {
+pub async fn get_authenticity_token(client: &Client, base_url: &str) -> Result<String> {
     let url = format!("{base_url}/users/sign_in");
     let response = client
         .get(url)
@@ -42,16 +41,17 @@ fn get_authenticity_token_from_html(document: &Html) -> Result<&str> {
 }
 
 #[allow(dead_code)]
-async fn login(
+pub async fn check_credentials(
     client: &Client,
     base_url: &str,
     authenticity_token: &str,
-    credentials: &Credentials,
+    login: &str,
+    password: &str,
 ) -> Result<()> {
     let url = format!("{}/users/sign_in", base_url);
     let params = [
-        ("user[email]", credentials.login().as_str()),
-        ("user[password]", credentials.password().as_str()),
+        ("user[email]", login),
+        ("user[password]", password),
         ("authenticity_token", authenticity_token),
         ("utf8", "✓"),
     ];
@@ -173,13 +173,12 @@ mod tests {
     }
     // endregion
 
-    // region login
+    // region check_credentials
     #[async_test]
-    async fn should_login() {
+    async fn should_check_credentials() {
         let client = build_client().unwrap();
         let mock_server = MockServer::start().await;
         let authenticity_token = "BDv-07yMs8kMDnRn2hVgpSmqn88V_XhCZxImtcXr3u6OOmpnsy0WpFD49rTOuOEfJG_PptBBJag094Vd0uuyZg";
-        let credentials = Credentials::new("login".to_owned(), "password".to_owned());
 
         let params = format!(
             "user%5Bemail%5D=login&user%5Bpassword%5D=password&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
@@ -190,22 +189,22 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let result = login(
+        let result = check_credentials(
             &client,
             &mock_server.uri(),
             authenticity_token,
-            &credentials,
+            "login",
+            "password",
         )
         .await;
         assert_eq!(Ok(()), result);
     }
 
     #[async_test]
-    async fn should_fail_to_login_when_wrong_credentials() {
+    async fn should_fail_to_check_credentials_when_wrong_credentials() {
         let client = build_client().unwrap();
         let mock_server = MockServer::start().await;
         let authenticity_token = "BDv-07yMs8kMDnRn2hVgpSmqn88V_XhCZxImtcXr3u6OOmpnsy0WpFD49rTOuOEfJG_PptBBJag094Vd0uuyZg";
-        let credentials = Credentials::new("login".to_owned(), "password".to_owned());
 
         let params = format!(
             "user%5Bemail%5D=login&user%5Bpassword%5D=password&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
@@ -216,22 +215,22 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let result = login(
+        let result = check_credentials(
             &client,
             &mock_server.uri(),
             authenticity_token,
-            &credentials,
+            "login",
+            "password",
         )
         .await;
         assert_eq!(WrongCredentials, result.unwrap_err());
     }
 
     #[async_test]
-    async fn should_fail_to_login_when_other_error() {
+    async fn should_fail_to_check_credentials_when_other_error() {
         let client = build_client().unwrap();
         let mock_server = MockServer::start().await;
         let authenticity_token = "BDv-07yMs8kMDnRn2hVgpSmqn88V_XhCZxImtcXr3u6OOmpnsy0WpFD49rTOuOEfJG_PptBBJag094Vd0uuyZg";
-        let credentials = Credentials::new("login".to_owned(), "password".to_owned());
 
         let params = format!(
             "user%5Bemail%5D=login&user%5Bpassword%5D=password&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
@@ -242,11 +241,12 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let result = login(
+        let result = check_credentials(
             &client,
             &mock_server.uri(),
             authenticity_token,
-            &credentials,
+            "login",
+            "password",
         )
         .await;
         assert_eq!(ConnectionFailed, result.unwrap_err());
