@@ -5,6 +5,7 @@ use crate::web::credentials::Credentials;
 use reqwest::Client;
 use scraper::{Html, Selector};
 
+#[allow(dead_code)]
 async fn get_authenticity_token(client: &Client, base_url: &str) -> Result<String> {
     let url = format!("{base_url}/users/sign_in");
     let response = client
@@ -29,6 +30,7 @@ async fn get_authenticity_token(client: &Client, base_url: &str) -> Result<Strin
     Ok(authenticity_token.to_owned())
 }
 
+#[allow(dead_code)]
 fn get_authenticity_token_from_html(document: &Html) -> Result<&str> {
     let token_selector = Selector::parse(r#"input[name="authenticity_token"]"#).unwrap();
     let element = document.select(&token_selector).next().ok_or_else(|| {
@@ -39,6 +41,7 @@ fn get_authenticity_token_from_html(document: &Html) -> Result<&str> {
     Ok(authenticity_token)
 }
 
+#[allow(dead_code)]
 async fn login(
     client: &Client,
     base_url: &str,

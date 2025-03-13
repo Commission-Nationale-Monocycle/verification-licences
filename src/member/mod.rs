@@ -1,6 +1,5 @@
 use std::ffi::OsStr;
 
-use crate::tools::error::Error;
 use chrono::NaiveDate;
 use derive_getters::Getters;
 use dto::membership::Membership;
