@@ -12,7 +12,7 @@ async fn get_authenticity_token(client: &Client, base_url: &str) -> Result<Strin
         .send()
         .await
         .map_err(log_message_and_return(
-            "Can't get authenticity token",
+            "Can't get authenticity token from UDA",
             ConnectionFailed,
         ))?;
 
@@ -23,7 +23,7 @@ async fn get_authenticity_token(client: &Client, base_url: &str) -> Result<Strin
 
     let document = Html::parse_document(&body);
     let authenticity_token = get_authenticity_token_from_html(&document).map_err(
-        log_message_and_return("Can't get authenticity token", ConnectionFailed),
+        log_message_and_return("Can't get authenticity token from UDA", ConnectionFailed),
     )?;
 
     Ok(authenticity_token.to_owned())
