@@ -11,14 +11,14 @@ use reqwest::{Client, RequestBuilder};
 use rocket::form::validate::Contains;
 use rocket::http::ContentType;
 
-use crate::member::Result;
-use crate::member::error::Error::{
-    CantCreateClient, CantCreateMembershipsFileFolder, CantLoadListOnServer,
-    CantReadMembersDownloadResponse, CantReadPageContent, CantRetrieveDownloadLink,
-    CantWriteMembersFile, ConnectionFailed, FileNotFoundOnServer, NoDownloadLink, WrongCredentials,
-    WrongEncoding,
-};
 use crate::member::file_details::FileDetails;
+use crate::tools::error::Error::{
+    CantCreateMembershipsFileFolder, CantLoadListOnServer, CantReadMembersDownloadResponse,
+    CantReadPageContent, CantRetrieveDownloadLink, CantWriteMembersFile, ConnectionFailed,
+    FileNotFoundOnServer, NoDownloadLink, WrongCredentials, WrongEncoding,
+};
+use crate::tools::error::Result;
+use crate::tools::web::build_client;
 use crate::tools::{log_error_and_return, log_message_and_return};
 use crate::web::credentials::Credentials;
 
@@ -44,17 +44,6 @@ pub async fn download_memberships_list(
 const DEMO_FILE: &str = "Nom d'usage;Prénom;Sexe;Date de Naissance;Age;Numéro d'adhérent;Email;Réglé;Date Fin d'adhésion;Adherent expiré;Nom de structure;Code de structure
 Doe;Jon;H;01-02-1980;45;123456;jon@doe.com;Oui;30-09-2025;Non;My club;Z01234
 Bob;Alice;F;01-02-2000;25;987654;alice@bobo.com;Non;25-08-2024;Non;Her club;A98765";
-
-#[cfg(not(feature = "demo"))]
-pub fn build_client() -> Result<Client> {
-    reqwest::ClientBuilder::new()
-        .cookie_store(true)
-        .build()
-        .map_err(log_message_and_return(
-            "Can't build HTTP client.",
-            CantCreateClient,
-        ))
-}
 
 // region Requests
 #[cfg(not(feature = "demo"))]
@@ -300,14 +289,14 @@ mod tests {
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     use super::*;
-    use crate::member::Error::{
+    use crate::member::config::MembershipsProviderConfig;
+    use crate::member::get_members_file_folder;
+    use crate::tools::env_args::with_env_args;
+    use crate::tools::error::Error::CantWriteMembersFile;
+    use crate::tools::error::Error::{
         CantLoadListOnServer, CantRetrieveDownloadLink, ConnectionFailed, FileNotFoundOnServer,
         NoDownloadLink,
     };
-    use crate::member::config::MembershipsProviderConfig;
-    use crate::member::error::Error::CantWriteMembersFile;
-    use crate::member::get_members_file_folder;
-    use crate::tools::env_args::with_env_args;
     use crate::tools::test::tests::temp_dir;
     use crate::web::credentials::Credentials;
 
