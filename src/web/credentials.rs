@@ -13,6 +13,8 @@ pub struct FileoCredentials {
 
 #[derive(Serialize, Deserialize, Getters, PartialEq, Clone)]
 pub struct UdaCredentials {
+    /// Should be something like `https://cfm2019training.reg.unicycling-software.com`
+    /// Beware of not including anything after the TLD. Otherwise, it may not work.
     uda_url: String,
     login: String,
     password: String,
