@@ -3,19 +3,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-#[derive(Clone)]
-pub enum Credentials {
-    Fileo(FileoCredentials),
-    Uda(UdaCredentials),
-}
-
-#[derive(Serialize, Deserialize, Getters, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Getters, PartialEq, Clone, Default)]
 pub struct FileoCredentials {
     login: String,
     password: String,
 }
 
-#[derive(Serialize, Deserialize, Getters, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Getters, PartialEq, Clone, Default)]
 pub struct UdaCredentials {
     /// Should be something like `https://cfm2019training.reg.unicycling-software.com`
     /// Beware of not including anything after the TLD. Otherwise, it may not work.
@@ -45,16 +39,16 @@ impl Debug for UdaCredentials {
 }
 
 #[derive(Default)]
-pub struct CredentialsStorage {
-    credentials: HashMap<String, Credentials>,
+pub struct CredentialsStorage<C: Send + Sync> {
+    credentials: HashMap<String, C>,
 }
 
-impl CredentialsStorage {
-    pub fn store(&mut self, id: String, credentials: Credentials) {
+impl<C: Send + Sync> CredentialsStorage<C> {
+    pub fn store(&mut self, id: String, credentials: C) {
         self.credentials.insert(id, credentials);
     }
 
-    pub fn get(&self, id: &str) -> Option<&Credentials> {
+    pub fn get(&self, id: &str) -> Option<&C> {
         self.credentials.get(id)
     }
 }

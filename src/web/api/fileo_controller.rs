@@ -5,7 +5,7 @@ use crate::tools::web::build_client;
 use crate::tools::{log_error_and_return, log_message, log_message_and_return};
 use crate::web::api::members_state::MembersState;
 use crate::web::authentication::FILEO_AUTHENTICATION_COOKIE;
-use crate::web::credentials::{Credentials, CredentialsStorage, FileoCredentials};
+use crate::web::credentials::{CredentialsStorage, FileoCredentials};
 use rocket::State;
 use rocket::http::{Cookie, CookieJar, Status};
 use rocket::serde::json::Json;
@@ -21,7 +21,7 @@ use uuid::Uuid;
 #[post("/fileo/login", format = "application/json", data = "<credentials>")]
 pub async fn login(
     memberships_provider_config: &State<MembershipsProviderConfig>,
-    credentials_storage: &State<Mutex<CredentialsStorage>>,
+    credentials_storage: &State<Mutex<CredentialsStorage<FileoCredentials>>>,
     cookie_jar: &CookieJar<'_>,
     credentials: Json<FileoCredentials>,
 ) -> Result<(Status, ()), Status> {
@@ -39,7 +39,7 @@ pub async fn login(
                     .max_age(Duration::days(365))
                     .build();
                 cookie_jar.add_private(cookie);
-                (*mutex).store(uuid.clone(), Credentials::Fileo(credentials));
+                (*mutex).store(uuid.clone(), credentials);
                 Ok((Status::Ok, ()))
             }
             Err(error) => log_error_and_return(Err(Status::Unauthorized))(error),
@@ -139,7 +139,8 @@ mod tests {
 
         let credentials =
             FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
-        let credentials_storage_mutex = Mutex::new(CredentialsStorage::default());
+        let credentials_storage_mutex =
+            Mutex::new(CredentialsStorage::<FileoCredentials>::default());
 
         let rocket = rocket::build()
             .manage(config)
@@ -180,7 +181,8 @@ mod tests {
 
         let credentials =
             FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
-        let credentials_storage_mutex = Mutex::new(CredentialsStorage::default());
+        let credentials_storage_mutex =
+            Mutex::new(CredentialsStorage::<FileoCredentials>::default());
 
         let rocket = rocket::build()
             .manage(config)

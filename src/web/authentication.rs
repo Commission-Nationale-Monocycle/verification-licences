@@ -1,5 +1,5 @@
 use crate::tools::log_error_and_return;
-use crate::web::credentials::{Credentials, CredentialsStorage, FileoCredentials, UdaCredentials};
+use crate::web::credentials::{CredentialsStorage, FileoCredentials, UdaCredentials};
 use rocket::State;
 use rocket::http::{Cookie, Status};
 use rocket::outcome::{Outcome, try_outcome};
@@ -20,17 +20,7 @@ impl<'r> FromRequest<'r> for FileoCredentials {
     type Error = ();
 
     async fn from_request(req: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
-        let outcome = from_request(req, FILEO_AUTHENTICATION_COOKIE).await;
-        if outcome.is_forward() {
-            return Outcome::Forward(outcome.forwarded().unwrap());
-        } else if outcome.is_error() {
-            return Outcome::Error(outcome.failed().unwrap());
-        }
-
-        match outcome.succeeded().unwrap() {
-            Credentials::Fileo(fileo) => Outcome::Success(fileo.clone()),
-            Credentials::Uda(_) => Outcome::Forward(Status::Unauthorized),
-        }
+        from_request(req, FILEO_AUTHENTICATION_COOKIE).await
     }
 }
 
@@ -45,17 +35,7 @@ impl<'r> FromRequest<'r> for UdaCredentials {
     type Error = ();
 
     async fn from_request(req: &'r Request<'_>) -> request::Outcome<Self, Self::Error> {
-        let outcome = from_request(req, UDA_AUTHENTICATION_COOKIE).await;
-        if outcome.is_forward() {
-            return Outcome::Forward(outcome.forwarded().unwrap());
-        } else if outcome.is_error() {
-            return Outcome::Error(outcome.failed().unwrap());
-        }
-
-        match outcome.succeeded().unwrap() {
-            Credentials::Fileo(_) => Outcome::Forward(Status::Unauthorized),
-            Credentials::Uda(credentials) => Outcome::Success(credentials),
-        }
+        from_request(req, UDA_AUTHENTICATION_COOKIE).await
     }
 }
 
@@ -63,13 +43,13 @@ impl<'r> FromRequest<'r> for UdaCredentials {
 /// If no credentials are associated to the cookie, or if no such cookie is present in the request,
 /// then returns a Forawrd outcome containing an Unauthorized status. This lets other routes to take on the request.
 /// Otherwise, return the retrieved credentials as a Success outcome.
-async fn from_request<'r>(
+async fn from_request<'r, C: Send + Sync + Clone + 'static>(
     req: &'r Request<'_>,
     cookie_name: &str,
-) -> request::Outcome<Credentials, ()> {
+) -> request::Outcome<C, ()> {
     if let Some(cookie) = get_authentication_cookie(req, cookie_name) {
         let credentials_storage =
-            try_outcome!(req.guard::<&State<Mutex<CredentialsStorage>>>().await);
+            try_outcome!(req.guard::<&State<Mutex<CredentialsStorage<C>>>>().await);
         match credentials_storage.lock() {
             Ok(credentials_storage) => match credentials_storage.get(cookie.value()) {
                 None => Outcome::Forward(Status::Unauthorized),
@@ -99,7 +79,6 @@ fn get_authentication_cookie<'a>(req: &'a Request, cookie_name: &str) -> Option<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::web::credentials::Credentials::{Fileo, Uda};
     use crate::web::credentials::FileoCredentials;
     use rocket::http::Cookie;
     use rocket::local::asynchronous::Client;
@@ -111,7 +90,7 @@ mod tests {
             FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
         let mut credentials_storage = CredentialsStorage::default();
         let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
-        credentials_storage.store(uuid.clone(), Fileo(credentials.clone()));
+        credentials_storage.store(uuid.clone(), credentials.clone());
         let credentials_storage_mutex = Mutex::new(credentials_storage);
 
         let rocket = rocket::build().manage(credentials_storage_mutex);
@@ -125,30 +104,8 @@ mod tests {
     }
 
     #[async_test]
-    async fn should_fileo_request_fail_when_uda_credentials() {
-        let credentials = UdaCredentials::new(
-            "https://convention.reg.unicycling-software.com".to_owned(),
-            "test_login".to_owned(),
-            "test_password".to_owned(),
-        );
-        let mut credentials_storage = CredentialsStorage::default();
-        let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
-        credentials_storage.store(uuid.clone(), Uda(credentials));
-        let credentials_storage_mutex = Mutex::new(credentials_storage);
-
-        let rocket = rocket::build().manage(credentials_storage_mutex);
-        let client = Client::tracked(rocket).await.unwrap();
-        let cookie = Cookie::new(FILEO_AUTHENTICATION_COOKIE, uuid);
-        let request = client.get("http://localhost").cookie(cookie.clone());
-
-        let outcome = FileoCredentials::from_request(&request).await;
-        assert!(outcome.is_forward());
-        assert_eq!(Status::Unauthorized, outcome.forwarded().unwrap());
-    }
-
-    #[async_test]
     async fn should_fileo_request_fail_when_no_matching_credentials() {
-        let credentials_storage = CredentialsStorage::default();
+        let credentials_storage = CredentialsStorage::<FileoCredentials>::default();
         let credentials_uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
         let credentials_storage_mutex = Mutex::new(credentials_storage);
 
@@ -164,7 +121,7 @@ mod tests {
 
     #[async_test]
     async fn should_fileo_request_fail_when_no_header() {
-        let credentials_storage = CredentialsStorage::default();
+        let credentials_storage = CredentialsStorage::<FileoCredentials>::default();
         let credentials_storage_mutex = Mutex::new(credentials_storage);
 
         let rocket = rocket::build().manage(credentials_storage_mutex);
@@ -187,7 +144,7 @@ mod tests {
         );
         let mut credentials_storage = CredentialsStorage::default();
         let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
-        credentials_storage.store(uuid.clone(), Uda(credentials.clone()));
+        credentials_storage.store(uuid.clone(), credentials.clone());
         let credentials_storage_mutex = Mutex::new(credentials_storage);
 
         let rocket = rocket::build().manage(credentials_storage_mutex);
@@ -199,29 +156,9 @@ mod tests {
         assert!(outcome.is_success());
         assert_eq!(credentials, outcome.succeeded().unwrap());
     }
-
-    #[async_test]
-    async fn should_uda_request_fail_when_fileo_credentials() {
-        let credentials =
-            FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
-        let mut credentials_storage = CredentialsStorage::default();
-        let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
-        credentials_storage.store(uuid.clone(), Fileo(credentials.clone()));
-        let credentials_storage_mutex = Mutex::new(credentials_storage);
-
-        let rocket = rocket::build().manage(credentials_storage_mutex);
-        let client = Client::tracked(rocket).await.unwrap();
-        let cookie = Cookie::new(UDA_AUTHENTICATION_COOKIE, uuid);
-        let request = client.get("http://localhost").cookie(cookie.clone());
-
-        let outcome = UdaCredentials::from_request(&request).await;
-        assert!(outcome.is_forward());
-        assert_eq!(Status::Unauthorized, outcome.forwarded().unwrap());
-    }
-
     #[async_test]
     async fn should_uda_request_fail_when_no_matching_credentials() {
-        let credentials_storage = CredentialsStorage::default();
+        let credentials_storage = CredentialsStorage::<UdaCredentials>::default();
         let credentials_uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
         let credentials_storage_mutex = Mutex::new(credentials_storage);
 
@@ -237,7 +174,7 @@ mod tests {
 
     #[async_test]
     async fn should_uda_request_fail_when_no_header() {
-        let credentials_storage = CredentialsStorage::default();
+        let credentials_storage = CredentialsStorage::<UdaCredentials>::default();
         let credentials_storage_mutex = Mutex::new(credentials_storage);
 
         let rocket = rocket::build().manage(credentials_storage_mutex);

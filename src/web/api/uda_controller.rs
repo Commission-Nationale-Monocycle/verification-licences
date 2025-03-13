@@ -2,7 +2,6 @@ use crate::tools::log_error_and_return;
 use crate::tools::web::build_client;
 use crate::uda::login::{check_credentials, get_authenticity_token};
 use crate::web::authentication::UDA_AUTHENTICATION_COOKIE;
-use crate::web::credentials::Credentials::Uda;
 use crate::web::credentials::{CredentialsStorage, UdaCredentials};
 use rocket::State;
 use rocket::http::{Cookie, CookieJar, Status};
@@ -17,7 +16,7 @@ use uuid::Uuid;
 /// The UUID is returned to the caller through a private cookie, so that it is their new access token.
 #[post("/uda/login", format = "application/json", data = "<credentials>")]
 pub async fn login(
-    credentials_storage: &State<Mutex<CredentialsStorage>>,
+    credentials_storage: &State<Mutex<CredentialsStorage<UdaCredentials>>>,
     cookie_jar: &CookieJar<'_>,
     credentials: Json<UdaCredentials>,
 ) -> Result<(Status, ()), Status> {
@@ -41,7 +40,7 @@ pub async fn login(
                     .max_age(Duration::days(365))
                     .build();
                 cookie_jar.add_private(cookie);
-                (*mutex).store(uuid.clone(), Uda(credentials.into_inner()));
+                (*mutex).store(uuid.clone(), credentials.into_inner());
                 Ok((Status::Ok, ()))
             }
             Err(error) => log_error_and_return(Err(Status::Unauthorized))(error),
