@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-// FIXME: find a way to factorize this quick and dirty implementation
+#[derive(Clone)]
 pub enum Credentials {
     Fileo(FileoCredentials),
     Uda(UdaCredentials),
