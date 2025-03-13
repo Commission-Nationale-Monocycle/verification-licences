@@ -166,7 +166,7 @@ mod tests {
     #[test]
     fn should_not_get_authenticity_token_from_html() {
         let body = "<html><body><div>What are ya lookin' for, son?</div></body></html>";
-        let html = Html::parse_document(&body);
+        let html = Html::parse_document(body);
         let error = get_authenticity_token_from_html(&html).unwrap_err();
 
         assert_eq!(ConnectionFailed, error);
@@ -197,7 +197,7 @@ mod tests {
             &credentials,
         )
         .await;
-        assert_eq!((), result.unwrap());
+        assert_eq!(Ok(()), result);
     }
 
     #[async_test]
