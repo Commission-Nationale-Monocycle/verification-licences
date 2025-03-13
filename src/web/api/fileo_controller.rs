@@ -5,7 +5,7 @@ use crate::tools::web::build_client;
 use crate::tools::{log_error_and_return, log_message, log_message_and_return};
 use crate::web::api::members_state::MembersState;
 use crate::web::authentication::FILEO_AUTHENTICATION_COOKIE;
-use crate::web::credentials::{CredentialsStorage, FileoCredentials};
+use crate::web::credentials::{Credentials, CredentialsStorage, FileoCredentials};
 use rocket::State;
 use rocket::http::{Cookie, CookieJar, Status};
 use rocket::serde::json::Json;
@@ -39,7 +39,7 @@ pub async fn login(
                     .max_age(Duration::days(365))
                     .build();
                 cookie_jar.add_private(cookie);
-                (*mutex).store_fileo(uuid.clone(), credentials);
+                (*mutex).store(uuid.clone(), Credentials::Fileo(credentials));
                 Ok((Status::Ok, ()))
             }
             Err(error) => log_error_and_return(Err(Status::Unauthorized))(error),

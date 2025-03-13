@@ -1,5 +1,5 @@
 use crate::tools::log_error_and_return;
-use crate::web::credentials::{CredentialsStorage, FileoCredentials, UdaCredentials};
+use crate::web::credentials::{Credentials, CredentialsStorage, FileoCredentials, UdaCredentials};
 use rocket::State;
 use rocket::http::{Cookie, Status};
 use rocket::outcome::{Outcome, try_outcome};
@@ -24,9 +24,12 @@ impl<'r> FromRequest<'r> for FileoCredentials {
             let credentials_storage =
                 try_outcome!(req.guard::<&State<Mutex<CredentialsStorage>>>().await);
             match credentials_storage.lock() {
-                Ok(credentials_storage) => match credentials_storage.get_fileo(cookie.value()) {
+                Ok(credentials_storage) => match credentials_storage.get(cookie.value()) {
                     None => Outcome::Forward(Status::Unauthorized),
-                    Some(credentials) => Outcome::Success(credentials.clone()),
+                    Some(credentials) => match credentials {
+                        Credentials::Fileo(fileo) => Outcome::Success(fileo.clone()),
+                        Credentials::Uda(_) => Outcome::Forward(Status::Unauthorized),
+                    },
                 },
                 Err(error) => {
                     log_error_and_return(Outcome::Error((Status::InternalServerError, ())))(error)
@@ -53,9 +56,12 @@ impl<'r> FromRequest<'r> for UdaCredentials {
             let credentials_storage =
                 try_outcome!(req.guard::<&State<Mutex<CredentialsStorage>>>().await);
             match credentials_storage.lock() {
-                Ok(credentials_storage) => match credentials_storage.get_uda(cookie.value()) {
+                Ok(credentials_storage) => match credentials_storage.get(cookie.value()) {
                     None => Outcome::Forward(Status::Unauthorized),
-                    Some(credentials) => Outcome::Success(credentials.clone()),
+                    Some(credentials) => match credentials {
+                        Credentials::Fileo(_) => Outcome::Forward(Status::Unauthorized),
+                        Credentials::Uda(uda) => Outcome::Success(uda.clone()),
+                    },
                 },
                 Err(error) => {
                     log_error_and_return(Outcome::Error((Status::InternalServerError, ())))(error)
@@ -82,6 +88,7 @@ fn get_authentication_cookie<'a>(req: &'a Request, cookie_name: &str) -> Option<
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::web::credentials::Credentials::Fileo;
     use crate::web::credentials::FileoCredentials;
     use rocket::http::Cookie;
     use rocket::local::asynchronous::Client;
@@ -92,7 +99,7 @@ mod tests {
             FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
         let mut credentials_storage = CredentialsStorage::default();
         let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
-        credentials_storage.store_fileo(uuid.clone(), credentials);
+        credentials_storage.store(uuid.clone(), Fileo(credentials));
         let credentials_storage_mutex = Mutex::new(credentials_storage);
 
         let rocket = rocket::build().manage(credentials_storage_mutex);

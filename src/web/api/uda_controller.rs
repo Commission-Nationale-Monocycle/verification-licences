@@ -2,6 +2,7 @@ use crate::tools::log_error_and_return;
 use crate::tools::web::build_client;
 use crate::uda::login::{check_credentials, get_authenticity_token};
 use crate::web::authentication::UDA_AUTHENTICATION_COOKIE;
+use crate::web::credentials::Credentials::Uda;
 use crate::web::credentials::{CredentialsStorage, UdaCredentials};
 use rocket::State;
 use rocket::http::{Cookie, CookieJar, Status};
@@ -28,7 +29,7 @@ pub async fn login(
 
         let authenticity_token = get_authenticity_token(&client, url)
             .await
-            .map_err(log_error_and_return(Status::InternalServerError))?;
+            .map_err(log_error_and_return(Status::BadGateway))?;
 
         match check_credentials(&client, url, &authenticity_token, login, password).await {
             Ok(_) => {
@@ -40,7 +41,7 @@ pub async fn login(
                     .max_age(Duration::days(365))
                     .build();
                 cookie_jar.add_private(cookie);
-                (*mutex).store_uda(uuid.clone(), credentials.into_inner());
+                (*mutex).store(uuid.clone(), Uda(credentials.into_inner()));
                 Ok((Status::Ok, ()))
             }
             Err(error) => log_error_and_return(Err(Status::Unauthorized))(error),

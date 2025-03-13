@@ -58,7 +58,7 @@ pub async fn check_credentials(
         .send()
         .await
         .map_err(log_message_and_return(
-            "Failed to authenticate to UDA",
+            "Failed to authenticate to UDA [user: {login}]",
             ConnectionFailed,
         ))?;
 
@@ -69,14 +69,20 @@ pub async fn check_credentials(
             ConnectionFailed,
         ))?;
         if text.contains("Signed in successfully") || text.contains("You are already signed in") {
-            debug!("Logged in UDA.");
+            debug!("Logged in UDA [user: {login}]");
             Ok(())
-        } else {
-            error!("Failed to authenticate to UDA. Wrong credentials?");
+        } else if text.contains("Invalid User Account Email or password") {
+            error!("Failed to authenticate to UDA. Wrong credentials? [user: {login}]");
             Err(WrongCredentials)
+        } else {
+            error!(
+                "Failed to authenticate to UDA. Unknown error. See response body: {}",
+                text
+            );
+            Err(ConnectionFailed)
         }
     } else {
-        error!("Failed to authenticate to UDA. Is the instance up?");
+        error!("Failed to authenticate to UDA. Is the instance up? [user: {login}]");
         Err(ConnectionFailed)
     }
 }
@@ -99,7 +105,7 @@ mod tests {
             r#"<html><body><input name="authenticity_token" value="{expected_token}"></body></html>"#
         );
         Mock::given(method("GET"))
-            .and(path("/users/sign_in"))
+            .and(path("/en/users/sign_in"))
             .respond_with(ResponseTemplate::new(200).set_body_string(&body))
             .mount(&mock_server)
             .await;
@@ -116,7 +122,7 @@ mod tests {
         let client = build_client().unwrap();
 
         Mock::given(method("GET"))
-            .and(path("/users/sign_in"))
+            .and(path("/en/users/sign_in"))
             .respond_with(ResponseTemplate::new(500))
             .mount(&mock_server)
             .await;
@@ -134,7 +140,7 @@ mod tests {
 
         let body = "<html><body><div>What are ya lookin' for, son?</div></body></html>";
         Mock::given(method("GET"))
-            .and(path("/users/sign_in"))
+            .and(path("/en/users/sign_in"))
             .respond_with(ResponseTemplate::new(200).set_body_string(body))
             .mount(&mock_server)
             .await;
@@ -181,6 +187,7 @@ mod tests {
             "user%5Bemail%5D=login&user%5Bpassword%5D=password&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
         );
         Mock::given(method("POST"))
+            .and(path("/en/users/sign_in"))
             .and(body_string(&params))
             .respond_with(ResponseTemplate::new(200).set_body_string("Signed in successfully"))
             .mount(&mock_server)
@@ -207,8 +214,11 @@ mod tests {
             "user%5Bemail%5D=login&user%5Bpassword%5D=password&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
         );
         Mock::given(method("POST"))
+            .and(path("/en/users/sign_in"))
             .and(body_string(&params))
-            .respond_with(ResponseTemplate::new(200))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                "<html><body>Invalid User Account Email or password</body></html>",
+            ))
             .mount(&mock_server)
             .await;
 
@@ -233,6 +243,7 @@ mod tests {
             "user%5Bemail%5D=login&user%5Bpassword%5D=password&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
         );
         Mock::given(method("POST"))
+            .and(path("/en/users/sign_in"))
             .and(body_string(&params))
             .respond_with(ResponseTemplate::new(500))
             .mount(&mock_server)

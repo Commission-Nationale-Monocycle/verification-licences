@@ -96,6 +96,7 @@ mod tests {
     use super::*;
     use crate::member::file_details::FileDetails;
     use crate::web::authentication::FILEO_AUTHENTICATION_COOKIE;
+    use crate::web::credentials::Credentials::Fileo;
     use crate::web::credentials::CredentialsStorage;
     use chrono::Utc;
     use rocket::http::Cookie;
@@ -124,7 +125,7 @@ mod tests {
             FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
         let mut credentials_storage = CredentialsStorage::default();
         let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
-        credentials_storage.store_fileo(uuid.clone(), credentials);
+        credentials_storage.store(uuid.clone(), Fileo(credentials));
         let credentials_storage_mutex = Mutex::new(credentials_storage);
 
         let members_sate_mutex = Mutex::new(MembersState::new(None, Members::default()));
@@ -178,7 +179,7 @@ mod tests {
             FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
         let mut credentials_storage = CredentialsStorage::default();
         let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
-        credentials_storage.store_fileo(uuid.clone(), credentials);
+        credentials_storage.store(uuid.clone(), Fileo(credentials));
         let credentials_storage_mutex = Mutex::new(credentials_storage);
 
         let members_sate_mutex = Mutex::new(MembersState::new(
@@ -215,7 +216,7 @@ mod tests {
             FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
         let mut credentials_storage = CredentialsStorage::default();
         let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
-        credentials_storage.store_fileo(uuid.clone(), credentials);
+        credentials_storage.store(uuid.clone(), Fileo(credentials));
         let credentials_storage_mutex = Mutex::new(credentials_storage);
 
         let members_sate_mutex = Mutex::new(MembersState::new(None, Members::default()));

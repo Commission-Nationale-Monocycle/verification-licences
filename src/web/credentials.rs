@@ -4,6 +4,10 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
 // FIXME: find a way to factorize this quick and dirty implementation
+pub enum Credentials {
+    Fileo(FileoCredentials),
+    Uda(UdaCredentials),
+}
 
 #[derive(Serialize, Deserialize, Getters, PartialEq, Clone)]
 pub struct FileoCredentials {
@@ -42,26 +46,16 @@ impl Debug for UdaCredentials {
 
 #[derive(Default)]
 pub struct CredentialsStorage {
-    // FIXME: should be clear at some point to avoid memory leaks
-    fileo_credentials: HashMap<String, FileoCredentials>,
-    uda_credentials: HashMap<String, UdaCredentials>,
+    credentials: HashMap<String, Credentials>,
 }
 
 impl CredentialsStorage {
-    pub fn store_fileo(&mut self, id: String, credentials: FileoCredentials) {
-        self.fileo_credentials.insert(id, credentials);
+    pub fn store(&mut self, id: String, credentials: Credentials) {
+        self.credentials.insert(id, credentials);
     }
 
-    pub fn store_uda(&mut self, id: String, credentials: UdaCredentials) {
-        self.uda_credentials.insert(id, credentials);
-    }
-
-    pub fn get_fileo(&self, id: &str) -> Option<&FileoCredentials> {
-        self.fileo_credentials.get(id)
-    }
-
-    pub fn get_uda(&self, id: &str) -> Option<&UdaCredentials> {
-        self.uda_credentials.get(id)
+    pub fn get(&self, id: &str) -> Option<&Credentials> {
+        self.credentials.get(id)
     }
 }
 
