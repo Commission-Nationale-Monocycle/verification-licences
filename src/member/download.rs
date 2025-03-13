@@ -289,14 +289,14 @@ mod tests {
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     use super::*;
-    use crate::member::Error::{
-        CantLoadListOnServer, CantRetrieveDownloadLink, ConnectionFailed, FileNotFoundOnServer,
-        NoDownloadLink,
-    };
     use crate::member::config::MembershipsProviderConfig;
     use crate::member::get_members_file_folder;
     use crate::tools::env_args::with_env_args;
     use crate::tools::error::Error::CantWriteMembersFile;
+    use crate::tools::error::Error::{
+        CantLoadListOnServer, CantRetrieveDownloadLink, ConnectionFailed, FileNotFoundOnServer,
+        NoDownloadLink,
+    };
     use crate::tools::test::tests::temp_dir;
     use crate::web::credentials::Credentials;
 
