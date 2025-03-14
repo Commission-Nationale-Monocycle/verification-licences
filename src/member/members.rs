@@ -39,7 +39,7 @@ impl Members {
     }
 
     fn check_member(&self, member_to_check: &MemberToCheck) -> Option<&Membership> {
-        let membership_num_to_check = member_to_check.membership_num().clone();
+        let membership_num_to_check = member_to_check.membership_num().clone()?;
 
         self.iter()
             .find_map(|(known_membership_num, known_memberships_for_num)| {
@@ -72,7 +72,7 @@ mod tests {
             Memberships::from([membership.clone()]),
         )]));
         let member_to_check = MemberToCheck::new(
-            MEMBERSHIP_NUMBER.to_owned(),
+            Some(MEMBERSHIP_NUMBER.to_owned()),
             MEMBER_NAME.to_owned(),
             MEMBER_FIRSTNAME.to_owned(),
         );
@@ -95,7 +95,7 @@ mod tests {
         )]));
         let invalid_membership_number = format!("{MEMBERSHIP_NUMBER} oops");
         let member_to_check = MemberToCheck::new(
-            invalid_membership_number,
+            Some(invalid_membership_number),
             MEMBER_NAME.to_owned(),
             MEMBER_FIRSTNAME.to_owned(),
         );
@@ -116,7 +116,7 @@ mod tests {
             Memberships::from([membership.clone()]),
         )]));
         let member_to_check = MemberToCheck::new(
-            MEMBERSHIP_NUMBER.to_owned(),
+            Some(MEMBERSHIP_NUMBER.to_owned()),
             MEMBER_NAME.to_owned(),
             MEMBER_FIRSTNAME.to_owned(),
         );
@@ -133,7 +133,7 @@ mod tests {
         )]));
         let invalid_membership_number = format!("{MEMBERSHIP_NUMBER} oops");
         let member_to_check = MemberToCheck::new(
-            invalid_membership_number,
+            Some(invalid_membership_number),
             MEMBER_NAME.to_owned(),
             MEMBER_FIRSTNAME.to_owned(),
         );

@@ -61,11 +61,11 @@ mod tests {
     // region utils
 
     fn get_member_to_check_2() -> MemberToCheck {
-        MemberToCheck::new("2".to_owned(), "".to_owned(), "".to_owned())
+        MemberToCheck::new(Some("2".to_owned()), "".to_owned(), "".to_owned())
     }
 
     fn get_member_to_check_1() -> MemberToCheck {
-        MemberToCheck::new("1".to_owned(), "".to_owned(), "".to_owned())
+        MemberToCheck::new(Some("1".to_owned()), "".to_owned(), "".to_owned())
     }
 
     fn get_membership_2() -> Membership {

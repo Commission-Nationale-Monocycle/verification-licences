@@ -1,3 +1,6 @@
+use crate::tools::error::Error::CantParseSelector;
+use scraper::error::SelectorErrorKind;
+
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug, PartialEq)]
@@ -15,6 +18,9 @@ pub enum Error {
     FileNotFoundOnServer,
     CantReadMembersDownloadResponse,
     CantWriteMembersFile,
+    CantAccessOrganizationMemberships,
+    CantParseSelector(String),
+    LackOfPermissions,
 
     CantOpenMembersFileFolder,
     CantOpenMembersFile,
@@ -24,4 +30,10 @@ pub enum Error {
     NoFileFound,
 
     InvalidDate,
+}
+
+impl From<SelectorErrorKind<'_>> for Error {
+    fn from(value: SelectorErrorKind<'_>) -> Self {
+        CantParseSelector(value.to_string())
+    }
 }

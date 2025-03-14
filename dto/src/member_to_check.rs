@@ -6,13 +6,13 @@ use std::collections::BTreeSet;
 
 #[derive(Debug, Getters, Serialize, Deserialize, Clone, Eq, PartialEq)]
 pub struct MemberToCheck {
-    membership_num: String,
+    membership_num: Option<String>,
     name: String,
     firstname: String,
 }
 
 impl MemberToCheck {
-    pub fn new(membership_num: String, name: String, firstname: String) -> Self {
+    pub fn new(membership_num: Option<String>, name: String, firstname: String) -> Self {
         Self {
             membership_num,
             name,
@@ -51,7 +51,7 @@ impl MemberToCheck {
                     wrong_lines.push(record.iter().collect::<Vec<_>>().join(";"));
                 } else {
                     members_to_check.insert(MemberToCheck::new(
-                        record.get(0).unwrap().to_owned(),
+                        Some(record.get(0).unwrap().to_owned()),
                         record.get(1).unwrap().to_owned(),
                         record.get(2).unwrap().to_owned(),
                     ));
@@ -97,7 +97,7 @@ mod tests {
         assert_eq!(
             (
                 BTreeSet::from_iter(vec![MemberToCheck {
-                    membership_num,
+                    membership_num: Some(membership_num),
                     name,
                     firstname
                 }]),
