@@ -3,7 +3,7 @@ use crate::tools::error::Result;
 use crate::tools::{log_error_and_return, log_message_and_return};
 use dto::member_to_check::MemberToCheck;
 use reqwest::Client;
-use scraper::{ElementRef, Html, Node, Selector};
+use scraper::{ElementRef, Html, Selector};
 
 #[allow(dead_code)]
 pub async fn retrieve_members(client: &Client, base_url: &str) -> Result<Vec<MemberToCheck>> {
@@ -61,32 +61,36 @@ fn extract_member_from_row(row: ElementRef) -> Option<MemberToCheck> {
         return None;
     }
 
-    let id = cells[1]
-        .first_child()
-        .map(|span| {
-            span.first_child()
-                .map(|text| match text.value() {
-                    Node::Text(id) => Some(id.to_string().trim_start_matches("ID #").to_owned()),
-                    _ => {
-                        warn!(
-                            "ID span of member doesn't contain only text. Ignoring. [row: {}]",
-                            row.html()
-                        );
-                        None
-                    }
-                })
-                .or_else(|| {
-                    warn!("Wrong structure for id. Ignoring. [row: {}]", row.html());
-                    None
-                })
-        })
-        .or_else(|| {
-            warn!(
-                "Missing id span for member. Ignoring. [row: {}]",
-                row.html()
-            );
-            None
-        })???;
+    let id_cell = cells[1].first_child();
+    if id_cell.is_none() {
+        warn!(
+            "Missing id span for member. Ignoring. [row: {}]",
+            row.html()
+        );
+        return None;
+    }
+
+    let id_span = id_cell.unwrap().first_child();
+    if id_span.is_none() {
+        warn!("Wrong structure for id. Ignoring. [row: {}]", row.html());
+        return None;
+    }
+
+    let id_text = id_span.unwrap().value().as_text();
+    if id_text.is_none() {
+        warn!(
+            "ID span of member doesn't contain only text. Ignoring. [row: {}]",
+            row.html()
+        );
+        return None;
+    }
+
+    let id_text = id_text.unwrap();
+    let id = if id_text.text.to_string() == "set number" {
+        None
+    } else {
+        Some(id_text.to_string().trim_start_matches("ID #").to_owned())
+    };
 
     let first_name = cells[2]
         .first_child()
@@ -148,12 +152,12 @@ mod tests {
         let expected_name_2 = "Snow";
         let expected_result = vec![
             MemberToCheck::new(
-                expected_id_1.to_owned(),
+                Some(expected_id_1.to_owned()),
                 expected_first_name_1.to_owned(),
                 expected_name_1.to_owned(),
             ),
             MemberToCheck::new(
-                expected_id_2.to_owned(),
+                Some(expected_id_2.to_owned()),
                 expected_first_name_2.to_owned(),
                 expected_name_2.to_owned(),
             ),
@@ -221,12 +225,12 @@ mod tests {
         let expected_name_2 = "Snow";
         let expected_result = vec![
             MemberToCheck::new(
-                expected_id_1.to_owned(),
+                Some(expected_id_1.to_owned()),
                 expected_first_name_1.to_owned(),
                 expected_name_1.to_owned(),
             ),
             MemberToCheck::new(
-                expected_id_2.to_owned(),
+                Some(expected_id_2.to_owned()),
                 expected_first_name_2.to_owned(),
                 expected_name_2.to_owned(),
             ),
@@ -259,7 +263,7 @@ mod tests {
         let expected_first_name = "Jon";
         let expected_name = "DOE";
         let expected_result = MemberToCheck::new(
-            expected_id.to_owned(),
+            Some(expected_id.to_owned()),
             expected_first_name.to_owned(),
             expected_name.to_owned(),
         );
