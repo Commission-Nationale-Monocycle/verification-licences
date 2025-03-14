@@ -1,8 +1,8 @@
 use crate::member::config::MembershipsProviderConfig;
 use crate::member::get_members_file_folder;
 use crate::web::api::members_state::MembersState;
-use crate::web::api::{fileo_controller, memberships_controller};
-use crate::web::credentials::CredentialsStorage;
+use crate::web::api::{fileo_controller, memberships_controller, uda_controller};
+use crate::web::credentials::{CredentialsStorage, FileoCredentials, UdaCredentials};
 use crate::web::server::Server;
 use regex::Regex;
 use rocket::{Build, Rocket};
@@ -30,7 +30,8 @@ impl Server for ApiServer {
         rocket_build
             .manage(members_provider_config)
             .manage(Mutex::new(members_state))
-            .manage(Mutex::new(CredentialsStorage::default()))
+            .manage(Mutex::new(CredentialsStorage::<FileoCredentials>::default()))
+            .manage(Mutex::new(CredentialsStorage::<UdaCredentials>::default()))
             .mount(
                 "/api/",
                 routes![
@@ -38,6 +39,7 @@ impl Server for ApiServer {
                     memberships_controller::notify_members,
                     fileo_controller::download_memberships,
                     fileo_controller::login,
+                    uda_controller::login,
                 ],
             )
     }

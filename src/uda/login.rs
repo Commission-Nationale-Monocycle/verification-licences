@@ -1,13 +1,11 @@
 use crate::tools::error::Error::{ConnectionFailed, WrongCredentials};
 use crate::tools::error::Result;
 use crate::tools::{log_error_and_return, log_message_and_return};
-use crate::web::credentials::Credentials;
 use reqwest::Client;
 use scraper::{Html, Selector};
 
-#[allow(dead_code)]
-async fn get_authenticity_token(client: &Client, base_url: &str) -> Result<String> {
-    let url = format!("{base_url}/users/sign_in");
+pub async fn get_authenticity_token(client: &Client, base_url: &str) -> Result<String> {
+    let url = format!("{base_url}/en/users/sign_in");
     let response = client
         .get(url)
         .send()
@@ -30,7 +28,6 @@ async fn get_authenticity_token(client: &Client, base_url: &str) -> Result<Strin
     Ok(authenticity_token.to_owned())
 }
 
-#[allow(dead_code)]
 fn get_authenticity_token_from_html(document: &Html) -> Result<&str> {
     let token_selector = Selector::parse(r#"input[name="authenticity_token"]"#).unwrap();
     let element = document.select(&token_selector).next().ok_or_else(|| {
@@ -41,17 +38,17 @@ fn get_authenticity_token_from_html(document: &Html) -> Result<&str> {
     Ok(authenticity_token)
 }
 
-#[allow(dead_code)]
-async fn login(
+pub async fn check_credentials(
     client: &Client,
     base_url: &str,
     authenticity_token: &str,
-    credentials: &Credentials,
+    login: &str,
+    password: &str,
 ) -> Result<()> {
-    let url = format!("{}/users/sign_in", base_url);
+    let url = format!("{}/en/users/sign_in", base_url);
     let params = [
-        ("user[email]", credentials.login().as_str()),
-        ("user[password]", credentials.password().as_str()),
+        ("user[email]", login),
+        ("user[password]", password),
         ("authenticity_token", authenticity_token),
         ("utf8", "✓"),
     ];
@@ -61,7 +58,7 @@ async fn login(
         .send()
         .await
         .map_err(log_message_and_return(
-            "Failed to authenticate to UDA",
+            "Failed to authenticate to UDA [user: {login}]",
             ConnectionFailed,
         ))?;
 
@@ -72,14 +69,20 @@ async fn login(
             ConnectionFailed,
         ))?;
         if text.contains("Signed in successfully") || text.contains("You are already signed in") {
-            debug!("Logged in UDA.");
+            debug!("Logged in UDA [user: {login}]");
             Ok(())
-        } else {
-            error!("Failed to authenticate to UDA. Wrong credentials?");
+        } else if text.contains("Invalid User Account Email or password") {
+            error!("Failed to authenticate to UDA. Wrong credentials? [user: {login}]");
             Err(WrongCredentials)
+        } else {
+            error!(
+                "Failed to authenticate to UDA. Unknown error. See response body: {}",
+                text
+            );
+            Err(ConnectionFailed)
         }
     } else {
-        error!("Failed to authenticate to UDA. Is the instance up?");
+        error!("Failed to authenticate to UDA. Is the instance up? [user: {login}]");
         Err(ConnectionFailed)
     }
 }
@@ -102,7 +105,7 @@ mod tests {
             r#"<html><body><input name="authenticity_token" value="{expected_token}"></body></html>"#
         );
         Mock::given(method("GET"))
-            .and(path("/users/sign_in"))
+            .and(path("/en/users/sign_in"))
             .respond_with(ResponseTemplate::new(200).set_body_string(&body))
             .mount(&mock_server)
             .await;
@@ -119,7 +122,7 @@ mod tests {
         let client = build_client().unwrap();
 
         Mock::given(method("GET"))
-            .and(path("/users/sign_in"))
+            .and(path("/en/users/sign_in"))
             .respond_with(ResponseTemplate::new(500))
             .mount(&mock_server)
             .await;
@@ -137,7 +140,7 @@ mod tests {
 
         let body = "<html><body><div>What are ya lookin' for, son?</div></body></html>";
         Mock::given(method("GET"))
-            .and(path("/users/sign_in"))
+            .and(path("/en/users/sign_in"))
             .respond_with(ResponseTemplate::new(200).set_body_string(body))
             .mount(&mock_server)
             .await;
@@ -173,80 +176,85 @@ mod tests {
     }
     // endregion
 
-    // region login
+    // region check_credentials
     #[async_test]
-    async fn should_login() {
+    async fn should_check_credentials() {
         let client = build_client().unwrap();
         let mock_server = MockServer::start().await;
         let authenticity_token = "BDv-07yMs8kMDnRn2hVgpSmqn88V_XhCZxImtcXr3u6OOmpnsy0WpFD49rTOuOEfJG_PptBBJag094Vd0uuyZg";
-        let credentials = Credentials::new("login".to_owned(), "password".to_owned());
 
         let params = format!(
             "user%5Bemail%5D=login&user%5Bpassword%5D=password&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
         );
         Mock::given(method("POST"))
+            .and(path("/en/users/sign_in"))
             .and(body_string(&params))
             .respond_with(ResponseTemplate::new(200).set_body_string("Signed in successfully"))
             .mount(&mock_server)
             .await;
 
-        let result = login(
+        let result = check_credentials(
             &client,
             &mock_server.uri(),
             authenticity_token,
-            &credentials,
+            "login",
+            "password",
         )
         .await;
         assert_eq!(Ok(()), result);
     }
 
     #[async_test]
-    async fn should_fail_to_login_when_wrong_credentials() {
+    async fn should_fail_to_check_credentials_when_wrong_credentials() {
         let client = build_client().unwrap();
         let mock_server = MockServer::start().await;
         let authenticity_token = "BDv-07yMs8kMDnRn2hVgpSmqn88V_XhCZxImtcXr3u6OOmpnsy0WpFD49rTOuOEfJG_PptBBJag094Vd0uuyZg";
-        let credentials = Credentials::new("login".to_owned(), "password".to_owned());
 
         let params = format!(
             "user%5Bemail%5D=login&user%5Bpassword%5D=password&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
         );
         Mock::given(method("POST"))
+            .and(path("/en/users/sign_in"))
             .and(body_string(&params))
-            .respond_with(ResponseTemplate::new(200))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                "<html><body>Invalid User Account Email or password</body></html>",
+            ))
             .mount(&mock_server)
             .await;
 
-        let result = login(
+        let result = check_credentials(
             &client,
             &mock_server.uri(),
             authenticity_token,
-            &credentials,
+            "login",
+            "password",
         )
         .await;
         assert_eq!(WrongCredentials, result.unwrap_err());
     }
 
     #[async_test]
-    async fn should_fail_to_login_when_other_error() {
+    async fn should_fail_to_check_credentials_when_other_error() {
         let client = build_client().unwrap();
         let mock_server = MockServer::start().await;
         let authenticity_token = "BDv-07yMs8kMDnRn2hVgpSmqn88V_XhCZxImtcXr3u6OOmpnsy0WpFD49rTOuOEfJG_PptBBJag094Vd0uuyZg";
-        let credentials = Credentials::new("login".to_owned(), "password".to_owned());
 
         let params = format!(
             "user%5Bemail%5D=login&user%5Bpassword%5D=password&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
         );
         Mock::given(method("POST"))
+            .and(path("/en/users/sign_in"))
             .and(body_string(&params))
             .respond_with(ResponseTemplate::new(500))
             .mount(&mock_server)
             .await;
 
-        let result = login(
+        let result = check_credentials(
             &client,
             &mock_server.uri(),
             authenticity_token,
-            &credentials,
+            "login",
+            "password",
         )
         .await;
         assert_eq!(ConnectionFailed, result.unwrap_err());

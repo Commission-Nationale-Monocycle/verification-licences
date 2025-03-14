@@ -2,7 +2,7 @@ use crate::member::members::Members;
 use crate::member::memberships::Memberships;
 use crate::tools::log_error_and_return;
 use crate::web::api::members_state::MembersState;
-use crate::web::credentials::Credentials;
+use crate::web::credentials::FileoCredentials;
 use dto::membership::Membership;
 use rocket::http::Status;
 use rocket::response::Redirect;
@@ -23,7 +23,7 @@ pub async fn fileo_login() -> Template {
 #[get("/memberships")]
 pub async fn list_memberships(
     members_state: &State<Mutex<MembersState>>,
-    _credentials: Credentials,
+    _credentials: FileoCredentials,
 ) -> Result<Template, Status> {
     let lock_result = members_state.lock();
     if let Err(error) = lock_result {
@@ -54,7 +54,7 @@ pub async fn list_memberships_unauthenticated() -> Redirect {
 #[get("/check-memberships")]
 pub async fn check_memberships(
     members_state: &State<Mutex<MembersState>>,
-    _credentials: Credentials,
+    _credentials: FileoCredentials,
 ) -> Result<Template, Status> {
     let lock_result = members_state.lock();
     if let Err(error) = lock_result {
@@ -95,7 +95,7 @@ pub async fn not_found(req: &Request<'_>) -> Template {
 mod tests {
     use super::*;
     use crate::member::file_details::FileDetails;
-    use crate::web::authentication::AUTHENTICATION_COOKIE;
+    use crate::web::authentication::FILEO_AUTHENTICATION_COOKIE;
     use crate::web::credentials::CredentialsStorage;
     use chrono::Utc;
     use rocket::http::Cookie;
@@ -120,7 +120,8 @@ mod tests {
     // region list_memberships
     #[async_test]
     async fn should_render_membership_list() {
-        let credentials = Credentials::new("test_login".to_owned(), "test_password".to_owned());
+        let credentials =
+            FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
         let mut credentials_storage = CredentialsStorage::default();
         let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
         credentials_storage.store(uuid.clone(), credentials);
@@ -138,7 +139,7 @@ mod tests {
             .attach(Template::fairing());
 
         let client = Client::tracked(rocket).await.unwrap();
-        let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
+        let cookie = Cookie::new(FILEO_AUTHENTICATION_COOKIE, uuid);
 
         let request = client.get("/memberships").cookie(cookie.clone());
 
@@ -173,7 +174,8 @@ mod tests {
     // region check_memberships
     #[async_test]
     async fn should_render_check_memberships() {
-        let credentials = Credentials::new("test_login".to_owned(), "test_password".to_owned());
+        let credentials =
+            FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
         let mut credentials_storage = CredentialsStorage::default();
         let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
         credentials_storage.store(uuid.clone(), credentials);
@@ -197,7 +199,7 @@ mod tests {
             .attach(Template::fairing());
 
         let client = Client::tracked(rocket).await.unwrap();
-        let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
+        let cookie = Cookie::new(FILEO_AUTHENTICATION_COOKIE, uuid);
 
         let request = client.get("/check-memberships").cookie(cookie.clone());
 
@@ -209,7 +211,8 @@ mod tests {
 
     #[async_test]
     async fn should_render_check_memberships_when_no_file() {
-        let credentials = Credentials::new("test_login".to_owned(), "test_password".to_owned());
+        let credentials =
+            FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
         let mut credentials_storage = CredentialsStorage::default();
         let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
         credentials_storage.store(uuid.clone(), credentials);
@@ -227,7 +230,7 @@ mod tests {
             .attach(Template::fairing());
 
         let client = Client::tracked(rocket).await.unwrap();
-        let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
+        let cookie = Cookie::new(FILEO_AUTHENTICATION_COOKIE, uuid);
 
         let request = client.get("/check-memberships").cookie(cookie.clone());
 

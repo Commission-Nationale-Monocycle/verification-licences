@@ -20,12 +20,12 @@ use crate::tools::error::Error::{
 use crate::tools::error::Result;
 use crate::tools::web::build_client;
 use crate::tools::{log_error_and_return, log_message_and_return};
-use crate::web::credentials::Credentials;
+use crate::web::credentials::FileoCredentials;
 
 #[cfg(not(feature = "demo"))]
 pub async fn download_memberships_list(
     memberships_provider_config: &MembershipsProviderConfig,
-    credentials: &Credentials,
+    credentials: &FileoCredentials,
 ) -> Result<FileDetails> {
     let folder = memberships_provider_config.folder();
     let host = memberships_provider_config.host();
@@ -50,7 +50,7 @@ Bob;Alice;F;01-02-2000;25;987654;alice@bobo.com;Non;25-08-2024;Non;Her club;A987
 pub async fn login_to_fileo(
     client: &Client,
     domain: &str,
-    credentials: &Credentials,
+    credentials: &FileoCredentials,
 ) -> Result<()> {
     let request = prepare_request_for_connection(client, domain, credentials);
     let response = request.send().await.map_err(log_message_and_return(
@@ -155,7 +155,7 @@ async fn download_list(client: &Client, file_url: &str) -> Result<String> {
 fn prepare_request_for_connection(
     client: &Client,
     domain: &str,
-    credentials: &Credentials,
+    credentials: &FileoCredentials,
 ) -> RequestBuilder {
     let url = format!("{domain}/page.php");
     let arguments = [
@@ -298,7 +298,7 @@ mod tests {
         NoDownloadLink,
     };
     use crate::tools::test::tests::temp_dir;
-    use crate::web::credentials::Credentials;
+    use crate::web::credentials::FileoCredentials;
 
     #[async_test]
     async fn should_download_members_list() {
@@ -311,7 +311,8 @@ mod tests {
             Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap(),
             temp_dir.into_os_string(),
         );
-        let credentials = Credentials::new("test_login".to_owned(), "test_password".to_owned());
+        let credentials =
+            FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
         let download_filename = "download.csv";
         let download_link = format!("{}/{download_filename}", mock_server.uri());
         let expected_content = "ï";
@@ -393,7 +394,7 @@ mod tests {
             .await;
 
         let client = build_client().unwrap();
-        let credentials = Credentials::new(String::new(), String::new());
+        let credentials = FileoCredentials::new(String::new(), String::new());
 
         let result = login_to_fileo(&client, &mock_server.uri(), &credentials).await;
         assert!(result.is_ok());
@@ -411,7 +412,7 @@ mod tests {
             .await;
 
         let client = build_client().unwrap();
-        let credentials = Credentials::new(String::new(), String::new());
+        let credentials = FileoCredentials::new(String::new(), String::new());
 
         let result = login_to_fileo(&client, &mock_server.uri(), &credentials).await;
         assert!(result.is_err_and(|e| e == ConnectionFailed));
@@ -586,7 +587,7 @@ mod tests {
         let domain = "http://localhost:27001";
         let login = "login";
         let password = "password";
-        let credentials = Credentials::new(login.to_owned(), password.to_owned());
+        let credentials = FileoCredentials::new(login.to_owned(), password.to_owned());
 
         let expected_body = format!(
             "Action=connect_user&requestForm=formConnecter&login={login}&password={password}"
@@ -678,9 +679,9 @@ mod tests {
 
     #[test]
     fn debug_credentials() {
-        let credentials = Credentials::new("login".to_owned(), "password".to_owned());
+        let credentials = FileoCredentials::new("login".to_owned(), "password".to_owned());
         assert_eq!(
-            "Credentials {login=login, password=MASKED}",
+            "Fileo Credentials {login=login, password=MASKED}",
             format!("{credentials:?}")
         );
     }

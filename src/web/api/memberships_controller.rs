@@ -2,7 +2,7 @@ use crate::member::members::Members;
 use crate::tools::email::send_email;
 use crate::tools::log_message_and_return;
 use crate::web::api::members_state::MembersState;
-use crate::web::credentials::Credentials;
+use crate::web::credentials::FileoCredentials;
 use dto::email::Email;
 use dto::member_to_check::MemberToCheck;
 use rocket::State;
@@ -22,7 +22,7 @@ use std::sync::Mutex;
 pub async fn check_memberships(
     members_state: &State<Mutex<MembersState>>,
     members_to_check: Form<String>,
-    _credentials: Credentials,
+    _credentials: FileoCredentials,
 ) -> Result<String, String> {
     let members_to_check =
         match MemberToCheck::load_members_to_check_from_csv_string(&members_to_check) {
@@ -48,7 +48,10 @@ pub async fn check_memberships(
 
 /// Email all recipients specified as argument.
 #[post("/members/notify", format = "application/json", data = "<email>")]
-pub async fn notify_members(email: Json<Email>, _credentials: Credentials) -> Result<(), String> {
+pub async fn notify_members(
+    email: Json<Email>,
+    _credentials: FileoCredentials,
+) -> Result<(), String> {
     let recipients = email
         .recipients()
         .iter()
