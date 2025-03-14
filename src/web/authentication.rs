@@ -43,8 +43,8 @@ impl<'r> FromRequest<'r> for UdaCredentials {
 /// If no credentials are associated to the cookie, or if no such cookie is present in the request,
 /// then returns a Forawrd outcome containing an Unauthorized status. This lets other routes to take on the request.
 /// Otherwise, return the retrieved credentials as a Success outcome.
-async fn from_request<'r, C: Send + Sync + Clone + 'static>(
-    req: &'r Request<'_>,
+async fn from_request<C: Send + Sync + Clone + 'static>(
+    req: &Request<'_>,
     cookie_name: &str,
 ) -> request::Outcome<C, ()> {
     if let Some(cookie) = get_authentication_cookie(req, cookie_name) {
