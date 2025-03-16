@@ -38,7 +38,7 @@ impl Debug for UdaCredentials {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct CredentialsStorage<C: Send + Sync> {
     credentials: HashMap<String, C>,
 }
