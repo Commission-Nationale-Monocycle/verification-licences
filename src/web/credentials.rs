@@ -13,9 +13,22 @@ pub struct FileoCredentials {
 pub struct UdaCredentials {
     /// Should be something like `https://cfm2019training.reg.unicycling-software.com`
     /// Beware of not including anything after the TLD. Otherwise, it may not work.
+    #[getter(skip)]
     uda_url: String,
     login: String,
     password: String,
+}
+
+impl UdaCredentials {
+    #[cfg(not(feature = "demo"))]
+    pub fn uda_url(&self) -> &String {
+        &self.uda_url
+    }
+
+    #[cfg(feature = "demo")]
+    pub fn uda_url(&self) -> &String {
+        crate::demo_mock_server::UDA_MOCK_SERVER_URI.get().unwrap()
+    }
 }
 
 impl Debug for FileoCredentials {

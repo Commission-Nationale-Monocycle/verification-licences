@@ -22,7 +22,6 @@ use crate::tools::web::build_client;
 use crate::tools::{log_error_and_return, log_message_and_return};
 use crate::web::credentials::FileoCredentials;
 
-#[cfg(not(feature = "demo"))]
 pub async fn download_memberships_list(
     memberships_provider_config: &MembershipsProviderConfig,
     credentials: &FileoCredentials,
@@ -40,13 +39,7 @@ pub async fn download_memberships_list(
     write_list_to_file(folder, &file_content)
 }
 
-#[cfg(feature = "demo")]
-const DEMO_FILE: &str = "Nom d'usage;Prénom;Sexe;Date de Naissance;Age;Numéro d'adhérent;Email;Réglé;Date Fin d'adhésion;Adherent expiré;Nom de structure;Code de structure
-Doe;Jon;H;01-02-1980;45;123456;jon@doe.com;Oui;30-09-2025;Non;My club;Z01234
-Bob;Alice;F;01-02-2000;25;987654;alice@bobo.com;Non;25-08-2024;Non;Her club;A98765";
-
 // region Requests
-#[cfg(not(feature = "demo"))]
 pub async fn login_to_fileo(
     client: &Client,
     domain: &str,
@@ -78,7 +71,6 @@ pub async fn login_to_fileo(
     }
 }
 
-#[cfg(not(feature = "demo"))]
 async fn load_list_into_server_session(client: &Client, domain: &str) -> Result<()> {
     let request = prepare_request_for_loading_list_into_server_session(client, domain);
     let response = request.send().await.map_err(log_message_and_return(
@@ -95,7 +87,6 @@ async fn load_list_into_server_session(client: &Client, domain: &str) -> Result<
     }
 }
 
-#[cfg(not(feature = "demo"))]
 async fn retrieve_download_link(
     client: &Client,
     host: &str,
@@ -121,7 +112,6 @@ async fn retrieve_download_link(
     Ok(file_url.to_owned())
 }
 
-#[cfg(not(feature = "demo"))]
 async fn download_list(client: &Client, file_url: &str) -> Result<String> {
     let response = client
         .get(file_url)
@@ -151,7 +141,6 @@ async fn download_list(client: &Client, file_url: &str) -> Result<String> {
 // endregion
 
 // region Requests preparation
-#[cfg(not(feature = "demo"))]
 fn prepare_request_for_connection(
     client: &Client,
     domain: &str,
@@ -171,7 +160,6 @@ fn prepare_request_for_connection(
         .body(body)
 }
 
-#[cfg(not(feature = "demo"))]
 fn prepare_request_for_loading_list_into_server_session(
     client: &Client,
     domain: &str,
@@ -212,7 +200,6 @@ fn prepare_request_for_loading_list_into_server_session(
         .body(body)
 }
 
-#[cfg(not(feature = "demo"))]
 fn prepare_request_for_retrieving_download_link(client: &Client, domain: &str) -> RequestBuilder {
     let url = format!("{domain}/includer.php?inc=ajax/adherent/adherent_export");
     let arguments = [
@@ -240,7 +227,6 @@ fn prepare_request_for_retrieving_download_link(client: &Client, domain: &str) -
 }
 // endregion
 
-#[cfg(not(feature = "demo"))]
 fn format_arguments_into_body(args: &[(&str, &str)]) -> String {
     args.iter()
         .map(|(key, value)| match value {
@@ -249,15 +235,6 @@ fn format_arguments_into_body(args: &[(&str, &str)]) -> String {
         })
         .collect::<Vec<_>>()
         .join("&")
-}
-
-#[cfg(feature = "demo")]
-pub async fn download_memberships_list(
-    memberships_provider_config: &MembershipsProviderConfig,
-) -> Result<FileDetails> {
-    let folder = memberships_provider_config.folder();
-    create_memberships_file_dir(&folder)?;
-    write_list_to_file(folder, DEMO_FILE)
 }
 
 fn create_memberships_file_dir(memberships_file_folder: &OsStr) -> Result<()> {
@@ -283,7 +260,6 @@ mod tests {
     use std::time::SystemTime;
 
     use regex::Regex;
-    use rocket::futures::executor::block_on;
     use rocket::http::ContentType;
     use wiremock::matchers::{body_string_contains, method, path, query_param_contains};
     use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -291,7 +267,6 @@ mod tests {
     use super::*;
     use crate::member::config::MembershipsProviderConfig;
     use crate::member::get_members_file_folder;
-    use crate::tools::env_args::with_env_args;
     use crate::tools::error::Error::CantWriteMembersFile;
     use crate::tools::error::Error::{
         CantLoadListOnServer, CantRetrieveDownloadLink, ConnectionFailed, FileNotFoundOnServer,
@@ -304,7 +279,6 @@ mod tests {
     async fn should_download_members_list() {
         let mock_server = MockServer::start().await;
 
-        let args = vec!["path/to/executable".to_string()];
         let temp_dir = temp_dir();
         let config = MembershipsProviderConfig::new(
             mock_server.uri(),
@@ -349,9 +323,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let result = with_env_args(args, || {
-            block_on(download_memberships_list(&config, &credentials))
-        });
+        let result = download_memberships_list(&config, &credentials).await;
         let file_details = result.unwrap();
         let content = fs::read_to_string(file_details.filepath()).unwrap();
         assert_eq!(expected_content, content);

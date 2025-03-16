@@ -46,22 +46,34 @@ impl Server for ApiServer {
     }
 }
 
-#[cfg(not(feature = "demo"))]
 fn build_members_provider_config() -> MembershipsProviderConfig {
     MembershipsProviderConfig::new(
-        "https://www.leolagrange-fileo.org".to_owned(),
-        Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv")
-            .unwrap(),
+        get_fileo_host(),
+        get_download_link_regex(),
         get_members_file_folder().to_os_string(),
     )
 }
 
+#[cfg(not(feature = "demo"))]
+fn get_fileo_host() -> String {
+    "https://www.leolagrange-fileo.org".to_owned()
+}
+
+#[cfg(not(feature = "demo"))]
+fn get_download_link_regex() -> Regex {
+    Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv")
+        .unwrap()
+}
+
 #[cfg(feature = "demo")]
-fn build_members_provider_config() -> MembershipsProviderConfig {
-    MembershipsProviderConfig::new(
-        "https://localhost:8000".to_owned(),
-        Regex::new("https://www.leolagrange-fileo.org/clients/fll/telechargements/temp/.*?\\.csv")
-            .unwrap(),
-        get_members_file_folder().to_os_string(),
-    )
+fn get_fileo_host() -> String {
+    crate::demo_mock_server::FILEO_MOCK_SERVER_URI
+        .get()
+        .unwrap()
+        .clone()
+}
+
+#[cfg(feature = "demo")]
+fn get_download_link_regex() -> Regex {
+    Regex::new("http://.*?\\.csv").unwrap()
 }
