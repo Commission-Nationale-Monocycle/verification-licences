@@ -115,10 +115,8 @@ pub mod tests {
         "BDv-07yMs8kMDnRn2hVgpSmqn88V_XhCZxImtcXr3u6OOmpnsy0WpFD49rTOuOEfJG_PptBBJag094Vd0uuyZg";
 
     pub async fn setup_authentication(mock_server: &MockServer) -> UdaCredentials {
-        let authenticity_token = setup_authenticity_token(&mock_server).await;
-        let credentials = setup_check_credentials(&mock_server, &authenticity_token).await;
-
-        credentials
+        let authenticity_token = setup_authenticity_token(mock_server).await;
+        setup_check_credentials(mock_server, &authenticity_token).await
     }
 
     async fn setup_check_credentials(
@@ -135,7 +133,7 @@ pub mod tests {
             .and(path("/en/users/sign_in"))
             .and(body_string(&params))
             .respond_with(ResponseTemplate::new(200).set_body_string("Signed in successfully"))
-            .mount(&mock_server)
+            .mount(mock_server)
             .await;
 
         UdaCredentials::new(mock_server.uri(), login.to_owned(), password.to_owned())
@@ -148,7 +146,7 @@ pub mod tests {
         Mock::given(method("GET"))
             .and(path("/en/users/sign_in"))
             .respond_with(ResponseTemplate::new(200).set_body_string(&body))
-            .mount(&mock_server)
+            .mount(mock_server)
             .await;
 
         AUTHENTICITY_TOKEN.to_owned()

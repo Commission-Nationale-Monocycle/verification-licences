@@ -165,7 +165,7 @@ pub mod tests {
         Mock::given(method("GET"))
             .and(path("/en/organization_memberships"))
             .respond_with(ResponseTemplate::new(200).set_body_string(&body))
-            .mount(&mock_server)
+            .mount(mock_server)
             .await;
 
         vec![
