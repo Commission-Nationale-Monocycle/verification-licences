@@ -5,7 +5,7 @@ authors = ["Maxence Cornaton <maxence.cornaton+git@proton.me>"]
 edition = "2024"
 
 [features]
-demo = []
+demo = ["dep:wiremock"]
 
 [dependencies]
 # Internal
@@ -33,6 +33,7 @@ derive-getters = "0.5.0"
 rand = "0.8.5"
 mail-send = "0.5.0"
 uuid = { version = "1.15.1" , features = ["v4"]}
+wiremock = { version = "0.6.3", optional = true }   # Included only for demo purposes
 
 [dev-dependencies]
 # Internal
@@ -40,5 +41,5 @@ dto = {path = "dto", features = ["test"]}
 
 # Utils
 parameterized = "2.0.0"
-wiremock = "0.6.2"
+wiremock = "0.6.3"
 rand = "0.9.0"
