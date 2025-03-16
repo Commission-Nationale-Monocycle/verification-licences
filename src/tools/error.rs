@@ -21,6 +21,7 @@ pub enum Error {
     CantAccessOrganizationMemberships,
     CantParseSelector(String),
     LackOfPermissions,
+    CartMarkMember,
 
     CantOpenMembersFileFolder,
     CantOpenMembersFile,
