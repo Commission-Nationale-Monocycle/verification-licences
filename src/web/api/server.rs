@@ -41,6 +41,7 @@ impl Server for ApiServer {
                     fileo_controller::download_memberships,
                     uda_controller::login,
                     uda_controller::retrieve_members_to_check,
+                    uda_controller::confirm_members,
                 ],
             )
     }

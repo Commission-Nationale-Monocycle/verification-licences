@@ -6,6 +6,10 @@ pub mod web;
 
 use std::fmt::Debug;
 
+pub fn log_error<E: Debug>(error: E) {
+    error!("{:?}", error);
+}
+
 pub fn log_message<E: Debug>(message: &str) -> impl FnOnce(E) {
     move |e| {
         error!("{message}\n{e:#?}");

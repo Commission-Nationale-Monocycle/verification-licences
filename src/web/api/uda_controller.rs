@@ -1,17 +1,18 @@
 use crate::tools::error::Error;
 use crate::tools::error::Error::LackOfPermissions;
-use crate::tools::log_error_and_return;
 use crate::tools::web::build_client;
+use crate::tools::{log_error, log_error_and_return};
+use crate::uda::confirm_member::confirm_member;
 use crate::uda::login::authenticate_into_uda;
 use crate::uda::retrieve_members::retrieve_members;
 use crate::web::authentication::UDA_AUTHENTICATION_COOKIE;
 use crate::web::credentials::{CredentialsStorage, UdaCredentials};
 use reqwest::Client;
 use rocket::State;
+use rocket::form::validate::Contains;
 use rocket::http::{Cookie, CookieJar, Status};
-use rocket::serde::json::Json;
+use rocket::serde::json::{Json, Value, json};
 use rocket::time::Duration;
-use serde_json::json;
 use std::sync::Mutex;
 use uuid::Uuid;
 
@@ -51,6 +52,58 @@ pub async fn retrieve_members_to_check(credentials: UdaCredentials) -> Result<St
     }
 }
 
+#[post("/uda/confirm", format = "application/json", data = "<members_ids>")]
+pub async fn confirm_members(
+    members_ids: Json<Vec<u16>>,
+    credentials: UdaCredentials,
+) -> (Status, Value) {
+    let members_ids = members_ids.into_inner();
+    let client = match build_client() {
+        Ok(client) => client,
+        Err(error) => {
+            log_error(error);
+            return (
+                Status::InternalServerError,
+                json!({"ok": Vec::<u16>::new(), "nok":members_ids}),
+            );
+        }
+    };
+
+    if let Err(status) = authenticate(&client, &credentials).await {
+        return (status, json!({"ok": Vec::<u16>::new(), "nok":members_ids}));
+    };
+    let url = credentials.uda_url();
+
+    let mut not_marked_ids = vec![];
+    let mut errors = vec![];
+    for id in &members_ids {
+        let result = confirm_member(&client, url, *id).await;
+        if let Err(error) = result {
+            debug!(
+                "Member has not been confirmed. [member_id: {id}, error: {:?}]",
+                error
+            );
+            not_marked_ids.push(*id);
+            errors.push(error);
+        }
+    }
+
+    let marked_ids: Vec<u16> = members_ids
+        .iter()
+        .filter(|id| !not_marked_ids.contains(**id))
+        .copied()
+        .collect();
+
+    (
+        if not_marked_ids.is_empty() {
+            Status::Ok
+        } else {
+            from_vec_of_errors_to_status(&errors)
+        },
+        json!({"ok": marked_ids, "nok":not_marked_ids}),
+    )
+}
+
 async fn authenticate(client: &Client, credentials: &UdaCredentials) -> Result<(), Status> {
     let url = credentials.uda_url();
     let login = credentials.login();
@@ -67,16 +120,26 @@ async fn authenticate(client: &Client, credentials: &UdaCredentials) -> Result<(
     }
 }
 
+fn from_vec_of_errors_to_status(errors: &[Error]) -> Status {
+    if errors.iter().any(|error| *error == LackOfPermissions) {
+        Status::Unauthorized
+    } else {
+        Status::BadGateway
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::uda::login::tests::setup_authentication;
+    use crate::uda::confirm_member::tests::{setup_confirm_member, setup_csrf_token};
+    use crate::uda::login::tests::{setup_authentication, setup_authenticity_token};
     use crate::uda::retrieve_members::tests::setup_members_to_check_retrieval;
     use dto::member_to_check::MemberToCheck;
     use reqwest::header::CONTENT_TYPE;
     use rocket::http::{ContentType, Header};
     use rocket::local::asynchronous::Client;
     use serde_json::json;
+    use std::collections::HashMap;
     use wiremock::matchers::{body_string, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -272,6 +335,57 @@ mod tests {
 
     // endregion
 
+    // region confirm_members
+    #[async_test]
+    async fn should_confirm_members() {
+        let mock_server = MockServer::start().await;
+        let credentials = setup_authentication(&mock_server).await;
+        let csrf_token = setup_csrf_token(&mock_server).await;
+        setup_confirm_member(&mock_server, &csrf_token, 1).await;
+        setup_confirm_member(&mock_server, &csrf_token, 2).await;
+        setup_confirm_member(&mock_server, &csrf_token, 3).await;
+
+        let (status, value) =
+            confirm_members(Json::from(vec![1_u16, 2_u16, 3_u16]), credentials).await;
+
+        assert_eq!(Status::Ok, status);
+        let result: HashMap<String, Vec<u16>> = rocket::serde::json::from_value(value).unwrap();
+        assert_eq!(&vec![1_u16, 2_u16, 3_u16], result.get("ok").unwrap());
+        assert_eq!(&Vec::<u16>::new(), result.get("nok").unwrap());
+    }
+
+    #[async_test]
+    async fn should_fail_to_confirm_some_members() {
+        let mock_server = MockServer::start().await;
+        let credentials = setup_authentication(&mock_server).await;
+        let csrf_token = setup_csrf_token(&mock_server).await;
+        setup_confirm_member(&mock_server, &csrf_token, 1).await;
+
+        let (status, value) = confirm_members(Json::from(vec![1, 2, 3]), credentials).await;
+
+        assert_eq!(Status::Unauthorized, status);
+        let result: HashMap<String, Vec<u16>> = rocket::serde::json::from_value(value).unwrap();
+        assert_eq!(&vec![1], result.get("ok").unwrap());
+        assert_eq!(&vec![2, 3], result.get("nok").unwrap());
+    }
+
+    #[async_test]
+    async fn should_fail_to_confirm_members_when_no_authentication() {
+        let mock_server = MockServer::start().await;
+        setup_authenticity_token(&mock_server).await;
+
+        let credentials =
+            UdaCredentials::new(mock_server.uri(), "login".to_owned(), "password".to_owned());
+
+        let (status, value) = confirm_members(Json::from(vec![1, 2, 3]), credentials).await;
+
+        assert_eq!(Status::Unauthorized, status);
+        let result: HashMap<String, Vec<u16>> = rocket::serde::json::from_value(value).unwrap();
+        assert_eq!(&Vec::<u16>::new(), result.get("ok").unwrap());
+        assert_eq!(&vec![1, 2, 3], result.get("nok").unwrap());
+    }
+    // endregion
+
     // region authenticate
     #[async_test]
     async fn should_authenticate() {
@@ -305,8 +419,7 @@ mod tests {
         let mock_server = MockServer::start().await;
         let credentials =
             UdaCredentials::new(mock_server.uri(), login.to_owned(), password.to_owned());
-        let authenticity_token =
-            crate::uda::login::tests::setup_authenticity_token(&mock_server).await;
+        let authenticity_token = setup_authenticity_token(&mock_server).await;
         let params = format!(
             "user%5Bemail%5D={login}&user%5Bpassword%5D={password}&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
         );
