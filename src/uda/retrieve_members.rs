@@ -3,7 +3,7 @@ use crate::tools::error::Result;
 use crate::tools::{log_error_and_return, log_message_and_return};
 use dto::member_to_check::MemberToCheck;
 use reqwest::Client;
-use scraper::{ElementRef, Html, Selector};
+use scraper::{ElementRef, Html, Node, Selector};
 
 #[allow(dead_code)]
 pub async fn retrieve_members(client: &Client, base_url: &str) -> Result<Vec<MemberToCheck>> {
@@ -51,7 +51,14 @@ fn retrieve_members_from_html(body: &str) -> Result<Vec<MemberToCheck>> {
 /// The implementation is ugly, but it's difficult to do otherwise because of Scraper's lib.
 /// Ideally, we'd like to extract each value extraction, but we can't do so because `NodeRef` is inaccessible.
 fn extract_member_from_row(row: ElementRef) -> Option<MemberToCheck> {
-    let cells = row.children().collect::<Vec<_>>();
+    let cells = row
+        .children()
+        .filter(|child| match child.value() {
+            Node::Element(_) => true,
+            // Ignoring all the line feeds that don't matter here.
+            _ => false,
+        })
+        .collect::<Vec<_>>();
 
     if cells.len() < 4 {
         warn!(
@@ -61,8 +68,10 @@ fn extract_member_from_row(row: ElementRef) -> Option<MemberToCheck> {
         return None;
     }
 
-    let id_cell = cells[1].first_child();
-    if id_cell.is_none() {
+    let id_span = cells[1]
+        .children()
+        .find(|child| matches!(child.value(), Node::Element(_)));
+    if id_span.is_none() {
         warn!(
             "Missing id span for member. Ignoring. [row: {}]",
             row.html()
@@ -70,14 +79,14 @@ fn extract_member_from_row(row: ElementRef) -> Option<MemberToCheck> {
         return None;
     }
 
-    let id_span = id_cell.unwrap().first_child();
-    if id_span.is_none() {
+    let id_text = id_span.unwrap().first_child();
+    if id_text.is_none() {
         warn!("Wrong structure for id. Ignoring. [row: {}]", row.html());
         return None;
     }
 
-    let id_text = id_span.unwrap().value().as_text();
-    if id_text.is_none() {
+    let id_value = id_text.unwrap().value().as_text();
+    if id_value.is_none() {
         warn!(
             "ID span of member doesn't contain only text. Ignoring. [row: {}]",
             row.html()
@@ -85,7 +94,7 @@ fn extract_member_from_row(row: ElementRef) -> Option<MemberToCheck> {
         return None;
     }
 
-    let id_text = id_text.unwrap();
+    let id_text = id_value.unwrap();
     let id = if id_text.text.to_string() == "set number" {
         None
     } else {
@@ -135,22 +144,31 @@ fn extract_member_from_row(row: ElementRef) -> Option<MemberToCheck> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
     use crate::tools::web::build_client;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    // region retrieve_members
-    #[async_test]
-    async fn should_retrieve_members() {
+    pub async fn setup_members_to_check_retrieval(mock_server: &MockServer) -> Vec<MemberToCheck> {
         let expected_id_1 = "123456";
         let expected_first_name_1 = "Jon";
         let expected_name_1 = "DOE";
         let expected_id_2 = "654321";
         let expected_first_name_2 = "Jonette";
         let expected_name_2 = "Snow";
-        let expected_result = vec![
+
+        let body = format!(
+            r##"<html><body><h1>Unicycling Society/Federation Membership Management</h1><table><tr class="even" id="reg_0" role="row"><td><a href="/fr/registrants/0">0</a></td><td><span class="member_number js--toggle" data-toggle-target="#member_number_form_0" id="membership_number_0">ID #{expected_id_1}</span><span class="is--hidden" id="member_number_form_0"><form action="/fr/organization_memberships/0/update_number" accept-charset="UTF-8" data-remote="true" method="post"><input name="utf8" type="hidden" value="✓" autocomplete="off"><input type="hidden" name="_method" value="put" autocomplete="off"><input type="hidden" name="authenticity_token" value="pHkm6aZpTgLtAUdx3Nklm7nBsG5ECpEhKp9lB1_8YLjP9OwPhlEdYXdcrnDgAnue37U-8VOS6mJDWeaHqvgOag" autocomplete="off"><input type="text" name="membership_number" id="membership_number" value=""><input type="submit" name="commit" value="Update Membership #" class="button tiny" data-disable-with="Update Membership #"></form></span></td><td>{expected_first_name_1}</td><td>{expected_name_1}</td><td>29</td><td>1990-05-06</td><td>Setif</td><td>Sétif</td><td>Algérie</td><td></td><td>false<br></td><td><a data-remote="true" rel="nofollow" data-method="put" href="/fr/organization_memberships/0/toggle_confirm">Mark as confirmed</a></td></tr><tr class="even" id="reg_1" role="row"><td><a href="/fr/registrants/1">1</a></td><td><span class="member_number js--toggle" data-toggle-target="#member_number_form_1" id="membership_number_1">ID #{expected_id_2}</span><span class="is--hidden" id="member_number_form_1"><form action="/fr/organization_memberships/1/update_number" accept-charset="UTF-8" data-remote="true" method="post"><input name="utf8" type="hidden" value="✓" autocomplete="off"><input type="hidden" name="_method" value="put" autocomplete="off"><input type="hidden" name="authenticity_token" value="pHkm6aZpTgLtAUdx3Nklm7nBsG5ECpEhKp9lB1_8YLjP9OwPhlEdYXdcrnDgAnue37U-8VOS6mJDWeaHqvgOag" autocomplete="off"><input type="text" name="membership_number" id="membership_number" value=""><input type="submit" name="commit" value="Update Membership #" class="button tiny" data-disable-with="Update Membership #"></form></span></td><td>{expected_first_name_2}</td><td>{expected_name_2}</td><td>29</td><td>1990-05-06</td><td>Setif</td><td>Sétif</td><td>Algérie</td><td></td><td>false<br></td><td><a data-remote="true" rel="nofollow" data-method="put" href="/fr/organization_memberships/1/toggle_confirm">Mark as confirmed</a></td></tr></table></body></html>"##
+        );
+
+        Mock::given(method("GET"))
+            .and(path("/en/organization_memberships"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(&body))
+            .mount(&mock_server)
+            .await;
+
+        vec![
             MemberToCheck::new(
                 Some(expected_id_1.to_owned()),
                 expected_first_name_1.to_owned(),
@@ -161,20 +179,15 @@ mod tests {
                 expected_first_name_2.to_owned(),
                 expected_name_2.to_owned(),
             ),
-        ];
+        ]
+    }
 
-        let body = format!(
-            r##"<html><body><h1>Unicycling Society/Federation Membership Management</h1><table><tr class="even" id="reg_0" role="row"><td><a href="/fr/registrants/0">0</a></td><td><span class="member_number js--toggle" data-toggle-target="#member_number_form_0" id="membership_number_0">ID #{expected_id_1}</span><span class="is--hidden" id="member_number_form_0"><form action="/fr/organization_memberships/0/update_number" accept-charset="UTF-8" data-remote="true" method="post"><input name="utf8" type="hidden" value="✓" autocomplete="off"><input type="hidden" name="_method" value="put" autocomplete="off"><input type="hidden" name="authenticity_token" value="pHkm6aZpTgLtAUdx3Nklm7nBsG5ECpEhKp9lB1_8YLjP9OwPhlEdYXdcrnDgAnue37U-8VOS6mJDWeaHqvgOag" autocomplete="off"><input type="text" name="membership_number" id="membership_number" value=""><input type="submit" name="commit" value="Update Membership #" class="button tiny" data-disable-with="Update Membership #"></form></span></td><td>{expected_first_name_1}</td><td>{expected_name_1}</td><td>29</td><td>1990-05-06</td><td>Setif</td><td>Sétif</td><td>Algérie</td><td></td><td>false<br></td><td><a data-remote="true" rel="nofollow" data-method="put" href="/fr/organization_memberships/0/toggle_confirm">Mark as confirmed</a></td></tr><tr class="even" id="reg_1" role="row"><td><a href="/fr/registrants/1">1</a></td><td><span class="member_number js--toggle" data-toggle-target="#member_number_form_1" id="membership_number_1">ID #{expected_id_2}</span><span class="is--hidden" id="member_number_form_1"><form action="/fr/organization_memberships/1/update_number" accept-charset="UTF-8" data-remote="true" method="post"><input name="utf8" type="hidden" value="✓" autocomplete="off"><input type="hidden" name="_method" value="put" autocomplete="off"><input type="hidden" name="authenticity_token" value="pHkm6aZpTgLtAUdx3Nklm7nBsG5ECpEhKp9lB1_8YLjP9OwPhlEdYXdcrnDgAnue37U-8VOS6mJDWeaHqvgOag" autocomplete="off"><input type="text" name="membership_number" id="membership_number" value=""><input type="submit" name="commit" value="Update Membership #" class="button tiny" data-disable-with="Update Membership #"></form></span></td><td>{expected_first_name_2}</td><td>{expected_name_2}</td><td>29</td><td>1990-05-06</td><td>Setif</td><td>Sétif</td><td>Algérie</td><td></td><td>false<br></td><td><a data-remote="true" rel="nofollow" data-method="put" href="/fr/organization_memberships/1/toggle_confirm">Mark as confirmed</a></td></tr></table></body></html>"##
-        );
-
+    // region retrieve_members
+    #[async_test]
+    async fn should_retrieve_members() {
         let mock_server = MockServer::start().await;
+        let expected_result = setup_members_to_check_retrieval(&mock_server).await;
         let client = build_client().unwrap();
-        Mock::given(method("GET"))
-            .and(path("/en/organization_memberships"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(&body))
-            .mount(&mock_server)
-            .await;
-
         let result = retrieve_members(&client, &mock_server.uri()).await.unwrap();
         assert_eq!(expected_result, result);
     }

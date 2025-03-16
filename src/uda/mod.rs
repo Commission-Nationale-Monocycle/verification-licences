@@ -1,2 +1,2 @@
 pub mod login;
-mod retrieve_members;
+pub(crate) mod retrieve_members;

@@ -25,28 +25,23 @@ pub async fn login(
     cookie_jar: &CookieJar<'_>,
     credentials: Json<FileoCredentials>,
 ) -> Result<(Status, ()), Status> {
-    let client = build_client();
-    if let Ok(client) = client {
-        let host = memberships_provider_config.inner().host();
-        let credentials = credentials.into_inner();
-        match login_to_fileo(&client, host, &credentials).await {
-            Ok(_) => {
-                let mut mutex = credentials_storage
-                    .lock()
-                    .map_err(log_error_and_return(Status::InternalServerError))?;
-                let uuid = Uuid::new_v4().to_string();
-                let cookie = Cookie::build((FILEO_AUTHENTICATION_COOKIE.to_owned(), uuid.clone()))
-                    .max_age(Duration::days(365))
-                    .build();
-                cookie_jar.add_private(cookie);
-                (*mutex).store(uuid.clone(), credentials);
-                Ok((Status::Ok, ()))
-            }
-            Err(error) => log_error_and_return(Err(Status::Unauthorized))(error),
+    let client = build_client().map_err(log_error_and_return(Status::InternalServerError))?;
+    let host = memberships_provider_config.inner().host();
+    let credentials = credentials.into_inner();
+    match login_to_fileo(&client, host, &credentials).await {
+        Ok(_) => {
+            let mut mutex = credentials_storage
+                .lock()
+                .map_err(log_error_and_return(Status::InternalServerError))?;
+            let uuid = Uuid::new_v4().to_string();
+            let cookie = Cookie::build((FILEO_AUTHENTICATION_COOKIE.to_owned(), uuid.clone()))
+                .max_age(Duration::days(365))
+                .build();
+            cookie_jar.add_private(cookie);
+            (*mutex).store(uuid.clone(), credentials);
+            Ok((Status::Ok, ()))
         }
-    } else {
-        let error = client.unwrap_err();
-        log_error_and_return(Err(Status::InternalServerError))(error)
+        Err(error) => log_error_and_return(Err(Status::Unauthorized))(error),
     }
 }
 

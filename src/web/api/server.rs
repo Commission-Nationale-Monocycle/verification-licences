@@ -37,9 +37,10 @@ impl Server for ApiServer {
                 routes![
                     memberships_controller::check_memberships,
                     memberships_controller::notify_members,
-                    fileo_controller::download_memberships,
                     fileo_controller::login,
+                    fileo_controller::download_memberships,
                     uda_controller::login,
+                    uda_controller::retrieve_members_to_check,
                 ],
             )
     }

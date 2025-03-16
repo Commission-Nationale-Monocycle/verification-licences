@@ -4,7 +4,22 @@ use crate::tools::{log_error_and_return, log_message_and_return};
 use reqwest::Client;
 use scraper::{Html, Selector};
 
-pub async fn get_authenticity_token(client: &Client, base_url: &str) -> Result<String> {
+pub async fn authenticate_into_uda(
+    client: &Client,
+    base_url: &str,
+    login: &str,
+    password: &str,
+) -> Result<()> {
+    let authenticity_token = get_authenticity_token(client, base_url)
+        .await
+        .map_err(log_error_and_return(ConnectionFailed))?;
+
+    check_credentials(client, base_url, &authenticity_token, login, password)
+        .await
+        .map_err(log_error_and_return(WrongCredentials))
+}
+
+async fn get_authenticity_token(client: &Client, base_url: &str) -> Result<String> {
     let url = format!("{base_url}/en/users/sign_in");
     let response = client
         .get(url)
@@ -38,7 +53,7 @@ fn get_authenticity_token_from_html(document: &Html) -> Result<&str> {
     Ok(authenticity_token)
 }
 
-pub async fn check_credentials(
+async fn check_credentials(
     client: &Client,
     base_url: &str,
     authenticity_token: &str,
@@ -88,27 +103,131 @@ pub async fn check_credentials(
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
     use crate::tools::web::build_client;
+    use crate::web::credentials::UdaCredentials;
     use wiremock::matchers::{body_string, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    // region get_authenticity_token
-    #[async_test]
-    async fn should_get_authenticity_token() {
-        let mock_server = MockServer::start().await;
-        let client = build_client().unwrap();
-        let expected_token = "BDv-07yMs8kMDnRn2hVgpSmqn88V_XhCZxImtcXr3u6OOmpnsy0WpFD49rTOuOEfJG_PptBBJag094Vd0uuyZg";
+    // region Common methods and const
+    const AUTHENTICITY_TOKEN: &str =
+        "BDv-07yMs8kMDnRn2hVgpSmqn88V_XhCZxImtcXr3u6OOmpnsy0WpFD49rTOuOEfJG_PptBBJag094Vd0uuyZg";
 
+    pub async fn setup_authentication(mock_server: &MockServer) -> UdaCredentials {
+        let authenticity_token = setup_authenticity_token(&mock_server).await;
+        let credentials = setup_check_credentials(&mock_server, &authenticity_token).await;
+
+        credentials
+    }
+
+    async fn setup_check_credentials(
+        mock_server: &MockServer,
+        authenticity_token: &str,
+    ) -> UdaCredentials {
+        let login = "login";
+        let password = "password";
+
+        let params = format!(
+            "user%5Bemail%5D={login}&user%5Bpassword%5D={password}&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
+        );
+        Mock::given(method("POST"))
+            .and(path("/en/users/sign_in"))
+            .and(body_string(&params))
+            .respond_with(ResponseTemplate::new(200).set_body_string("Signed in successfully"))
+            .mount(&mock_server)
+            .await;
+
+        UdaCredentials::new(mock_server.uri(), login.to_owned(), password.to_owned())
+    }
+
+    pub(crate) async fn setup_authenticity_token(mock_server: &MockServer) -> String {
         let body = format!(
-            r#"<html><body><input name="authenticity_token" value="{expected_token}"></body></html>"#
+            r#"<html><body><input name="authenticity_token" value="{AUTHENTICITY_TOKEN}"></body></html>"#
         );
         Mock::given(method("GET"))
             .and(path("/en/users/sign_in"))
             .respond_with(ResponseTemplate::new(200).set_body_string(&body))
             .mount(&mock_server)
             .await;
+
+        AUTHENTICITY_TOKEN.to_owned()
+    }
+    // endregion
+
+    // region authenticate_into_uda
+    #[async_test]
+    async fn should_authenticate_into_uda() {
+        let mock_server = MockServer::start().await;
+        let credentials = setup_authentication(&mock_server).await;
+
+        let client = Client::new();
+        authenticate_into_uda(
+            &client,
+            credentials.uda_url(),
+            credentials.login(),
+            credentials.password(),
+        )
+        .await
+        .unwrap();
+    }
+
+    #[async_test]
+    async fn should_fail_to_authenticate_into_uda_when_connection_failed() {
+        let login = "login";
+        let password = "password";
+
+        let mock_server = MockServer::start().await;
+        let credentials =
+            UdaCredentials::new(mock_server.uri(), login.to_owned(), password.to_owned());
+
+        let client = Client::new();
+        let error = authenticate_into_uda(
+            &client,
+            credentials.uda_url(),
+            credentials.login(),
+            credentials.password(),
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(ConnectionFailed, error);
+    }
+
+    #[async_test]
+    async fn should_fail_to_authenticate_into_uda_when_wrong_credentials() {
+        let login = "login";
+        let password = "password";
+
+        let mock_server = MockServer::start().await;
+        let authenticity_token = setup_authenticity_token(&mock_server).await;
+        let params = format!(
+            "user%5Bemail%5D={login}&user%5Bpassword%5D={password}&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
+        );
+        Mock::given(method("POST"))
+            .and(path("/en/users/sign_in"))
+            .and(body_string(&params))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                "<html><body>Invalid User Account Email or password</body></html>",
+            ))
+            .mount(&mock_server)
+            .await;
+
+        let client = Client::new();
+        let error = authenticate_into_uda(&client, &mock_server.uri(), login, password)
+            .await
+            .unwrap_err();
+
+        assert_eq!(WrongCredentials, error);
+    }
+    // endregion
+
+    // region get_authenticity_token
+    #[async_test]
+    async fn should_get_authenticity_token() {
+        let mock_server = MockServer::start().await;
+        let client = build_client().unwrap();
+        let expected_token = setup_authenticity_token(&mock_server).await;
 
         let token = get_authenticity_token(&client, &mock_server.uri())
             .await
@@ -155,15 +274,13 @@ mod tests {
     // region get_authenticity_token_from_html
     #[test]
     fn should_get_authenticity_token_from_html() {
-        let expected_token = "BDv-07yMs8kMDnRn2hVgpSmqn88V_XhCZxImtcXr3u6OOmpnsy0WpFD49rTOuOEfJG_PptBBJag094Vd0uuyZg";
-
         let body = format!(
-            r#"<html><body><input name="authenticity_token" value="{expected_token}"></body></html>"#
+            r#"<html><body><input name="authenticity_token" value="{AUTHENTICITY_TOKEN}"></body></html>"#
         );
         let html = Html::parse_document(&body);
         let token = get_authenticity_token_from_html(&html).unwrap();
 
-        assert_eq!(expected_token, token);
+        assert_eq!(AUTHENTICITY_TOKEN, token);
     }
 
     #[test]
@@ -181,22 +298,13 @@ mod tests {
     async fn should_check_credentials() {
         let client = build_client().unwrap();
         let mock_server = MockServer::start().await;
-        let authenticity_token = "BDv-07yMs8kMDnRn2hVgpSmqn88V_XhCZxImtcXr3u6OOmpnsy0WpFD49rTOuOEfJG_PptBBJag094Vd0uuyZg";
 
-        let params = format!(
-            "user%5Bemail%5D=login&user%5Bpassword%5D=password&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
-        );
-        Mock::given(method("POST"))
-            .and(path("/en/users/sign_in"))
-            .and(body_string(&params))
-            .respond_with(ResponseTemplate::new(200).set_body_string("Signed in successfully"))
-            .mount(&mock_server)
-            .await;
+        setup_check_credentials(&mock_server, AUTHENTICITY_TOKEN).await;
 
         let result = check_credentials(
             &client,
             &mock_server.uri(),
-            authenticity_token,
+            AUTHENTICITY_TOKEN,
             "login",
             "password",
         )
@@ -208,10 +316,9 @@ mod tests {
     async fn should_fail_to_check_credentials_when_wrong_credentials() {
         let client = build_client().unwrap();
         let mock_server = MockServer::start().await;
-        let authenticity_token = "BDv-07yMs8kMDnRn2hVgpSmqn88V_XhCZxImtcXr3u6OOmpnsy0WpFD49rTOuOEfJG_PptBBJag094Vd0uuyZg";
 
         let params = format!(
-            "user%5Bemail%5D=login&user%5Bpassword%5D=password&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
+            "user%5Bemail%5D=login&user%5Bpassword%5D=password&authenticity_token={AUTHENTICITY_TOKEN}&utf8=%E2%9C%93"
         );
         Mock::given(method("POST"))
             .and(path("/en/users/sign_in"))
@@ -225,7 +332,7 @@ mod tests {
         let result = check_credentials(
             &client,
             &mock_server.uri(),
-            authenticity_token,
+            AUTHENTICITY_TOKEN,
             "login",
             "password",
         )
