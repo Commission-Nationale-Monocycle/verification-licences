@@ -3,8 +3,10 @@ use crate::error::ApplicationError::Web;
 use crate::tools::web::build_client;
 use crate::tools::{log_error, log_error_and_return};
 use crate::uda::authentication::AUTHENTICATION_COOKIE;
+use crate::uda::configuration::Configuration;
 use crate::uda::confirm_member::confirm_member;
 use crate::uda::credentials::UdaCredentials;
+use crate::uda::instances::retrieve_uda_instances;
 use crate::uda::login::authenticate_into_uda;
 use crate::uda::retrieve_members::retrieve_members;
 use crate::web::credentials_storage::CredentialsStorage;
@@ -115,6 +117,16 @@ pub async fn confirm_members(
     )
 }
 
+#[get("/uda/instances")]
+pub async fn list_instances(configuration: &State<Configuration>) -> Result<Value, Status> {
+    let client = build_client().map_err(log_error_and_return(Status::InternalServerError))?;
+    let instances = retrieve_uda_instances(&client, configuration.inner())
+        .await
+        .map_err(log_error_and_return(Status::BadGateway))?;
+
+    Ok(json!(instances))
+}
+
 async fn authenticate(client: &Client, credentials: &UdaCredentials) -> Result<(), Status> {
     let url = credentials.uda_url();
     let login = credentials.login();
@@ -144,313 +156,399 @@ fn from_vec_of_errors_to_status(errors: &[ApplicationError]) -> Status {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::uda::confirm_member::tests::{setup_confirm_member, setup_csrf_token};
-    use crate::uda::login::tests::{setup_authentication, setup_authenticity_token};
-    use crate::uda::retrieve_members::tests::setup_members_to_check_retrieval;
-    use dto::member_to_check::MemberToCheck;
-    use reqwest::header::CONTENT_TYPE;
-    use rocket::http::{ContentType, Header};
-    use rocket::local::asynchronous::Client;
-    use std::collections::HashMap;
-    use wiremock::matchers::{body_string, method, path};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
+    mod login {
+        use crate::uda::authentication::AUTHENTICATION_COOKIE;
+        use crate::uda::credentials::UdaCredentials;
+        use crate::uda::login::tests::setup_authentication;
+        use crate::web::api::uda_controller::login;
+        use crate::web::credentials_storage::CredentialsStorage;
+        use rocket::http::hyper::header::CONTENT_TYPE;
+        use rocket::http::{ContentType, Header, Status};
+        use rocket::local::asynchronous::Client;
+        use rocket::serde::json::json;
+        use std::sync::Mutex;
+        use wiremock::matchers::{body_string, method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    // region login
-    #[async_test]
-    async fn should_login() {
-        let mock_server = MockServer::start().await;
-        setup_authentication(&mock_server).await;
+        #[async_test]
+        async fn success() {
+            let mock_server = MockServer::start().await;
+            setup_authentication(&mock_server).await;
 
-        let credentials =
-            UdaCredentials::new(mock_server.uri(), "login".to_owned(), "password".to_owned());
-        let credentials_storage_mutex = Mutex::new(CredentialsStorage::<UdaCredentials>::default());
+            let credentials =
+                UdaCredentials::new(mock_server.uri(), "login".to_owned(), "password".to_owned());
+            let credentials_storage_mutex =
+                Mutex::new(CredentialsStorage::<UdaCredentials>::default());
 
-        let rocket = rocket::build()
-            .manage(credentials_storage_mutex)
-            .mount("/", routes![login]);
-        let client = Client::tracked(rocket).await.unwrap();
-        let credentials_as_json = json!(credentials).to_string();
-        let request = client
-            .post("/uda/login")
-            .body(credentials_as_json.as_bytes())
-            .header(Header::new(
-                CONTENT_TYPE.to_string(),
-                ContentType::JSON.to_string(),
-            ));
+            let rocket = rocket::build()
+                .manage(credentials_storage_mutex)
+                .mount("/", routes![login]);
+            let client = Client::tracked(rocket).await.unwrap();
+            let credentials_as_json = json!(credentials).to_string();
+            let request = client
+                .post("/uda/login")
+                .body(credentials_as_json.as_bytes())
+                .header(Header::new(
+                    CONTENT_TYPE.to_string(),
+                    ContentType::JSON.to_string(),
+                ));
 
-        let response = request.dispatch().await;
-        assert_eq!(Status::Ok, response.status());
-        assert!(
-            response
-                .cookies()
-                .get_private(AUTHENTICATION_COOKIE)
-                .is_some()
-        );
+            let response = request.dispatch().await;
+            assert_eq!(Status::Ok, response.status());
+            assert!(
+                response
+                    .cookies()
+                    .get_private(AUTHENTICATION_COOKIE)
+                    .is_some()
+            );
+        }
+
+        #[async_test]
+        async fn fail_when_bad_gateway() {
+            let mock_server = MockServer::start().await;
+
+            let body = "<html><body>Where do you think you are, son?</body></html>".to_string();
+            Mock::given(method("GET"))
+                .and(path("/en/users/sign_in"))
+                .respond_with(ResponseTemplate::new(200).set_body_string(&body))
+                .mount(&mock_server)
+                .await;
+
+            let credentials =
+                UdaCredentials::new(mock_server.uri(), "login".to_owned(), "password".to_owned());
+            let credentials_storage_mutex =
+                Mutex::new(CredentialsStorage::<UdaCredentials>::default());
+
+            let rocket = rocket::build()
+                .manage(credentials_storage_mutex)
+                .mount("/", routes![login]);
+            let client = Client::tracked(rocket).await.unwrap();
+            let credentials_as_json = json!(credentials).to_string();
+            let request = client
+                .post("/uda/login")
+                .body(credentials_as_json.as_bytes())
+                .header(Header::new(
+                    CONTENT_TYPE.to_string(),
+                    ContentType::JSON.to_string(),
+                ));
+
+            let response = request.dispatch().await;
+            assert_eq!(Status::BadGateway, response.status());
+            assert!(
+                response
+                    .cookies()
+                    .get_private(AUTHENTICATION_COOKIE)
+                    .is_none()
+            );
+        }
+
+        #[async_test]
+        async fn fail_when_unauthorized() {
+            let mock_server = MockServer::start().await;
+            let authenticity_token = "BDv-07yMs8kMDnRn2hVgpSmqn88V_XhCZxImtcXr3u6OOmpnsy0WpFD49rTOuOEfJG_PptBBJag094Vd0uuyZg";
+
+            let body = format!(
+                r#"<html><body><input name="authenticity_token" value="{authenticity_token}"></body></html>"#
+            );
+            Mock::given(method("GET"))
+                .and(path("/en/users/sign_in"))
+                .respond_with(ResponseTemplate::new(200).set_body_string(&body))
+                .mount(&mock_server)
+                .await;
+
+            let params = format!(
+                "user%5Bemail%5D=wrong_login&user%5Bpassword%5D=password&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
+            );
+            Mock::given(method("POST"))
+                .and(path("/en/users/sign_in"))
+                .and(body_string(&params))
+                .respond_with(ResponseTemplate::new(200).set_body_string("Signed in successfully"))
+                .mount(&mock_server)
+                .await;
+
+            let credentials =
+                UdaCredentials::new(mock_server.uri(), "login".to_owned(), "password".to_owned());
+            let credentials_storage_mutex =
+                Mutex::new(CredentialsStorage::<UdaCredentials>::default());
+
+            let rocket = rocket::build()
+                .manage(credentials_storage_mutex)
+                .mount("/", routes![login]);
+            let client = Client::tracked(rocket).await.unwrap();
+            let credentials_as_json = json!(credentials).to_string();
+            let request = client
+                .post("/uda/login")
+                .body(credentials_as_json.as_bytes())
+                .header(Header::new(
+                    CONTENT_TYPE.to_string(),
+                    ContentType::JSON.to_string(),
+                ));
+
+            let response = request.dispatch().await;
+            assert_eq!(Status::Unauthorized, response.status());
+            assert!(
+                response
+                    .cookies()
+                    .get_private(AUTHENTICATION_COOKIE)
+                    .is_none()
+            );
+        }
     }
 
-    #[async_test]
-    async fn should_fail_to_login_when_bad_gateway() {
-        let mock_server = MockServer::start().await;
+    mod retrieve_members_to_check {
+        use crate::uda::authentication::AUTHENTICATION_COOKIE;
+        use crate::uda::credentials::UdaCredentials;
+        use crate::uda::login::tests::setup_authentication;
+        use crate::uda::retrieve_members::tests::setup_members_to_check_retrieval;
+        use crate::web::api::uda_controller::retrieve_members_to_check;
+        use crate::web::credentials_storage::CredentialsStorage;
+        use dto::member_to_check::MemberToCheck;
+        use rocket::http::Status;
+        use rocket::local::asynchronous::Client;
+        use std::sync::Mutex;
+        use wiremock::MockServer;
 
-        let body = "<html><body>Where do you think you are, son?</body></html>".to_string();
-        Mock::given(method("GET"))
-            .and(path("/en/users/sign_in"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(&body))
-            .mount(&mock_server)
-            .await;
+        #[async_test]
+        async fn success() {
+            let mock_server = MockServer::start().await;
+            let credentials = setup_authentication(&mock_server).await;
+            let expected_result = setup_members_to_check_retrieval(&mock_server).await;
 
-        let credentials =
-            UdaCredentials::new(mock_server.uri(), "login".to_owned(), "password".to_owned());
-        let credentials_storage_mutex = Mutex::new(CredentialsStorage::<UdaCredentials>::default());
+            let uuid = "e9af5e0f-c441-4bcd-bf22-31cc5b1f2f9e";
+            let mut credentials_storage = CredentialsStorage::<UdaCredentials>::default();
+            credentials_storage.store(uuid.to_string(), credentials);
+            let credentials_storage_mutex = Mutex::new(credentials_storage);
 
-        let rocket = rocket::build()
-            .manage(credentials_storage_mutex)
-            .mount("/", routes![login]);
-        let client = Client::tracked(rocket).await.unwrap();
-        let credentials_as_json = json!(credentials).to_string();
-        let request = client
-            .post("/uda/login")
-            .body(credentials_as_json.as_bytes())
-            .header(Header::new(
-                CONTENT_TYPE.to_string(),
-                ContentType::JSON.to_string(),
-            ));
+            let rocket = rocket::build()
+                .manage(credentials_storage_mutex)
+                .mount("/", routes![retrieve_members_to_check]);
 
-        let response = request.dispatch().await;
-        assert_eq!(Status::BadGateway, response.status());
-        assert!(
-            response
-                .cookies()
-                .get_private(AUTHENTICATION_COOKIE)
-                .is_none()
-        );
+            let client = Client::tracked(rocket).await.unwrap();
+            let request = client
+                .get("/uda/retrieve")
+                .cookie((AUTHENTICATION_COOKIE, uuid));
+
+            let response = request.dispatch().await;
+            assert_eq!(Status::Ok, response.status());
+            let members_to_check: Vec<MemberToCheck> = response.into_json().await.unwrap();
+            assert_eq!(expected_result, members_to_check);
+        }
+
+        #[async_test]
+        async fn fail_when_unauthorized() {
+            let uuid = "e9af5e0f-c441-4bcd-bf22-31cc5b1f2f9e";
+            let credentials_storage_mutex =
+                Mutex::new(CredentialsStorage::<UdaCredentials>::default());
+
+            let rocket = rocket::build()
+                .manage(credentials_storage_mutex)
+                .mount("/", routes![retrieve_members_to_check]);
+
+            let client = Client::tracked(rocket).await.unwrap();
+            let request = client
+                .get("/uda/retrieve")
+                .cookie((AUTHENTICATION_COOKIE, uuid));
+
+            let response = request.dispatch().await;
+            assert_eq!(Status::Unauthorized, response.status());
+        }
+
+        #[async_test]
+        async fn fail_when_bad_gateway() {
+            let mock_server = MockServer::start().await;
+            let credentials = setup_authentication(&mock_server).await;
+            let uuid = "e9af5e0f-c441-4bcd-bf22-31cc5b1f2f9e";
+            let mut credentials_storage = CredentialsStorage::<UdaCredentials>::default();
+            credentials_storage.store(uuid.to_string(), credentials);
+            let credentials_storage_mutex = Mutex::new(credentials_storage);
+
+            let rocket = rocket::build()
+                .manage(credentials_storage_mutex)
+                .mount("/", routes![retrieve_members_to_check]);
+
+            let client = Client::tracked(rocket).await.unwrap();
+            let request = client
+                .get("/uda/retrieve")
+                .cookie((AUTHENTICATION_COOKIE, uuid));
+
+            let response = request.dispatch().await;
+            assert_eq!(Status::BadGateway, response.status());
+        }
     }
 
-    #[async_test]
-    async fn should_fail_to_login_when_unauthorized() {
-        let mock_server = MockServer::start().await;
-        let authenticity_token = "BDv-07yMs8kMDnRn2hVgpSmqn88V_XhCZxImtcXr3u6OOmpnsy0WpFD49rTOuOEfJG_PptBBJag094Vd0uuyZg";
+    mod confirm_members {
+        use crate::uda::confirm_member::tests::{setup_confirm_member, setup_csrf_token};
+        use crate::uda::credentials::UdaCredentials;
+        use crate::uda::login::tests::{setup_authentication, setup_authenticity_token};
+        use crate::web::api::uda_controller::confirm_members;
+        use rocket::http::Status;
+        use rocket::serde::json::Json;
+        use std::collections::HashMap;
+        use wiremock::MockServer;
 
-        let body = format!(
-            r#"<html><body><input name="authenticity_token" value="{authenticity_token}"></body></html>"#
-        );
-        Mock::given(method("GET"))
-            .and(path("/en/users/sign_in"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(&body))
-            .mount(&mock_server)
-            .await;
+        #[async_test]
+        async fn success() {
+            let mock_server = MockServer::start().await;
+            let credentials = setup_authentication(&mock_server).await;
+            let csrf_token = setup_csrf_token(&mock_server).await;
+            setup_confirm_member(&mock_server, &csrf_token, 1).await;
+            setup_confirm_member(&mock_server, &csrf_token, 2).await;
+            setup_confirm_member(&mock_server, &csrf_token, 3).await;
 
-        let params = format!(
-            "user%5Bemail%5D=wrong_login&user%5Bpassword%5D=password&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
-        );
-        Mock::given(method("POST"))
-            .and(path("/en/users/sign_in"))
-            .and(body_string(&params))
-            .respond_with(ResponseTemplate::new(200).set_body_string("Signed in successfully"))
-            .mount(&mock_server)
-            .await;
+            let (status, value) =
+                confirm_members(Json::from(vec![1_u16, 2_u16, 3_u16]), credentials).await;
 
-        let credentials =
-            UdaCredentials::new(mock_server.uri(), "login".to_owned(), "password".to_owned());
-        let credentials_storage_mutex = Mutex::new(CredentialsStorage::<UdaCredentials>::default());
+            assert_eq!(Status::Ok, status);
+            let result: HashMap<String, Vec<u16>> = rocket::serde::json::from_value(value).unwrap();
+            assert_eq!(&vec![1_u16, 2_u16, 3_u16], result.get("ok").unwrap());
+            assert_eq!(&Vec::<u16>::new(), result.get("nok").unwrap());
+        }
 
-        let rocket = rocket::build()
-            .manage(credentials_storage_mutex)
-            .mount("/", routes![login]);
-        let client = Client::tracked(rocket).await.unwrap();
-        let credentials_as_json = json!(credentials).to_string();
-        let request = client
-            .post("/uda/login")
-            .body(credentials_as_json.as_bytes())
-            .header(Header::new(
-                CONTENT_TYPE.to_string(),
-                ContentType::JSON.to_string(),
-            ));
+        #[async_test]
+        async fn fail_to_confirm_some_members() {
+            let mock_server = MockServer::start().await;
+            let credentials = setup_authentication(&mock_server).await;
+            let csrf_token = setup_csrf_token(&mock_server).await;
+            setup_confirm_member(&mock_server, &csrf_token, 1).await;
 
-        let response = request.dispatch().await;
-        assert_eq!(Status::Unauthorized, response.status());
-        assert!(
-            response
-                .cookies()
-                .get_private(AUTHENTICATION_COOKIE)
-                .is_none()
-        );
-    }
-    // endregion
+            let (status, value) = confirm_members(Json::from(vec![1, 2, 3]), credentials).await;
 
-    // region retrieve_members_to_check
-    #[async_test]
-    async fn should_retrieve_members_to_check() {
-        let mock_server = MockServer::start().await;
-        let credentials = setup_authentication(&mock_server).await;
-        let expected_result = setup_members_to_check_retrieval(&mock_server).await;
+            assert_eq!(Status::Unauthorized, status);
+            let result: HashMap<String, Vec<u16>> = rocket::serde::json::from_value(value).unwrap();
+            assert_eq!(&vec![1], result.get("ok").unwrap());
+            assert_eq!(&vec![2, 3], result.get("nok").unwrap());
+        }
 
-        let uuid = "e9af5e0f-c441-4bcd-bf22-31cc5b1f2f9e";
-        let mut credentials_storage = CredentialsStorage::<UdaCredentials>::default();
-        credentials_storage.store(uuid.to_string(), credentials);
-        let credentials_storage_mutex = Mutex::new(credentials_storage);
+        #[async_test]
+        async fn fail_when_no_authentication() {
+            let mock_server = MockServer::start().await;
+            setup_authenticity_token(&mock_server).await;
 
-        let rocket = rocket::build()
-            .manage(credentials_storage_mutex)
-            .mount("/", routes![retrieve_members_to_check]);
+            let credentials =
+                UdaCredentials::new(mock_server.uri(), "login".to_owned(), "password".to_owned());
 
-        let client = Client::tracked(rocket).await.unwrap();
-        let request = client
-            .get("/uda/retrieve")
-            .cookie((AUTHENTICATION_COOKIE, uuid));
+            let (status, value) = confirm_members(Json::from(vec![1, 2, 3]), credentials).await;
 
-        let response = request.dispatch().await;
-        assert_eq!(Status::Ok, response.status());
-        let members_to_check: Vec<MemberToCheck> = response.into_json().await.unwrap();
-        assert_eq!(expected_result, members_to_check);
+            assert_eq!(Status::Unauthorized, status);
+            let result: HashMap<String, Vec<u16>> = rocket::serde::json::from_value(value).unwrap();
+            assert_eq!(&Vec::<u16>::new(), result.get("ok").unwrap());
+            assert_eq!(&vec![1, 2, 3], result.get("nok").unwrap());
+        }
     }
 
-    #[async_test]
-    async fn should_fail_to_retrieve_members_to_check_when_unauthorized() {
-        let uuid = "e9af5e0f-c441-4bcd-bf22-31cc5b1f2f9e";
-        let credentials_storage_mutex = Mutex::new(CredentialsStorage::<UdaCredentials>::default());
+    mod list_instances {
+        use crate::uda::configuration::Configuration;
+        use crate::uda::instances::tests::{BODY, get_expected_instances};
+        use crate::web::api::uda_controller::list_instances;
+        use dto::uda::Instance;
+        use rocket::http::Status;
+        use rocket::local::asynchronous::Client;
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
 
-        let rocket = rocket::build()
-            .manage(credentials_storage_mutex)
-            .mount("/", routes![retrieve_members_to_check]);
+        #[async_test]
+        async fn success() {
+            let mock_server = MockServer::start().await;
+            Mock::given(method("GET"))
+                .and(path("tenants"))
+                .respond_with(ResponseTemplate::new(200).set_body_string(BODY))
+                .mount(&mock_server)
+                .await;
 
-        let client = Client::tracked(rocket).await.unwrap();
-        let request = client
-            .get("/uda/retrieve")
-            .cookie((AUTHENTICATION_COOKIE, uuid));
+            let configuration =
+                Configuration::new(format!("{}/tenants?locale=en", mock_server.uri()));
+            let rocket = rocket::build()
+                .manage(configuration)
+                .mount("/", routes![list_instances]);
 
-        let response = request.dispatch().await;
-        assert_eq!(Status::Unauthorized, response.status());
+            let client = Client::tracked(rocket).await.unwrap();
+            let request = client.get("/uda/instances");
+
+            let instances: Vec<Instance> = request.dispatch().await.into_json().await.unwrap();
+            assert_eq!(get_expected_instances(), instances);
+        }
+
+        #[async_test]
+        async fn fail_when_bad_gateway() {
+            let mock_server = MockServer::start().await;
+            Mock::given(method("GET"))
+                .and(path("tenants"))
+                .respond_with(ResponseTemplate::new(502))
+                .mount(&mock_server)
+                .await;
+
+            let configuration =
+                Configuration::new(format!("{}/tenants?locale=en", mock_server.uri()));
+            let rocket = rocket::build()
+                .manage(configuration)
+                .mount("/", routes![list_instances]);
+
+            let client = Client::tracked(rocket).await.unwrap();
+            let request = client.get("/uda/instances");
+
+            let status = request.dispatch().await.status();
+            assert_eq!(Status::BadGateway, status);
+        }
     }
 
-    #[async_test]
-    async fn should_fail_to_retrieve_members_to_check_when_bad_gateway() {
-        let mock_server = MockServer::start().await;
-        let credentials = setup_authentication(&mock_server).await;
-        let uuid = "e9af5e0f-c441-4bcd-bf22-31cc5b1f2f9e";
-        let mut credentials_storage = CredentialsStorage::<UdaCredentials>::default();
-        credentials_storage.store(uuid.to_string(), credentials);
-        let credentials_storage_mutex = Mutex::new(credentials_storage);
+    mod authenticate {
+        use crate::uda::credentials::UdaCredentials;
+        use crate::uda::login::tests::{setup_authentication, setup_authenticity_token};
+        use crate::web::api::uda_controller::authenticate;
+        use rocket::http::Status;
+        use wiremock::matchers::{body_string, method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
 
-        let rocket = rocket::build()
-            .manage(credentials_storage_mutex)
-            .mount("/", routes![retrieve_members_to_check]);
+        #[async_test]
+        async fn success() {
+            let mock_server = MockServer::start().await;
+            let credentials = setup_authentication(&mock_server).await;
 
-        let client = Client::tracked(rocket).await.unwrap();
-        let request = client
-            .get("/uda/retrieve")
-            .cookie((AUTHENTICATION_COOKIE, uuid));
+            let client = reqwest::Client::new();
+            authenticate(&client, &credentials).await.unwrap();
+        }
 
-        let response = request.dispatch().await;
-        assert_eq!(Status::BadGateway, response.status());
+        #[async_test]
+        async fn fail_when_bad_gateway() {
+            let login = "login";
+            let password = "password";
+
+            let mock_server = MockServer::start().await;
+            let credentials =
+                UdaCredentials::new(mock_server.uri(), login.to_owned(), password.to_owned());
+
+            let client = reqwest::Client::new();
+            assert_eq!(
+                Status::BadGateway,
+                authenticate(&client, &credentials).await.unwrap_err()
+            );
+        }
+
+        #[async_test]
+        async fn fail_when_unauthorized() {
+            let login = "login";
+            let password = "password";
+            let mock_server = MockServer::start().await;
+            let credentials =
+                UdaCredentials::new(mock_server.uri(), login.to_owned(), password.to_owned());
+            let authenticity_token = setup_authenticity_token(&mock_server).await;
+            let params = format!(
+                "user%5Bemail%5D={login}&user%5Bpassword%5D={password}&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
+            );
+            Mock::given(method("POST"))
+                .and(path("/en/users/sign_in"))
+                .and(body_string(&params))
+                .respond_with(ResponseTemplate::new(200).set_body_string(
+                    "<html><body>Invalid User Account Email or password</body></html>",
+                ))
+                .mount(&mock_server)
+                .await;
+
+            let client = reqwest::Client::new();
+            assert_eq!(
+                Status::Unauthorized,
+                authenticate(&client, &credentials).await.unwrap_err()
+            );
+        }
     }
-
-    // endregion
-
-    // region confirm_members
-    #[async_test]
-    async fn should_confirm_members() {
-        let mock_server = MockServer::start().await;
-        let credentials = setup_authentication(&mock_server).await;
-        let csrf_token = setup_csrf_token(&mock_server).await;
-        setup_confirm_member(&mock_server, &csrf_token, 1).await;
-        setup_confirm_member(&mock_server, &csrf_token, 2).await;
-        setup_confirm_member(&mock_server, &csrf_token, 3).await;
-
-        let (status, value) =
-            confirm_members(Json::from(vec![1_u16, 2_u16, 3_u16]), credentials).await;
-
-        assert_eq!(Status::Ok, status);
-        let result: HashMap<String, Vec<u16>> = rocket::serde::json::from_value(value).unwrap();
-        assert_eq!(&vec![1_u16, 2_u16, 3_u16], result.get("ok").unwrap());
-        assert_eq!(&Vec::<u16>::new(), result.get("nok").unwrap());
-    }
-
-    #[async_test]
-    async fn should_fail_to_confirm_some_members() {
-        let mock_server = MockServer::start().await;
-        let credentials = setup_authentication(&mock_server).await;
-        let csrf_token = setup_csrf_token(&mock_server).await;
-        setup_confirm_member(&mock_server, &csrf_token, 1).await;
-
-        let (status, value) = confirm_members(Json::from(vec![1, 2, 3]), credentials).await;
-
-        assert_eq!(Status::Unauthorized, status);
-        let result: HashMap<String, Vec<u16>> = rocket::serde::json::from_value(value).unwrap();
-        assert_eq!(&vec![1], result.get("ok").unwrap());
-        assert_eq!(&vec![2, 3], result.get("nok").unwrap());
-    }
-
-    #[async_test]
-    async fn should_fail_to_confirm_members_when_no_authentication() {
-        let mock_server = MockServer::start().await;
-        setup_authenticity_token(&mock_server).await;
-
-        let credentials =
-            UdaCredentials::new(mock_server.uri(), "login".to_owned(), "password".to_owned());
-
-        let (status, value) = confirm_members(Json::from(vec![1, 2, 3]), credentials).await;
-
-        assert_eq!(Status::Unauthorized, status);
-        let result: HashMap<String, Vec<u16>> = rocket::serde::json::from_value(value).unwrap();
-        assert_eq!(&Vec::<u16>::new(), result.get("ok").unwrap());
-        assert_eq!(&vec![1, 2, 3], result.get("nok").unwrap());
-    }
-    // endregion
-
-    // region authenticate
-    #[async_test]
-    async fn should_authenticate() {
-        let mock_server = MockServer::start().await;
-        let credentials = setup_authentication(&mock_server).await;
-
-        let client = reqwest::Client::new();
-        authenticate(&client, &credentials).await.unwrap();
-    }
-
-    #[async_test]
-    async fn should_fail_to_authenticate_when_bad_gateway() {
-        let login = "login";
-        let password = "password";
-
-        let mock_server = MockServer::start().await;
-        let credentials =
-            UdaCredentials::new(mock_server.uri(), login.to_owned(), password.to_owned());
-
-        let client = reqwest::Client::new();
-        assert_eq!(
-            Status::BadGateway,
-            authenticate(&client, &credentials).await.unwrap_err()
-        );
-    }
-
-    #[async_test]
-    async fn should_fail_to_authenticate_when_unauthorized() {
-        let login = "login";
-        let password = "password";
-        let mock_server = MockServer::start().await;
-        let credentials =
-            UdaCredentials::new(mock_server.uri(), login.to_owned(), password.to_owned());
-        let authenticity_token = setup_authenticity_token(&mock_server).await;
-        let params = format!(
-            "user%5Bemail%5D={login}&user%5Bpassword%5D={password}&authenticity_token={authenticity_token}&utf8=%E2%9C%93"
-        );
-        Mock::given(method("POST"))
-            .and(path("/en/users/sign_in"))
-            .and(body_string(&params))
-            .respond_with(ResponseTemplate::new(200).set_body_string(
-                "<html><body>Invalid User Account Email or password</body></html>",
-            ))
-            .mount(&mock_server)
-            .await;
-
-        let client = reqwest::Client::new();
-        assert_eq!(
-            Status::Unauthorized,
-            authenticate(&client, &credentials).await.unwrap_err()
-        );
-    }
-
-    // endregion
 }

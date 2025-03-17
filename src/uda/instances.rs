@@ -67,13 +67,13 @@ fn get_uda_instance_from_row(row: &ElementRef) -> Option<Instance> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use crate::uda::instances::Instance;
 
-    const BODY: &str = r##"<html class=""><head></head><body><div id="container"><div id="main"><h1>Existing Conventions</h1><table><thead><tr><th>Subdomain</th><th>Description</th><th>Created At</th></tr></thead><tbody><tr><td><a href="https://mt-ventoux-2023.reg.unicycling-software.com">mt-ventoux-2023</a></td><td>Mount Ventoux Unicycle Challenge</td><td>Wed, 03 May 2023 15:12:52 -0500</td></tr><tr><td><a href="https://cfm2025.reg.unicycling-software.com">cfm2025</a></td><td>CFM 2025</td><td>Mon, 27 Jan 2025 13:13:52 -0600</td></tr></tbody></table><hr><a class="button" href="/tenants/new?locale=en">New Convention</a></div></div></body></html>"##;
+    pub const BODY: &str = r##"<html class=""><head></head><body><div id="container"><div id="main"><h1>Existing Conventions</h1><table><thead><tr><th>Subdomain</th><th>Description</th><th>Created At</th></tr></thead><tbody><tr><td><a href="https://mt-ventoux-2023.reg.unicycling-software.com">mt-ventoux-2023</a></td><td>Mount Ventoux Unicycle Challenge</td><td>Wed, 03 May 2023 15:12:52 -0500</td></tr><tr><td><a href="https://cfm2025.reg.unicycling-software.com">cfm2025</a></td><td>CFM 2025</td><td>Mon, 27 Jan 2025 13:13:52 -0600</td></tr></tbody></table><hr><a class="button" href="/tenants/new?locale=en">New Convention</a></div></div></body></html>"##;
     const MALFORMED_BODY: &str = r##"<html class=""><head></head><body><div id="container"><div id="main"><h1>Existing Conventions</h1><table><thead><tr><th>Subdomain</th><th>Description</th><th>Created At</th></tr></thead><tbody><tr><td><a href="https://mt-ventoux-2023.reg.unicycling-software.com">mt-ventoux-2023</a></td><td>Mount Ventoux Unicycle Challenge</td><td>Wed, 03 May 2023 15:12:52 -0500</td></tr><tr><td><a href="https://cfm2025.reg.unicycling-software.com">cfm2025</a></td><td>CFM 2025</td></tr></tbody></table><hr><a class="button" href="/tenants/new?locale=en">New Convention</a></div></div></body></html>"##;
 
-    fn get_expected_instances() -> Vec<Instance> {
+    pub fn get_expected_instances() -> Vec<Instance> {
         vec![
             Instance::new(
                 "mt-ventoux-2023".to_owned(),

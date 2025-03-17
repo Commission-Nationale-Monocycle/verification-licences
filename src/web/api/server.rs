@@ -31,6 +31,7 @@ impl Server for ApiServer {
 
         rocket_build
             .manage(members_provider_config)
+            .manage(build_uda_configuration())
             .manage(Mutex::new(members_state))
             .manage(Mutex::new(CredentialsStorage::<FileoCredentials>::default()))
             .manage(Mutex::new(CredentialsStorage::<UdaCredentials>::default()))
@@ -44,6 +45,7 @@ impl Server for ApiServer {
                     uda_controller::login,
                     uda_controller::retrieve_members_to_check,
                     uda_controller::confirm_members,
+                    uda_controller::list_instances,
                 ],
             )
     }
@@ -68,6 +70,13 @@ fn get_download_link_regex() -> Regex {
         .unwrap()
 }
 
+#[cfg(not(feature = "demo"))]
+fn build_uda_configuration() -> crate::uda::configuration::Configuration {
+    crate::uda::configuration::Configuration::new(
+        "https://reg.unicycling-software.com/tenants?locale=en".to_owned(),
+    )
+}
+
 #[cfg(feature = "demo")]
 fn get_fileo_host() -> String {
     crate::demo_mock_server::FILEO_MOCK_SERVER_URI
@@ -79,4 +88,15 @@ fn get_fileo_host() -> String {
 #[cfg(feature = "demo")]
 fn get_download_link_regex() -> Regex {
     Regex::new("http://.*?\\.csv").unwrap()
+}
+
+#[cfg(feature = "demo")]
+fn build_uda_configuration() -> crate::uda::configuration::Configuration {
+    let server_url = crate::demo_mock_server::UDA_MOCK_SERVER_URI
+        .get()
+        .unwrap()
+        .clone();
+    let url = format!("{server_url}/tenants?locale=en");
+
+    crate::uda::configuration::Configuration::new(url)
 }

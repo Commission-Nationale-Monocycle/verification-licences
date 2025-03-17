@@ -1,6 +1,7 @@
 use derive_getters::Getters;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Getters, PartialEq)]
+#[derive(Debug, Getters, PartialEq, Serialize, Deserialize)]
 pub struct Instance {
     slug: String,
     name: String,
