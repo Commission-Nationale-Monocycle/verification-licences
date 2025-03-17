@@ -1,6 +1,6 @@
-use crate::tools::error::Error::{ConnectionFailed, WrongCredentials};
-use crate::tools::error::Result;
+use crate::error::{ApplicationError, Result};
 use crate::tools::{log_error_and_return, log_message_and_return};
+use crate::web::error::WebError::{ConnectionFailed, WrongCredentials};
 use reqwest::Client;
 use scraper::{Html, Selector};
 
@@ -16,7 +16,9 @@ pub async fn authenticate_into_uda(
 
     check_credentials(client, base_url, &authenticity_token, login, password)
         .await
-        .map_err(log_error_and_return(WrongCredentials))
+        .map_err(log_error_and_return(ApplicationError::from(
+            WrongCredentials,
+        )))
 }
 
 async fn get_authenticity_token(client: &Client, base_url: &str) -> Result<String> {
@@ -88,23 +90,24 @@ async fn check_credentials(
             Ok(())
         } else if text.contains("Invalid User Account Email or password") {
             error!("Failed to authenticate to UDA. Wrong credentials? [user: {login}]");
-            Err(WrongCredentials)
+            Err(ApplicationError::from(WrongCredentials))
         } else {
             error!(
                 "Failed to authenticate to UDA. Unknown error. See response body: {}",
                 text
             );
-            Err(ConnectionFailed)
+            Err(ApplicationError::from(ConnectionFailed))
         }
     } else {
         error!("Failed to authenticate to UDA. Is the instance up? [user: {login}]");
-        Err(ConnectionFailed)
+        Err(ApplicationError::from(ConnectionFailed))
     }
 }
 
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::error::ApplicationError::Web;
     use crate::tools::web::build_client;
     use crate::web::credentials::UdaCredentials;
     use wiremock::matchers::{body_string, method, path};
@@ -189,7 +192,7 @@ pub mod tests {
         .await
         .unwrap_err();
 
-        assert_eq!(ConnectionFailed, error);
+        assert!(matches!(error, Web(ConnectionFailed)));
     }
 
     #[async_test]
@@ -216,7 +219,7 @@ pub mod tests {
             .await
             .unwrap_err();
 
-        assert_eq!(WrongCredentials, error);
+        assert!(matches!(error, Web(WrongCredentials)));
     }
     // endregion
 
@@ -247,7 +250,7 @@ pub mod tests {
         let error = get_authenticity_token(&client, &mock_server.uri())
             .await
             .unwrap_err();
-        assert_eq!(ConnectionFailed, error);
+        assert!(matches!(error, Web(ConnectionFailed)));
     }
 
     #[async_test]
@@ -265,7 +268,7 @@ pub mod tests {
         let error = get_authenticity_token(&client, &mock_server.uri())
             .await
             .unwrap_err();
-        assert_eq!(ConnectionFailed, error);
+        assert!(matches!(error, Web(ConnectionFailed)));
     }
     // endregion
 
@@ -287,7 +290,7 @@ pub mod tests {
         let html = Html::parse_document(body);
         let error = get_authenticity_token_from_html(&html).unwrap_err();
 
-        assert_eq!(ConnectionFailed, error);
+        assert!(matches!(error, Web(ConnectionFailed)));
     }
     // endregion
 
@@ -299,15 +302,15 @@ pub mod tests {
 
         setup_check_credentials(&mock_server, AUTHENTICITY_TOKEN).await;
 
-        let result = check_credentials(
+        check_credentials(
             &client,
             &mock_server.uri(),
             AUTHENTICITY_TOKEN,
             "login",
             "password",
         )
-        .await;
-        assert_eq!(Ok(()), result);
+        .await
+        .unwrap();
     }
 
     #[async_test]
@@ -327,15 +330,16 @@ pub mod tests {
             .mount(&mock_server)
             .await;
 
-        let result = check_credentials(
+        let error = check_credentials(
             &client,
             &mock_server.uri(),
             AUTHENTICITY_TOKEN,
             "login",
             "password",
         )
-        .await;
-        assert_eq!(WrongCredentials, result.unwrap_err());
+        .await
+        .unwrap_err();
+        assert!(matches!(error, Web(WrongCredentials)));
     }
 
     #[async_test]
@@ -354,15 +358,16 @@ pub mod tests {
             .mount(&mock_server)
             .await;
 
-        let result = check_credentials(
+        let error = check_credentials(
             &client,
             &mock_server.uri(),
             authenticity_token,
             "login",
             "password",
         )
-        .await;
-        assert_eq!(ConnectionFailed, result.unwrap_err());
+        .await
+        .unwrap_err();
+        assert!(matches!(error, Web(ConnectionFailed)));
     }
     // endregion
 }

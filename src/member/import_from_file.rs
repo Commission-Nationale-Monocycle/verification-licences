@@ -8,21 +8,23 @@ use chrono::NaiveDate;
 use csv::Reader;
 use regex::bytes::{Captures, Regex};
 
+use crate::error::Result;
+use crate::member::error::MembershipError::{
+    CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile,
+    CantOpenMembersFileFolder, InvalidDate, NoFileFound, WrongRegex,
+};
 use crate::member::file_details::FileDetails;
 use crate::member::members::Members;
 use crate::member::memberships::Memberships;
 use crate::member::{ImportedMembership, Membership};
-use crate::tools::error::Error::{
-    CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile,
-    CantOpenMembersFileFolder, InvalidDate, NoFileFound, WrongRegex,
-};
-use crate::tools::error::Result;
 use crate::tools::{log_message, log_message_and_return};
 
 pub fn import_from_file(filepath: &OsStr) -> Result<Members> {
     let error_message = format!("Can't open members file `{:?}`.", filepath.to_str());
-    let error_mapping = log_message_and_return(&error_message, CantOpenMembersFile);
-    let file = File::open(filepath).map_err(error_mapping)?;
+    let file = File::open(filepath).map_err(log_message_and_return(
+        &error_message,
+        CantOpenMembersFile(filepath.to_owned()),
+    ))?;
     let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_reader(file);
     let members = load_memberships(&mut reader);
     Ok(group_members_by_membership(members))
@@ -62,9 +64,10 @@ fn group_members_by_membership(memberships: Vec<Membership>) -> Members {
 pub fn find_file(members_file_folder: &OsStr) -> Result<FileDetails> {
     check_folder(members_file_folder)?;
 
-    let regex = Regex::new("^memberships-(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})\\.csv$")
-        .or(Err(WrongRegex))?;
-    let paths = std::fs::read_dir(members_file_folder).or(Err(CantBrowseThroughFiles))?;
+    let regex = "^memberships-(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})\\.csv$";
+    let regex = Regex::new(regex).or(Err(WrongRegex(regex.to_owned())))?;
+    let paths = fs::read_dir(members_file_folder)
+        .or(Err(CantBrowseThroughFiles(members_file_folder.to_owned())))?;
     for path in paths {
         let path = path.expect("Path should be valid.");
         let filename = path.file_name();
@@ -75,41 +78,44 @@ pub fn find_file(members_file_folder: &OsStr) -> Result<FileDetails> {
         }
     }
 
-    Err(NoFileFound)
+    Err(NoFileFound)?
 }
 
 fn check_folder(members_file_folder: &OsStr) -> Result<()> {
-    match std::fs::exists(members_file_folder) {
+    match fs::exists(members_file_folder) {
         Ok(true) => Ok(()),
-        Ok(false) => Err(NoFileFound),
+        Ok(false) => Err(NoFileFound)?,
         Err(e) => {
             log_message(&format!(
                 "`{members_file_folder:?}` folder is inaccessible."
             ))(e);
-            Err(CantOpenMembersFileFolder)
+            Err(CantOpenMembersFileFolder(members_file_folder.to_owned()))?
         }
     }
 }
 
 fn convert_captures_to_date(captures: &Captures) -> Result<NaiveDate> {
-    NaiveDate::from_ymd_opt(
+    let date = NaiveDate::from_ymd_opt(
         convert_match_to_integer(captures, "year")?,
         convert_match_to_integer(captures, "month")?,
         convert_match_to_integer(captures, "day")?,
     )
-    .ok_or(InvalidDate)
+    .ok_or(InvalidDate)?;
+    Ok(date)
 }
 
 fn convert_match_to_integer<T: FromStr>(captures: &Captures, key: &str) -> Result<T> {
-    String::from_utf8_lossy(&captures[key])
+    let result = String::from_utf8_lossy(&captures[key])
         .parse::<T>()
-        .or(Err(CantConvertDateFieldToString))
+        .or(Err(CantConvertDateFieldToString))?;
+    Ok(result)
 }
 
 /// Clean all files in folder that aren't given file.
 pub fn clean_old_files(members_file_folder: &OsStr, file_update_date: &NaiveDate) -> Result<()> {
     let regex = build_members_file_regex()?;
-    let paths = fs::read_dir(members_file_folder).or(Err(CantBrowseThroughFiles))?;
+    let paths = fs::read_dir(members_file_folder)
+        .or(Err(CantBrowseThroughFiles(members_file_folder.to_owned())))?;
     for path in paths {
         let path = path.expect("Path should be valid.");
         let filename = path.file_name();
@@ -126,8 +132,9 @@ pub fn clean_old_files(members_file_folder: &OsStr, file_update_date: &NaiveDate
 }
 
 fn build_members_file_regex() -> Result<Regex> {
-    Regex::new("^memberships-(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})\\.csv$")
-        .or(Err(WrongRegex))
+    let regex = "^memberships-(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})\\.csv$";
+    let regex = Regex::new(regex).or(Err(WrongRegex(regex.to_owned())))?;
+    Ok(regex)
 }
 
 #[cfg(test)]
@@ -138,16 +145,17 @@ mod tests {
     use std::fs::File;
     use std::io::BufReader;
 
+    use crate::error::ApplicationError;
     use crate::member::Membership;
+    use crate::member::error::MembershipError::{
+        CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound,
+    };
     use crate::member::import_from_file::{
         build_members_file_regex, check_folder, convert_captures_to_date, convert_match_to_integer,
         find_file, group_members_by_membership, import_from_file, load_memberships,
     };
     use crate::member::members::Members;
     use crate::member::memberships::Memberships;
-    use crate::tools::error::Error::{
-        CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound,
-    };
     use crate::tools::test::tests::temp_dir;
     use chrono::NaiveDate;
     use dto::membership::tests::{
@@ -178,7 +186,10 @@ mod tests {
         let file_path = dir.join(file_name);
 
         let result = import_from_file(file_path.as_ref()).err().unwrap();
-        assert_eq!(CantOpenMembersFile, result)
+        assert!(matches!(
+            result,
+            ApplicationError::Membership(CantOpenMembersFile(_))
+        ));
     }
 
     // endregion
@@ -290,7 +301,7 @@ mod tests {
     fn should_not_find_file_when_no_file() {
         let temp_dir = temp_dir();
         let error = find_file(&temp_dir.into_os_string()).err().unwrap();
-        assert_eq!(NoFileFound, error);
+        assert!(matches!(error, ApplicationError::Membership(NoFileFound)));
     }
 
     #[test]
@@ -303,7 +314,7 @@ mod tests {
         File::create(&members_file).unwrap();
 
         let error = find_file(&temp_dir.into_os_string()).err().unwrap();
-        assert_eq!(NoFileFound, error);
+        assert!(matches!(error, ApplicationError::Membership(NoFileFound)));
     }
     // endregion
 
@@ -316,8 +327,8 @@ mod tests {
 
     #[test]
     fn folder_should_not_exist() {
-        let result = check_folder(&OsString::from("/path/to/non/existing/folder"));
-        assert_eq!(NoFileFound, result.err().unwrap());
+        let error = check_folder(&OsString::from("/path/to/non/existing/folder")).unwrap_err();
+        assert!(matches!(error, ApplicationError::Membership(NoFileFound)));
     }
 
     // region Conversions
@@ -345,8 +356,8 @@ mod tests {
         let regex = Regex::new("(?<year>\\d{4})-(?<month>\\d{2})-(?<day>\\d{2})").unwrap();
         let captures = regex.captures(string.as_encoded_bytes()).unwrap();
 
-        let result = convert_captures_to_date(&captures).err().unwrap();
-        assert_eq!(InvalidDate, result);
+        let error = convert_captures_to_date(&captures).err().unwrap();
+        assert!(matches!(error, ApplicationError::Membership(InvalidDate)));
     }
 
     #[test]
@@ -377,8 +388,11 @@ mod tests {
         let regex = Regex::new("(?<integer>\\w{2})").unwrap();
 
         let captures = regex.captures(message.as_encoded_bytes()).unwrap();
-        let result: Result<u32, _> = convert_match_to_integer(&captures, "integer");
-        assert_eq!(Err(CantConvertDateFieldToString), result);
+        let error = convert_match_to_integer::<i32>(&captures, "integer").unwrap_err();
+        assert!(matches!(
+            error,
+            ApplicationError::Membership(CantConvertDateFieldToString)
+        ));
     }
     // endregion
 

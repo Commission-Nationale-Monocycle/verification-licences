@@ -7,8 +7,7 @@ use dto::email::Email;
 use dto::member_to_check::MemberToCheck;
 use rocket::State;
 use rocket::form::Form;
-use rocket::serde::json::Json;
-use serde_json::json;
+use rocket::serde::json::{Json, json};
 use std::sync::Mutex;
 
 /// Check members as a CSV whose columns are:

@@ -1,6 +1,5 @@
 pub mod email;
 pub mod env_args;
-pub mod error;
 pub mod test;
 pub mod web;
 

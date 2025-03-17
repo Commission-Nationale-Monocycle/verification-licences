@@ -1,5 +1,5 @@
-use crate::tools::error::Error;
-use crate::tools::error::Error::LackOfPermissions;
+use crate::error::ApplicationError;
+use crate::error::ApplicationError::Web;
 use crate::tools::web::build_client;
 use crate::tools::{log_error, log_error_and_return};
 use crate::uda::confirm_member::confirm_member;
@@ -7,6 +7,7 @@ use crate::uda::login::authenticate_into_uda;
 use crate::uda::retrieve_members::retrieve_members;
 use crate::web::authentication::UDA_AUTHENTICATION_COOKIE;
 use crate::web::credentials::{CredentialsStorage, UdaCredentials};
+use crate::web::error::WebError::{ConnectionFailed, LackOfPermissions};
 use reqwest::Client;
 use rocket::State;
 use rocket::form::validate::Contains;
@@ -47,7 +48,7 @@ pub async fn retrieve_members_to_check(credentials: UdaCredentials) -> Result<St
     let url = credentials.uda_url();
     match retrieve_members(&client, url).await {
         Ok(members_to_check) => Ok(json!(members_to_check).to_string()),
-        Err(LackOfPermissions) => Err(Status::Unauthorized),
+        Err(Web(LackOfPermissions)) => Err(Status::Unauthorized),
         Err(_) => Err(Status::BadGateway),
     }
 }
@@ -112,7 +113,7 @@ async fn authenticate(client: &Client, credentials: &UdaCredentials) -> Result<(
     let authentication_result = authenticate_into_uda(client, url, login, password).await;
     if let Err(error) = authentication_result {
         match error {
-            Error::ConnectionFailed => Err(Status::BadGateway),
+            Web(ConnectionFailed) => Err(Status::BadGateway),
             _ => Err(Status::Unauthorized),
         }
     } else {
@@ -120,8 +121,11 @@ async fn authenticate(client: &Client, credentials: &UdaCredentials) -> Result<(
     }
 }
 
-fn from_vec_of_errors_to_status(errors: &[Error]) -> Status {
-    if errors.iter().any(|error| *error == LackOfPermissions) {
+fn from_vec_of_errors_to_status(errors: &[ApplicationError]) -> Status {
+    if errors
+        .iter()
+        .any(|error| matches!(*error, Web(LackOfPermissions)))
+    {
         Status::Unauthorized
     } else {
         Status::BadGateway
@@ -138,7 +142,6 @@ mod tests {
     use reqwest::header::CONTENT_TYPE;
     use rocket::http::{ContentType, Header};
     use rocket::local::asynchronous::Client;
-    use serde_json::json;
     use std::collections::HashMap;
     use wiremock::matchers::{body_string, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
