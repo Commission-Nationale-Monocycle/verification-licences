@@ -7,6 +7,7 @@ use serde::Deserialize;
 
 pub mod config;
 pub mod download;
+pub mod error;
 pub mod file_details;
 pub mod import_from_file;
 pub mod members;

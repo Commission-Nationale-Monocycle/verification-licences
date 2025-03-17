@@ -1,14 +1,14 @@
 use std::ffi::OsStr;
 
-use derive_getters::Getters;
-
+use crate::error::ApplicationError;
+use crate::member::error::MembershipError;
 use crate::member::file_details::FileDetails;
 use crate::member::import_from_file::{find_file, import_from_file};
 use crate::member::members::Members;
-use crate::tools::error::Error;
 use crate::tools::log_message;
+use derive_getters::Getters;
 
-type Result<T, E = Error> = std::result::Result<T, E>;
+type Result<T, E = ApplicationError> = std::result::Result<T, E>;
 
 #[derive(Debug, Getters, Default, Eq, PartialEq)]
 pub struct MembersState {
@@ -35,7 +35,7 @@ impl MembersState {
     fn load_members_file_details(members_file_folder: &OsStr) -> Result<Option<FileDetails>> {
         match find_file(members_file_folder) {
             Ok(file_details) => Ok(Some(file_details)),
-            Err(Error::NoFileFound) => Ok(None),
+            Err(ApplicationError::Membership(MembershipError::NoFileFound)) => Ok(None),
             Err(e) => {
                 log_message("Can't read members file.")(&e);
                 Err(e)
@@ -63,10 +63,11 @@ mod tests {
     use std::fs;
     use std::fs::File;
 
+    use crate::error::ApplicationError::Membership;
+    use crate::member::error::MembershipError::CantBrowseThroughFiles;
     use crate::member::file_details::FileDetails;
     use crate::member::members::Members;
     use crate::member::memberships::Memberships;
-    use crate::tools::error::Error::CantBrowseThroughFiles;
     use crate::tools::test::tests::temp_dir;
     use crate::web::api::members_state::MembersState;
     use chrono::NaiveDate;
@@ -113,7 +114,7 @@ mod tests {
         let error = MembersState::load_members_file_details(&members_file.into_os_string())
             .err()
             .unwrap();
-        assert_eq!(CantBrowseThroughFiles, error);
+        assert!(matches!(error, Membership(CantBrowseThroughFiles(_))));
     }
     // endregion
 
@@ -163,7 +164,7 @@ mod tests {
         let result = MembersState::load_members(&members_file.into_os_string());
         dbg!(&result);
         let error = result.err().unwrap();
-        assert_eq!(CantBrowseThroughFiles, error);
+        assert!(matches!(error, Membership(CantBrowseThroughFiles(_))));
     }
     // endregion
 }

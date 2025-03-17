@@ -1,6 +1,8 @@
-use crate::tools::error::Error::{CantAccessOrganizationMemberships, LackOfPermissions};
-use crate::tools::error::Result;
+use crate::error::{ApplicationError, Result};
 use crate::tools::{log_error_and_return, log_message_and_return};
+use crate::uda::error::UdaError;
+use crate::uda::error::UdaError::OrganizationMembershipsAccessFailed;
+use crate::web::error::WebError::LackOfPermissions;
 use dto::member_to_check::MemberToCheck;
 use reqwest::Client;
 use scraper::{ElementRef, Html, Node, Selector};
@@ -13,31 +15,32 @@ pub async fn retrieve_members(client: &Client, base_url: &str) -> Result<Vec<Mem
         .get(url)
         .send()
         .await
-        .map_err(log_error_and_return(CantAccessOrganizationMemberships))?;
+        .map_err(log_error_and_return(OrganizationMembershipsAccessFailed))?;
 
     let status = response.status();
     if status.is_success() {
         let body = response.text().await.map_err(log_message_and_return(
             "Can't read organization_memberships content",
-            CantAccessOrganizationMemberships,
+            OrganizationMembershipsAccessFailed,
         ))?;
         if body.contains("Unicycling Society/Federation Membership Management") {
             retrieve_members_from_html(&body)
         } else {
             error!("Can't access organization_memberships page. Lack of permissions?");
-            Err(LackOfPermissions)
+            Err(ApplicationError::from(LackOfPermissions))
         }
     } else {
         error!(
             "Can't reach organization_memberships page: {:?}",
             response.status()
         );
-        Err(CantAccessOrganizationMemberships)
+        Err(OrganizationMembershipsAccessFailed)?
     }
 }
 
 fn retrieve_members_from_html(body: &str) -> Result<Vec<MemberToCheck>> {
-    let selector = Selector::parse("[id^=reg_]")?;
+    let regex = "[id^=reg_]";
+    let selector = Selector::parse(regex).map_err(UdaError::from)?;
     let document = Html::parse_document(body);
     Ok(document
         .select(&selector)
@@ -146,6 +149,7 @@ fn extract_member_from_row(row: ElementRef) -> Option<MemberToCheck> {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::error::ApplicationError::{Uda, Web};
     use crate::tools::web::build_client;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -202,10 +206,10 @@ pub mod tests {
             .mount(&mock_server)
             .await;
 
-        let result = retrieve_members(&client, &mock_server.uri())
+        let error = retrieve_members(&client, &mock_server.uri())
             .await
             .unwrap_err();
-        assert_eq!(CantAccessOrganizationMemberships, result);
+        assert!(matches!(error, Uda(OrganizationMembershipsAccessFailed)));
     }
 
     #[async_test]
@@ -220,10 +224,10 @@ pub mod tests {
             .mount(&mock_server)
             .await;
 
-        let result = retrieve_members(&client, &mock_server.uri())
+        let error = retrieve_members(&client, &mock_server.uri())
             .await
             .unwrap_err();
-        assert_eq!(LackOfPermissions, result);
+        assert!(matches!(error, Web(LackOfPermissions)));
     }
     // endregion
 

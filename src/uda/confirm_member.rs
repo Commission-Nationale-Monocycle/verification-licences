@@ -1,9 +1,8 @@
-use crate::tools::error::Error::{
-    CantAccessOrganizationMemberships, CantReadPageContent, CartMarkMember, ConnectionFailed,
-    LackOfPermissions,
-};
-use crate::tools::error::Result;
+use crate::error::{ApplicationError, Result};
 use crate::tools::{log_error_and_return, log_message_and_return};
+use crate::uda::error::UdaError;
+use crate::uda::error::UdaError::{MemberConfirmationFailed, OrganizationMembershipsAccessFailed};
+use crate::web::error::WebError::{CantReadPageContent, ConnectionFailed, LackOfPermissions};
 use reqwest::{Client, StatusCode};
 use rocket::form::validate::Contains;
 use scraper::{Html, Selector};
@@ -37,8 +36,8 @@ async fn confirm_member_with_retry(
     if !status.is_success() {
         warn!("Can't mark as confirmed on UDA [status: {status}]");
         return match status {
-            StatusCode::NOT_FOUND => Err(LackOfPermissions), // If the user is not authorized to confirm members, then we get a 404...
-            _ => Err(ConnectionFailed),
+            StatusCode::NOT_FOUND => Err(ApplicationError::from(LackOfPermissions)), // If the user is not authorized to confirm members, then we get a 404...
+            _ => Err(ApplicationError::from(ConnectionFailed)),
         };
     }
 
@@ -66,13 +65,13 @@ async fn confirm_member_with_retry(
             error!(
                 "Member has been unconfirmed! NOT trying to confirm them back. [uda_url: {base_url}, id: {id}]"
             );
-            Err(CartMarkMember)
+            Err(MemberConfirmationFailed(id))?
         }
     } else if body.contains(marked_message.as_str()) {
         trace!("Member has been confirmed on UDA! [uda_url: {base_url}, id: {id}]");
         Ok(())
     } else {
-        Err(LackOfPermissions)
+        Err(ApplicationError::from(LackOfPermissions))
     }
 }
 
@@ -83,31 +82,31 @@ async fn get_csrf_token(client: &Client, base_url: &str) -> Result<String> {
         .get(url)
         .send()
         .await
-        .map_err(log_error_and_return(CantAccessOrganizationMemberships))?;
+        .map_err(log_error_and_return(OrganizationMembershipsAccessFailed))?;
 
     let status = response.status();
     if status.is_success() {
         let body = response.text().await.map_err(log_message_and_return(
             "Can't read organization_memberships content",
-            CantAccessOrganizationMemberships,
+            OrganizationMembershipsAccessFailed,
         ))?;
         if body.contains("Unicycling Society/Federation Membership Management") {
             retrieve_csrf_from_html(&body).await
         } else {
             error!("Can't access organization_memberships page. Lack of permissions?");
-            Err(LackOfPermissions)
+            Err(ApplicationError::from(LackOfPermissions))
         }
     } else {
         error!(
             "Can't reach organization_memberships page: {:?}",
             response.status()
         );
-        Err(CantAccessOrganizationMemberships)
+        Err(OrganizationMembershipsAccessFailed)?
     }
 }
 
 async fn retrieve_csrf_from_html(body: &str) -> Result<String> {
-    let selector = Selector::parse(r#"meta[name="csrf-token"]"#)?;
+    let selector = Selector::parse(r#"meta[name="csrf-token"]"#).map_err(UdaError::from)?;
     let document = Html::parse_document(body);
 
     document
@@ -115,19 +114,20 @@ async fn retrieve_csrf_from_html(body: &str) -> Result<String> {
         .next()
         .ok_or_else(|| {
             error!("Can't select CSRF token");
-            LackOfPermissions
+            ApplicationError::from(LackOfPermissions)
         })?
         .attr("content")
         .map(str::to_owned)
         .ok_or_else(|| {
             error!("Can't select CSRF token");
-            LackOfPermissions
+            ApplicationError::from(LackOfPermissions)
         })
 }
 
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::error::ApplicationError::{Uda, Web};
     use crate::tools::web::build_client;
     use wiremock::matchers::{header, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -209,7 +209,7 @@ I'm sorry, but the page you are searching for was not found.
         let error = confirm_member(&client, &mock_server.uri(), id)
             .await
             .unwrap_err();
-        assert_eq!(LackOfPermissions, error);
+        assert!(matches!(error, Web(LackOfPermissions)));
     }
 
     #[async_test]
@@ -233,7 +233,7 @@ I'm sorry, but the page you are searching for was not found.
         let error = confirm_member(&client, &mock_server.uri(), id)
             .await
             .unwrap_err();
-        assert_eq!(ConnectionFailed, error);
+        assert!(matches!(error, Web(ConnectionFailed)));
     }
 
     #[async_test]
@@ -256,7 +256,7 @@ I'm sorry, but the page you are searching for was not found.
         let error = confirm_member(&client, &mock_server.uri(), id)
             .await
             .unwrap_err();
-        assert_eq!(LackOfPermissions, error);
+        assert!(matches!(error, Web(LackOfPermissions)));
     }
 
     #[async_test]
@@ -287,7 +287,10 @@ console.log("Updated 1"");"##
         let error = confirm_member(&client, &mock_server.uri(), id)
             .await
             .unwrap_err();
-        assert_eq!(CartMarkMember, error);
+        match error {
+            Uda(MemberConfirmationFailed(error_id)) => assert_eq!(id, error_id),
+            _ => panic!("Unexpected error"),
+        }
     }
 
     #[async_test]
@@ -319,7 +322,7 @@ I'm sorry, but the page you are searching for was not found.
             .await
             .unwrap_err();
 
-        assert_eq!(LackOfPermissions, error);
+        assert!(matches!(error, Web(LackOfPermissions)));
     }
     // endregion
 
@@ -345,10 +348,10 @@ I'm sorry, but the page you are searching for was not found.
             .mount(&mock_server)
             .await;
 
-        let result = get_csrf_token(&client, &mock_server.uri())
+        let error = get_csrf_token(&client, &mock_server.uri())
             .await
             .unwrap_err();
-        assert_eq!(CantAccessOrganizationMemberships, result);
+        assert!(matches!(error, Uda(OrganizationMembershipsAccessFailed)));
     }
 
     #[async_test]
@@ -363,10 +366,10 @@ I'm sorry, but the page you are searching for was not found.
             .mount(&mock_server)
             .await;
 
-        let result = get_csrf_token(&client, &mock_server.uri())
+        let error = get_csrf_token(&client, &mock_server.uri())
             .await
             .unwrap_err();
-        assert_eq!(LackOfPermissions, result);
+        assert!(matches!(error, Web(LackOfPermissions)));
     }
     // endregion
 
@@ -386,16 +389,16 @@ I'm sorry, but the page you are searching for was not found.
     async fn should_fail_to_retrieve_csrf_from_html_when_no_tag() {
         let html = "<html><head></head><body></body></html>";
 
-        let result = retrieve_csrf_from_html(html).await.unwrap_err();
-        assert_eq!(LackOfPermissions, result);
+        let error = retrieve_csrf_from_html(html).await.unwrap_err();
+        assert!(matches!(error, Web(LackOfPermissions)));
     }
 
     #[async_test]
     async fn should_fail_to_retrieve_csrf_from_html_when_empty_tag() {
         let html = r#"<html><head><meta name="csrf-token"></head><body></body></html>"#;
 
-        let result = retrieve_csrf_from_html(html).await.unwrap_err();
-        assert_eq!(LackOfPermissions, result);
+        let error = retrieve_csrf_from_html(html).await.unwrap_err();
+        assert!(matches!(error, Web(LackOfPermissions)));
     }
     // endregion
 }

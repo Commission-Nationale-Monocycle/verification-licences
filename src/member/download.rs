@@ -1,7 +1,20 @@
 use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
 
+use crate::error::{ApplicationError, Result};
+use crate::fileo::error::FileoError;
+use crate::fileo::error::FileoError::{
+    CantLoadListOnServer, CantRetrieveDownloadLink, MalformedMembershipsDownloadResponse,
+    MembershipsFileFolderCreationFailed, MembershipsFileWriteFailed, NoDownloadLink,
+};
 use crate::member::config::MembershipsProviderConfig;
+use crate::member::file_details::FileDetails;
+use crate::tools::web::build_client;
+use crate::tools::{log_error_and_return, log_message_and_return};
+use crate::web::credentials::FileoCredentials;
+use crate::web::error::WebError::{
+    CantReadPageContent, ConnectionFailed, NotFound, WrongCredentials,
+};
 use chrono::Local;
 use encoding::all::ISO_8859_1;
 use encoding::{DecoderTrap, Encoding};
@@ -10,17 +23,6 @@ use regex::Regex;
 use reqwest::{Client, RequestBuilder};
 use rocket::form::validate::Contains;
 use rocket::http::ContentType;
-
-use crate::member::file_details::FileDetails;
-use crate::tools::error::Error::{
-    CantCreateMembershipsFileFolder, CantLoadListOnServer, CantReadMembersDownloadResponse,
-    CantReadPageContent, CantRetrieveDownloadLink, CantWriteMembersFile, ConnectionFailed,
-    FileNotFoundOnServer, NoDownloadLink, WrongCredentials, WrongEncoding,
-};
-use crate::tools::error::Result;
-use crate::tools::web::build_client;
-use crate::tools::{log_error_and_return, log_message_and_return};
-use crate::web::credentials::FileoCredentials;
 
 pub async fn download_memberships_list(
     memberships_provider_config: &MembershipsProviderConfig,
@@ -53,7 +55,7 @@ pub async fn login_to_fileo(
     let status = response.status();
     if !status.is_success() {
         error!("Connection failed because of status {status}...");
-        return Err(ConnectionFailed);
+        return Err(ApplicationError::from(ConnectionFailed));
     }
 
     let text = response.text().await.map_err(log_message_and_return(
@@ -65,7 +67,7 @@ pub async fn login_to_fileo(
         || text.contains("Le champ 'Identifiant' est obligatoire")
         || text.contains(" Le champ 'Mot de passe' est obligatoire")
     {
-        Err(WrongCredentials)
+        Err(ApplicationError::from(WrongCredentials))
     } else {
         Ok(())
     }
@@ -83,7 +85,7 @@ async fn load_list_into_server_session(client: &Client, domain: &str) -> Result<
         Ok(())
     } else {
         error!("Couldn't load list on server because of status {status}...");
-        Err(CantLoadListOnServer)
+        Err(ApplicationError::from(CantLoadListOnServer))
     }
 }
 
@@ -100,7 +102,7 @@ async fn retrieve_download_link(
 
     let status = response.status();
     if !status.is_success() && !status.is_redirection() {
-        return Err(CantRetrieveDownloadLink);
+        return Err(ApplicationError::from(CantRetrieveDownloadLink));
     }
 
     let page_content = response
@@ -117,26 +119,20 @@ async fn download_list(client: &Client, file_url: &str) -> Result<String> {
         .get(file_url)
         .send()
         .await
-        .map_err(log_message_and_return(
-            "Can't download list.",
-            FileNotFoundOnServer,
-        ))?;
+        .map_err(log_message_and_return("Can't download list.", NotFound))?;
 
     let status = response.status();
     if !status.is_success() && !status.is_redirection() {
-        return Err(FileNotFoundOnServer);
+        Err(NotFound)?;
     }
 
     let file_content_as_bytes = response
         .bytes()
         .await
-        .map_err(log_error_and_return(CantReadMembersDownloadResponse))?;
-    ISO_8859_1
+        .map_err(log_error_and_return(MalformedMembershipsDownloadResponse))?;
+    Ok(ISO_8859_1
         .decode(file_content_as_bytes.as_ref(), DecoderTrap::Strict)
-        .map_err(log_message_and_return(
-            "Wrong encoding: expected LATIN-1.",
-            WrongEncoding,
-        ))
+        .map_err(FileoError::from)?)
 }
 // endregion
 
@@ -238,9 +234,8 @@ fn format_arguments_into_body(args: &[(&str, &str)]) -> String {
 }
 
 fn create_memberships_file_dir(memberships_file_folder: &OsStr) -> Result<()> {
-    let err_message = format!("Can't create `{memberships_file_folder:?}` folder.");
-    let err_mapper = log_message_and_return(&err_message, CantCreateMembershipsFileFolder);
-    std::fs::create_dir_all(memberships_file_folder).map_err(err_mapper)?;
+    std::fs::create_dir_all(memberships_file_folder)
+        .map_err(MembershipsFileFolderCreationFailed)?;
 
     Ok(())
 }
@@ -249,7 +244,7 @@ fn write_list_to_file(members_file_folder: &OsStr, file_content: &str) -> Result
     let date_time = Local::now().date_naive();
     let filepath = PathBuf::from(members_file_folder)
         .join(format!("memberships-{}.csv", date_time.format("%Y-%m-%d")));
-    std::fs::write(&filepath, file_content).map_err(log_error_and_return(CantWriteMembersFile))?;
+    std::fs::write(&filepath, file_content).map_err(MembershipsFileWriteFailed)?;
     Ok(FileDetails::new(date_time, OsString::from(filepath)))
 }
 
@@ -265,13 +260,10 @@ mod tests {
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     use super::*;
+    use crate::error::ApplicationError;
+    use crate::error::ApplicationError::{Fileo, Web};
     use crate::member::config::MembershipsProviderConfig;
     use crate::member::get_members_file_folder;
-    use crate::tools::error::Error::CantWriteMembersFile;
-    use crate::tools::error::Error::{
-        CantLoadListOnServer, CantRetrieveDownloadLink, ConnectionFailed, FileNotFoundOnServer,
-        NoDownloadLink,
-    };
     use crate::tools::test::tests::temp_dir;
     use crate::web::credentials::FileoCredentials;
 
@@ -387,7 +379,7 @@ mod tests {
         let credentials = FileoCredentials::new(String::new(), String::new());
 
         let result = login_to_fileo(&client, &mock_server.uri(), &credentials).await;
-        assert!(result.is_err_and(|e| e == ConnectionFailed));
+        assert!(result.is_err_and(|e| matches!(e, Web(ConnectionFailed))));
     }
 
     #[async_test]
@@ -429,7 +421,7 @@ mod tests {
         let client = build_client().unwrap();
 
         let result = load_list_into_server_session(&client, &mock_server.uri()).await;
-        assert!(result.is_err_and(|e| e == CantLoadListOnServer));
+        assert!(result.is_err_and(|e| matches!(e, Fileo(CantLoadListOnServer))));
     }
 
     #[async_test]
@@ -473,7 +465,7 @@ mod tests {
 
         let result =
             retrieve_download_link(&client, &mock_server.uri(), &download_link_regex).await;
-        assert!(result.is_err_and(|e| e == CantRetrieveDownloadLink));
+        assert!(result.is_err_and(|e| matches!(e, Fileo(CantRetrieveDownloadLink))));
     }
 
     #[async_test]
@@ -496,7 +488,7 @@ mod tests {
 
         let result =
             retrieve_download_link(&client, &mock_server.uri(), &download_link_regex).await;
-        assert!(result.is_err_and(|e| e == NoDownloadLink));
+        assert!(result.is_err_and(|e| matches!(e, Fileo(NoDownloadLink))));
     }
 
     #[async_test]
@@ -527,7 +519,7 @@ mod tests {
 
         let result = download_list(&client, &mock_server.uri()).await;
         let error = result.err().unwrap();
-        assert_eq!(FileNotFoundOnServer, error);
+        assert!(matches!(error, ApplicationError::Web(NotFound)));
     }
 
     #[test]
@@ -548,7 +540,10 @@ mod tests {
 
         let result = write_list_to_file(temp_dir.as_ref(), "");
 
-        assert_eq!(CantWriteMembersFile, result.err().unwrap());
+        assert!(matches!(
+            result.err().unwrap(),
+            Fileo(MembershipsFileWriteFailed(_))
+        ));
     }
     // endregion
 
