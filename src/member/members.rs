@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::Deref;
 
+/// A map of [Memberships], grouped by membership number.
 #[derive(Debug, Serialize, Deserialize, Default, Eq, PartialEq)]
 pub struct Members {
     members: HashMap<String, Memberships>,
@@ -26,6 +27,8 @@ impl From<HashMap<String, Memberships>> for Members {
 }
 
 impl Members {
+    /// Maps each [MemberToCheck] to its corresponding member if known.
+    /// Otherwise, maps it to [None].
     pub fn check_members(&self, members_to_check: &[MemberToCheck]) -> Vec<CheckedMember> {
         members_to_check
             .iter()

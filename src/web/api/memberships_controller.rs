@@ -1,8 +1,8 @@
+use crate::fileo::credentials::FileoCredentials;
 use crate::member::members::Members;
 use crate::tools::email::send_email;
 use crate::tools::log_message_and_return;
 use crate::web::api::members_state::MembersState;
-use crate::web::credentials::FileoCredentials;
 use dto::email::Email;
 use dto::member_to_check::MemberToCheck;
 use rocket::State;

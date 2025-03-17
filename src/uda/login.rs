@@ -4,6 +4,7 @@ use crate::web::error::WebError::{ConnectionFailed, WrongCredentials};
 use reqwest::Client;
 use scraper::{Html, Selector};
 
+/// Log into UDA and makes given client able to request pages that require authentication.
 pub async fn authenticate_into_uda(
     client: &Client,
     base_url: &str,
@@ -109,7 +110,7 @@ pub mod tests {
     use super::*;
     use crate::error::ApplicationError::Web;
     use crate::tools::web::build_client;
-    use crate::web::credentials::UdaCredentials;
+    use crate::uda::credentials::UdaCredentials;
     use wiremock::matchers::{body_string, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 

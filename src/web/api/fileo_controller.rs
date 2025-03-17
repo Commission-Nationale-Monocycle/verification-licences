@@ -1,11 +1,12 @@
+use crate::fileo::authentication::AUTHENTICATION_COOKIE;
+use crate::fileo::credentials::FileoCredentials;
+use crate::fileo::download::{download_memberships_list, login_to_fileo};
 use crate::member::config::MembershipsProviderConfig;
-use crate::member::download::{download_memberships_list, login_to_fileo};
 use crate::member::import_from_file::{clean_old_files, import_from_file};
 use crate::tools::web::build_client;
 use crate::tools::{log_error_and_return, log_message, log_message_and_return};
 use crate::web::api::members_state::MembersState;
-use crate::web::authentication::FILEO_AUTHENTICATION_COOKIE;
-use crate::web::credentials::{CredentialsStorage, FileoCredentials};
+use crate::web::credentials_storage::CredentialsStorage;
 use rocket::State;
 use rocket::http::{Cookie, CookieJar, Status};
 use rocket::serde::json::{Json, json};
@@ -33,7 +34,7 @@ pub async fn login(
                 .lock()
                 .map_err(log_error_and_return(Status::InternalServerError))?;
             let uuid = Uuid::new_v4().to_string();
-            let cookie = Cookie::build((FILEO_AUTHENTICATION_COOKIE.to_owned(), uuid.clone()))
+            let cookie = Cookie::build((AUTHENTICATION_COOKIE.to_owned(), uuid.clone()))
                 .max_age(Duration::days(365))
                 .build();
             cookie_jar.add_private(cookie);
@@ -157,7 +158,7 @@ mod tests {
         assert!(
             response
                 .cookies()
-                .get_private(FILEO_AUTHENTICATION_COOKIE)
+                .get_private(AUTHENTICATION_COOKIE)
                 .is_some()
         );
     }
@@ -199,7 +200,7 @@ mod tests {
         assert!(
             response
                 .cookies()
-                .get_private(FILEO_AUTHENTICATION_COOKIE)
+                .get_private(AUTHENTICATION_COOKIE)
                 .is_none()
         );
     }

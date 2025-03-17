@@ -1,8 +1,10 @@
+use crate::fileo::credentials::FileoCredentials;
 use crate::member::config::MembershipsProviderConfig;
-use crate::member::get_members_file_folder;
+use crate::member::get_memberships_file_folder;
+use crate::uda::credentials::UdaCredentials;
 use crate::web::api::members_state::MembersState;
 use crate::web::api::{fileo_controller, memberships_controller, uda_controller};
-use crate::web::credentials::{CredentialsStorage, FileoCredentials, UdaCredentials};
+use crate::web::credentials_storage::CredentialsStorage;
 use crate::web::server::Server;
 use regex::Regex;
 use rocket::{Build, Rocket};
@@ -51,7 +53,7 @@ fn build_members_provider_config() -> MembershipsProviderConfig {
     MembershipsProviderConfig::new(
         get_fileo_host(),
         get_download_link_regex(),
-        get_members_file_folder().to_os_string(),
+        get_memberships_file_folder().to_os_string(),
     )
 }
 
