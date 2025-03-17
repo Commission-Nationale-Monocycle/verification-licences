@@ -1,5 +1,5 @@
 use chrono::{NaiveDate, Utc};
-use serde_json::Value;
+use rocket::serde::json::Value;
 use std::collections::HashMap;
 
 pub fn is_in_the_past(date: &Value, _: &HashMap<String, Value>) -> tera::Result<Value> {
@@ -12,7 +12,7 @@ pub fn is_in_the_past(date: &Value, _: &HashMap<String, Value>) -> tera::Result<
 mod tests {
     use super::*;
     use chrono::Days;
-    use serde_json::json;
+    use rocket::serde::json::json;
 
     #[test]
     fn should_be_in_the_past() {

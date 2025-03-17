@@ -142,7 +142,6 @@ mod tests {
     use reqwest::header::CONTENT_TYPE;
     use rocket::http::{ContentType, Header};
     use rocket::local::asynchronous::Client;
-    use serde_json::json;
     use std::collections::HashMap;
     use wiremock::matchers::{body_string, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};

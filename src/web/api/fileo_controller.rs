@@ -8,9 +8,8 @@ use crate::web::authentication::FILEO_AUTHENTICATION_COOKIE;
 use crate::web::credentials::{CredentialsStorage, FileoCredentials};
 use rocket::State;
 use rocket::http::{Cookie, CookieJar, Status};
-use rocket::serde::json::Json;
+use rocket::serde::json::{Json, json};
 use rocket::time::Duration;
-use serde_json::json;
 use std::sync::Mutex;
 use uuid::Uuid;
 
@@ -96,6 +95,7 @@ mod tests {
     use rocket::State;
     use rocket::http::{ContentType, Header};
     use rocket::local::asynchronous::Client;
+    use rocket::serde::json;
     use std::fs;
     use std::path::PathBuf;
     use std::sync::Mutex;
@@ -258,7 +258,7 @@ mod tests {
         let result = download_memberships(config_state, members_state, credentials)
             .await
             .unwrap();
-        let members: Members = serde_json::from_str(&result).unwrap();
+        let members: Members = json::from_str(&result).unwrap();
         assert_eq!(
             &get_expected_member(),
             members

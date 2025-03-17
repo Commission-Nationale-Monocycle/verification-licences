@@ -126,11 +126,11 @@ mod bool_format {
 
 #[cfg(test)]
 pub mod tests {
+    use crate::member::ImportedMembership;
     use chrono::NaiveDate;
     use parameterized::ide;
     use parameterized::parameterized;
-
-    use crate::member::ImportedMembership;
+    use rocket::serde::json;
 
     ide!();
 
@@ -151,7 +151,7 @@ pub mod tests {
             structure_code: "A12345".to_owned(),
         };
         let json = r#"{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"11-10-2000","Age":24,"Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"Oui","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}"#;
-        let result = serde_json::from_str(json);
+        let result = json::from_str(json);
 
         assert!(result.is_ok());
         assert_eq!(membership, result.unwrap())
@@ -174,7 +174,7 @@ pub mod tests {
             structure_code: "A12345".to_owned(),
         };
         let json = r#"{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"","Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"Oui","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}"#;
-        let result = serde_json::from_str(json);
+        let result = json::from_str(json);
 
         assert!(result.is_ok());
         assert_eq!(membership, result.unwrap())
@@ -187,7 +187,7 @@ pub mod tests {
         let json = format!(
             r#"{{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"11-10-2000","Age":24,"Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"{payed}","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}}"#
         );
-        let result: Result<ImportedMembership, _> = serde_json::from_str(&json);
+        let result: Result<ImportedMembership, _> = json::from_str(&json);
         assert!(result.is_err());
     }
 }
