@@ -58,7 +58,7 @@ mod fileo {
             ))
             .and(body_string_contains("Action=adherent_filtrer"))
             .respond_with(ResponseTemplate::new(200))
-            .mount(&mock_server)
+            .mount(mock_server)
             .await;
         Mock::given(method("POST"))
             .and(path("/includer.php"))
@@ -67,7 +67,7 @@ mod fileo {
                 format!("<p>Here is the download link: {download_link}</p>"),
                 "text/html",
             ))
-            .mount(&mock_server)
+            .mount(mock_server)
             .await;
         let message_in_latin1 = ISO_8859_1.encode(DEMO_FILE, EncoderTrap::Strict).unwrap();
         Mock::given(method("GET"))
@@ -75,7 +75,7 @@ mod fileo {
             .respond_with(
                 ResponseTemplate::new(200).set_body_raw(message_in_latin1.as_slice(), "text/csv"),
             )
-            .mount(&mock_server)
+            .mount(mock_server)
             .await;
     }
 }
@@ -94,6 +94,7 @@ mod uda {
 
         mock_uda_login(&mock_server).await;
         mock_uda_retrieve_members(&mock_server).await;
+        mock_instances(&mock_server).await;
 
         mock_server
     }
@@ -104,13 +105,13 @@ mod uda {
         );
         Mock::given(method("GET"))
             .and(path("/en/users/sign_in"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(&body))
-            .mount(&mock_server)
+            .respond_with(ResponseTemplate::new(200).set_body_raw(body, "text/html; charset=utf-8"))
+            .mount(mock_server)
             .await;
         Mock::given(method("POST"))
             .and(path("/en/users/sign_in"))
             .respond_with(ResponseTemplate::new(200).set_body_string("Signed in successfully"))
-            .mount(&mock_server)
+            .mount(mock_server)
             .await;
     }
 
@@ -128,8 +129,20 @@ mod uda {
 
         Mock::given(method("GET"))
             .and(path("/en/organization_memberships"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(&body))
-            .mount(&mock_server)
+            .respond_with(ResponseTemplate::new(200).set_body_raw(body, "text/html; charset=utf-8"))
+            .mount(mock_server)
+            .await;
+    }
+
+    async fn mock_instances(mock_server: &MockServer) {
+        let body = format!(
+            r##"<html class=""><head></head><body><div id="container"><div id="main"><h1>Existing Conventions</h1><table><thead><tr><th>Subdomain</th><th>Description</th><th>Created At</th></tr></thead><tbody><tr><td><a href="{}">demo</a></td><td>Demo instance</td><td>Wed, 03 May 2023 15:12:52 -0500</td></tbody></table><hr><a class="button" href="/tenants/new?locale=en">New Convention</a></div></div></body></html>"##,
+            mock_server.uri()
+        );
+        Mock::given(method("GET"))
+            .and(path("tenants"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(body, "text/html; charset=utf-8"))
+            .mount(mock_server)
             .await;
     }
 }
