@@ -7,7 +7,7 @@ use dto::member_to_check::MemberToCheck;
 use reqwest::Client;
 use scraper::{ElementRef, Html, Node, Selector};
 
-#[allow(dead_code)]
+/// Retrieve members from UDA's organisation membership page.
 pub async fn retrieve_members(client: &Client, base_url: &str) -> Result<Vec<MemberToCheck>> {
     let url = format!("{base_url}/en/organization_memberships");
 

@@ -1,8 +1,8 @@
+use crate::fileo::credentials::FileoCredentials;
 use crate::member::members::Members;
 use crate::member::memberships::Memberships;
 use crate::tools::log_error_and_return;
 use crate::web::api::members_state::MembersState;
-use crate::web::credentials::FileoCredentials;
 use dto::membership::Membership;
 use rocket::http::Status;
 use rocket::response::Redirect;
@@ -94,9 +94,9 @@ pub async fn not_found(req: &Request<'_>) -> Template {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fileo::authentication::AUTHENTICATION_COOKIE;
     use crate::member::file_details::FileDetails;
-    use crate::web::authentication::FILEO_AUTHENTICATION_COOKIE;
-    use crate::web::credentials::CredentialsStorage;
+    use crate::web::credentials_storage::CredentialsStorage;
     use chrono::Utc;
     use rocket::http::Cookie;
     use rocket::local::asynchronous::Client;
@@ -139,7 +139,7 @@ mod tests {
             .attach(Template::fairing());
 
         let client = Client::tracked(rocket).await.unwrap();
-        let cookie = Cookie::new(FILEO_AUTHENTICATION_COOKIE, uuid);
+        let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
 
         let request = client.get("/memberships").cookie(cookie.clone());
 
@@ -199,7 +199,7 @@ mod tests {
             .attach(Template::fairing());
 
         let client = Client::tracked(rocket).await.unwrap();
-        let cookie = Cookie::new(FILEO_AUTHENTICATION_COOKIE, uuid);
+        let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
 
         let request = client.get("/check-memberships").cookie(cookie.clone());
 
@@ -230,7 +230,7 @@ mod tests {
             .attach(Template::fairing());
 
         let client = Client::tracked(rocket).await.unwrap();
-        let cookie = Cookie::new(FILEO_AUTHENTICATION_COOKIE, uuid);
+        let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
 
         let request = client.get("/check-memberships").cookie(cookie.clone());
 

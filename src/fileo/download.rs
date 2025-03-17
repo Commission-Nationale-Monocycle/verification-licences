@@ -2,6 +2,7 @@ use std::ffi::{OsStr, OsString};
 use std::path::PathBuf;
 
 use crate::error::{ApplicationError, Result};
+use crate::fileo::credentials::FileoCredentials;
 use crate::fileo::error::FileoError;
 use crate::fileo::error::FileoError::{
     CantLoadListOnServer, CantRetrieveDownloadLink, MalformedMembershipsDownloadResponse,
@@ -11,7 +12,6 @@ use crate::member::config::MembershipsProviderConfig;
 use crate::member::file_details::FileDetails;
 use crate::tools::web::build_client;
 use crate::tools::{log_error_and_return, log_message_and_return};
-use crate::web::credentials::FileoCredentials;
 use crate::web::error::WebError::{
     CantReadPageContent, ConnectionFailed, NotFound, WrongCredentials,
 };
@@ -24,6 +24,8 @@ use reqwest::{Client, RequestBuilder};
 use rocket::form::validate::Contains;
 use rocket::http::ContentType;
 
+/// Download the memberships list from Fileo and write it to the disk.
+/// Require valid credentials to log in to Fileo.
 pub async fn download_memberships_list(
     memberships_provider_config: &MembershipsProviderConfig,
     credentials: &FileoCredentials,
@@ -262,10 +264,10 @@ mod tests {
     use super::*;
     use crate::error::ApplicationError;
     use crate::error::ApplicationError::{Fileo, Web};
+    use crate::fileo::credentials::FileoCredentials;
     use crate::member::config::MembershipsProviderConfig;
-    use crate::member::get_members_file_folder;
+    use crate::member::get_memberships_file_folder;
     use crate::tools::test::tests::temp_dir;
-    use crate::web::credentials::FileoCredentials;
 
     #[async_test]
     async fn should_download_members_list() {
@@ -332,7 +334,7 @@ mod tests {
                 .to_string(),
         );
         fs::create_dir(&path).unwrap();
-        let members_file_folder_path = path.join(get_members_file_folder());
+        let members_file_folder_path = path.join(get_memberships_file_folder());
         let result = create_memberships_file_dir(members_file_folder_path.as_ref());
 
         assert!(result.is_ok());

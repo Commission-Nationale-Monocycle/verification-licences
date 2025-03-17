@@ -9,6 +9,8 @@ use csv::Reader;
 use regex::bytes::{Captures, Regex};
 
 use crate::error::Result;
+use crate::fileo::imported_membership::ImportedMembership;
+use crate::member::Membership;
 use crate::member::error::MembershipError::{
     CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile,
     CantOpenMembersFileFolder, InvalidDate, NoFileFound, WrongRegex,
@@ -16,9 +18,10 @@ use crate::member::error::MembershipError::{
 use crate::member::file_details::FileDetails;
 use crate::member::members::Members;
 use crate::member::memberships::Memberships;
-use crate::member::{ImportedMembership, Membership};
 use crate::tools::{log_message, log_message_and_return};
 
+/// Load a list of [Member]s from a file containing [Membership]s.
+/// Members are memberships grouped by membership num.
 pub fn import_from_file(filepath: &OsStr) -> Result<Members> {
     let error_message = format!("Can't open members file `{:?}`.", filepath.to_str());
     let file = File::open(filepath).map_err(log_message_and_return(

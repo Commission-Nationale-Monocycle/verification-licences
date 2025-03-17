@@ -2,11 +2,12 @@ use crate::error::ApplicationError;
 use crate::error::ApplicationError::Web;
 use crate::tools::web::build_client;
 use crate::tools::{log_error, log_error_and_return};
+use crate::uda::authentication::AUTHENTICATION_COOKIE;
 use crate::uda::confirm_member::confirm_member;
+use crate::uda::credentials::UdaCredentials;
 use crate::uda::login::authenticate_into_uda;
 use crate::uda::retrieve_members::retrieve_members;
-use crate::web::authentication::UDA_AUTHENTICATION_COOKIE;
-use crate::web::credentials::{CredentialsStorage, UdaCredentials};
+use crate::web::credentials_storage::CredentialsStorage;
 use crate::web::error::WebError::{ConnectionFailed, LackOfPermissions};
 use reqwest::Client;
 use rocket::State;
@@ -33,7 +34,7 @@ pub async fn login(
         .lock()
         .map_err(log_error_and_return(Status::InternalServerError))?;
     let uuid = Uuid::new_v4().to_string();
-    let cookie = Cookie::build((UDA_AUTHENTICATION_COOKIE.to_owned(), uuid.clone()))
+    let cookie = Cookie::build((AUTHENTICATION_COOKIE.to_owned(), uuid.clone()))
         .max_age(Duration::days(365))
         .build();
     cookie_jar.add_private(cookie);
@@ -41,6 +42,7 @@ pub async fn login(
     Ok(Status::Ok)
 }
 
+/// Retrieve all members from UDA's organisation membership page if authorized.
 #[get("/uda/retrieve")]
 pub async fn retrieve_members_to_check(credentials: UdaCredentials) -> Result<String, Status> {
     let client = build_client().map_err(log_error_and_return(Status::InternalServerError))?;
@@ -53,6 +55,14 @@ pub async fn retrieve_members_to_check(credentials: UdaCredentials) -> Result<St
     }
 }
 
+/// Confirm members on UDA if authorized.
+/// Return a JSON containing members ids which have been marked as confirmed and whose confirmation has failed:
+/// ```json
+/// {
+///     "ok": [id_1, id_2, ...],
+///     "nok": [id_3, ...]
+/// }
+/// ```
 #[post("/uda/confirm", format = "application/json", data = "<members_ids>")]
 pub async fn confirm_members(
     members_ids: Json<Vec<u16>>,
@@ -174,7 +184,7 @@ mod tests {
         assert!(
             response
                 .cookies()
-                .get_private(UDA_AUTHENTICATION_COOKIE)
+                .get_private(AUTHENTICATION_COOKIE)
                 .is_some()
         );
     }
@@ -212,7 +222,7 @@ mod tests {
         assert!(
             response
                 .cookies()
-                .get_private(UDA_AUTHENTICATION_COOKIE)
+                .get_private(AUTHENTICATION_COOKIE)
                 .is_none()
         );
     }
@@ -263,7 +273,7 @@ mod tests {
         assert!(
             response
                 .cookies()
-                .get_private(UDA_AUTHENTICATION_COOKIE)
+                .get_private(AUTHENTICATION_COOKIE)
                 .is_none()
         );
     }
@@ -288,7 +298,7 @@ mod tests {
         let client = Client::tracked(rocket).await.unwrap();
         let request = client
             .get("/uda/retrieve")
-            .cookie((UDA_AUTHENTICATION_COOKIE, uuid));
+            .cookie((AUTHENTICATION_COOKIE, uuid));
 
         let response = request.dispatch().await;
         assert_eq!(Status::Ok, response.status());
@@ -308,7 +318,7 @@ mod tests {
         let client = Client::tracked(rocket).await.unwrap();
         let request = client
             .get("/uda/retrieve")
-            .cookie((UDA_AUTHENTICATION_COOKIE, uuid));
+            .cookie((AUTHENTICATION_COOKIE, uuid));
 
         let response = request.dispatch().await;
         assert_eq!(Status::Unauthorized, response.status());
@@ -330,7 +340,7 @@ mod tests {
         let client = Client::tracked(rocket).await.unwrap();
         let request = client
             .get("/uda/retrieve")
-            .cookie((UDA_AUTHENTICATION_COOKIE, uuid));
+            .cookie((AUTHENTICATION_COOKIE, uuid));
 
         let response = request.dispatch().await;
         assert_eq!(Status::BadGateway, response.status());

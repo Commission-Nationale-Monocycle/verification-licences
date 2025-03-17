@@ -6,6 +6,7 @@ use rocket::serde::{Deserialize, Serialize};
 
 use crate::member::Membership;
 
+/// A sorted list of unique [Membership]s.
 #[derive(Debug, Serialize, Deserialize, Default, Eq, PartialEq, Getters)]
 pub struct Memberships {
     memberships: BTreeSet<Membership>,

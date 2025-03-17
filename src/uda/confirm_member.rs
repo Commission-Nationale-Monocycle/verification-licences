@@ -7,7 +7,8 @@ use reqwest::{Client, StatusCode};
 use rocket::form::validate::Contains;
 use scraper::{Html, Selector};
 
-#[allow(dead_code)]
+/// Try and mark member as confirmed on UDA.
+/// If called on a member already confirmed, it marks them as unconfirmed before trying to mark it as confirmed again.
 pub async fn confirm_member(client: &Client, base_url: &str, id: u16) -> Result<()> {
     let csrf_token = get_csrf_token(client, base_url).await?;
     confirm_member_with_retry(client, base_url, id, &csrf_token, true).await
