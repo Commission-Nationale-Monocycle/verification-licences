@@ -4,6 +4,7 @@ use crate::member::memberships::Memberships;
 use crate::tools::log_error_and_return;
 use crate::web::api::members_state::MembersState;
 use dto::membership::Membership;
+use dto::uda::InstancesList;
 use rocket::http::Status;
 use rocket::response::Redirect;
 use rocket::{Request, State};
@@ -81,6 +82,29 @@ pub async fn check_memberships_unauthenticated() -> Redirect {
     Redirect::to(uri!("/fileo/login/?page=/check-memberships"))
 }
 
+#[get("/uda/select")]
+pub async fn uda_instance_selection(
+    uda_instances_list: &State<Mutex<InstancesList>>,
+) -> Result<Template, Status> {
+    let instances_list = uda_instances_list
+        .lock()
+        .map_err(log_error_and_return(Status::InternalServerError))?;
+
+    let last_update = match instances_list.update_date() {
+        None => "Jamais".to_owned(),
+        Some(update_date) => update_date.format("%d/%m/%Y").to_string(),
+    };
+
+    Ok(Template::render(
+        "uda-instance-selection",
+        context! {
+            title: "Sélection de l'instance UDA à vérifier",
+            instances: instances_list.instances(),
+            last_update: last_update
+        },
+    ))
+}
+
 #[catch(404)]
 pub async fn not_found(req: &Request<'_>) -> Template {
     Template::render(
@@ -93,174 +117,199 @@ pub async fn not_found(req: &Request<'_>) -> Template {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::fileo::authentication::AUTHENTICATION_COOKIE;
-    use crate::member::file_details::FileDetails;
-    use crate::web::credentials_storage::CredentialsStorage;
-    use chrono::Utc;
-    use rocket::http::Cookie;
-    use rocket::local::asynchronous::Client;
-    use std::ffi::OsString;
+    mod fileo_login {
+        use crate::web::frontend::frontend_controller::fileo_login;
+        use rocket::http::Status;
+        use rocket::local::asynchronous::Client;
+        use rocket_dyn_templates::Template;
 
-    // region fileo_login
-    #[async_test]
-    async fn should_render_fileo_login() {
-        let rocket = rocket::build()
-            .mount("/", routes![fileo_login])
-            .attach(Template::fairing());
+        #[async_test]
+        async fn should_render_fileo_login() {
+            let rocket = rocket::build()
+                .mount("/", routes![fileo_login])
+                .attach(Template::fairing());
 
-        let client = Client::tracked(rocket).await.unwrap();
-        let request = client.get("/fileo/login");
+            let client = Client::tracked(rocket).await.unwrap();
+            let request = client.get("/fileo/login");
 
-        let response = request.dispatch().await;
-        assert_eq!(Status::Ok, response.status());
-    }
-    // endregion
-
-    // region list_memberships
-    #[async_test]
-    async fn should_render_membership_list() {
-        let credentials =
-            FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
-        let mut credentials_storage = CredentialsStorage::default();
-        let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
-        credentials_storage.store(uuid.clone(), credentials);
-        let credentials_storage_mutex = Mutex::new(credentials_storage);
-
-        let members_sate_mutex = Mutex::new(MembersState::new(None, Members::default()));
-
-        let rocket = rocket::build()
-            .mount(
-                "/",
-                routes![list_memberships, list_memberships_unauthenticated],
-            )
-            .manage(members_sate_mutex)
-            .manage(credentials_storage_mutex)
-            .attach(Template::fairing());
-
-        let client = Client::tracked(rocket).await.unwrap();
-        let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
-
-        let request = client.get("/memberships").cookie(cookie.clone());
-
-        let response = request.dispatch().await;
-        assert_eq!(Status::Ok, response.status());
+            let response = request.dispatch().await;
+            assert_eq!(Status::Ok, response.status());
+        }
     }
 
-    #[async_test]
-    async fn should_not_render_membership_list_when_unauthenticated() {
-        let members_sate_mutex = Mutex::new(MembersState::new(None, Members::default()));
+    mod list_memberships {
+        use crate::fileo::authentication::AUTHENTICATION_COOKIE;
+        use crate::fileo::credentials::FileoCredentials;
+        use crate::member::members::Members;
+        use crate::web::api::members_state::MembersState;
+        use crate::web::credentials_storage::CredentialsStorage;
+        use crate::web::frontend::frontend_controller::{
+            list_memberships, list_memberships_unauthenticated,
+        };
+        use rocket::http::{Cookie, Status};
+        use rocket::local::asynchronous::Client;
+        use rocket_dyn_templates::Template;
+        use std::sync::Mutex;
 
-        let rocket = rocket::build()
-            .mount(
-                "/",
-                routes![list_memberships, list_memberships_unauthenticated],
-            )
-            .manage(members_sate_mutex)
-            .attach(Template::fairing());
+        #[async_test]
+        async fn should_render_membership_list() {
+            let credentials =
+                FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
+            let mut credentials_storage = CredentialsStorage::default();
+            let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
+            credentials_storage.store(uuid.clone(), credentials);
+            let credentials_storage_mutex = Mutex::new(credentials_storage);
 
-        let client = Client::tracked(rocket).await.unwrap();
-        let request = client.get("/memberships");
+            let members_sate_mutex = Mutex::new(MembersState::new(None, Members::default()));
 
-        let response = request.dispatch().await;
-        assert_eq!(Status::SeeOther, response.status());
-        assert_eq!(
-            "/fileo/login?page=/memberships",
-            response.headers().get_one("location").unwrap()
-        );
-    }
-    // endregion
+            let rocket = rocket::build()
+                .mount(
+                    "/",
+                    routes![list_memberships, list_memberships_unauthenticated],
+                )
+                .manage(members_sate_mutex)
+                .manage(credentials_storage_mutex)
+                .attach(Template::fairing());
 
-    // region check_memberships
-    #[async_test]
-    async fn should_render_check_memberships() {
-        let credentials =
-            FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
-        let mut credentials_storage = CredentialsStorage::default();
-        let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
-        credentials_storage.store(uuid.clone(), credentials);
-        let credentials_storage_mutex = Mutex::new(credentials_storage);
+            let client = Client::tracked(rocket).await.unwrap();
+            let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
 
-        let members_sate_mutex = Mutex::new(MembersState::new(
-            Some(FileDetails::new(
-                Utc::now().date_naive(),
-                OsString::from(""),
-            )),
-            Members::default(),
-        ));
+            let request = client.get("/memberships").cookie(cookie.clone());
 
-        let rocket = rocket::build()
-            .mount(
-                "/",
-                routes![check_memberships, check_memberships_unauthenticated],
-            )
-            .manage(members_sate_mutex)
-            .manage(credentials_storage_mutex)
-            .attach(Template::fairing());
+            let response = request.dispatch().await;
+            assert_eq!(Status::Ok, response.status());
+        }
 
-        let client = Client::tracked(rocket).await.unwrap();
-        let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
+        #[async_test]
+        async fn should_not_render_membership_list_when_unauthenticated() {
+            let members_sate_mutex = Mutex::new(MembersState::new(None, Members::default()));
 
-        let request = client.get("/check-memberships").cookie(cookie.clone());
+            let rocket = rocket::build()
+                .mount(
+                    "/",
+                    routes![list_memberships, list_memberships_unauthenticated],
+                )
+                .manage(members_sate_mutex)
+                .attach(Template::fairing());
 
-        let response = request.dispatch().await;
-        assert_eq!(Status::Ok, response.status());
-        let body = response.into_string().await.unwrap();
-        assert!(!body.contains("Jamais"));
-    }
+            let client = Client::tracked(rocket).await.unwrap();
+            let request = client.get("/memberships");
 
-    #[async_test]
-    async fn should_render_check_memberships_when_no_file() {
-        let credentials =
-            FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
-        let mut credentials_storage = CredentialsStorage::default();
-        let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
-        credentials_storage.store(uuid.clone(), credentials);
-        let credentials_storage_mutex = Mutex::new(credentials_storage);
-
-        let members_sate_mutex = Mutex::new(MembersState::new(None, Members::default()));
-
-        let rocket = rocket::build()
-            .mount(
-                "/",
-                routes![check_memberships, check_memberships_unauthenticated],
-            )
-            .manage(members_sate_mutex)
-            .manage(credentials_storage_mutex)
-            .attach(Template::fairing());
-
-        let client = Client::tracked(rocket).await.unwrap();
-        let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
-
-        let request = client.get("/check-memberships").cookie(cookie.clone());
-
-        let response = request.dispatch().await;
-        assert_eq!(Status::Ok, response.status());
-        let body = response.into_string().await.unwrap();
-        assert!(body.contains("Jamais"));
+            let response = request.dispatch().await;
+            assert_eq!(Status::SeeOther, response.status());
+            assert_eq!(
+                "/fileo/login?page=/memberships",
+                response.headers().get_one("location").unwrap()
+            );
+        }
     }
 
-    #[async_test]
-    async fn should_not_render_check_memberships_when_unauthenticated() {
-        let members_sate_mutex = Mutex::new(MembersState::new(None, Members::default()));
+    mod check_memberships {
+        use crate::fileo::authentication::AUTHENTICATION_COOKIE;
+        use crate::fileo::credentials::FileoCredentials;
+        use crate::member::file_details::FileDetails;
+        use crate::member::members::Members;
+        use crate::web::api::members_state::MembersState;
+        use crate::web::credentials_storage::CredentialsStorage;
+        use crate::web::frontend::frontend_controller::{
+            check_memberships, check_memberships_unauthenticated,
+        };
+        use chrono::Utc;
+        use rocket::http::{Cookie, Status};
+        use rocket::local::asynchronous::Client;
+        use rocket_dyn_templates::Template;
+        use std::ffi::OsString;
+        use std::sync::Mutex;
 
-        let rocket = rocket::build()
-            .mount(
-                "/",
-                routes![check_memberships, check_memberships_unauthenticated],
-            )
-            .manage(members_sate_mutex)
-            .attach(Template::fairing());
+        #[async_test]
+        async fn should_render_check_memberships() {
+            let credentials =
+                FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
+            let mut credentials_storage = CredentialsStorage::default();
+            let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
+            credentials_storage.store(uuid.clone(), credentials);
+            let credentials_storage_mutex = Mutex::new(credentials_storage);
 
-        let client = Client::tracked(rocket).await.unwrap();
-        let request = client.get("/check-memberships");
+            let members_sate_mutex = Mutex::new(MembersState::new(
+                Some(FileDetails::new(
+                    Utc::now().date_naive(),
+                    OsString::from(""),
+                )),
+                Members::default(),
+            ));
 
-        let response = request.dispatch().await;
-        assert_eq!(Status::SeeOther, response.status());
-        assert_eq!(
-            "/fileo/login?page=/check-memberships",
-            response.headers().get_one("location").unwrap()
-        );
+            let rocket = rocket::build()
+                .mount(
+                    "/",
+                    routes![check_memberships, check_memberships_unauthenticated],
+                )
+                .manage(members_sate_mutex)
+                .manage(credentials_storage_mutex)
+                .attach(Template::fairing());
+
+            let client = Client::tracked(rocket).await.unwrap();
+            let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
+
+            let request = client.get("/check-memberships").cookie(cookie.clone());
+
+            let response = request.dispatch().await;
+            assert_eq!(Status::Ok, response.status());
+            let body = response.into_string().await.unwrap();
+            assert!(!body.contains("Jamais"));
+        }
+
+        #[async_test]
+        async fn should_render_check_memberships_when_no_file() {
+            let credentials =
+                FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
+            let mut credentials_storage = CredentialsStorage::default();
+            let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
+            credentials_storage.store(uuid.clone(), credentials);
+            let credentials_storage_mutex = Mutex::new(credentials_storage);
+
+            let members_sate_mutex = Mutex::new(MembersState::new(None, Members::default()));
+
+            let rocket = rocket::build()
+                .mount(
+                    "/",
+                    routes![check_memberships, check_memberships_unauthenticated],
+                )
+                .manage(members_sate_mutex)
+                .manage(credentials_storage_mutex)
+                .attach(Template::fairing());
+
+            let client = Client::tracked(rocket).await.unwrap();
+            let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
+
+            let request = client.get("/check-memberships").cookie(cookie.clone());
+
+            let response = request.dispatch().await;
+            assert_eq!(Status::Ok, response.status());
+            let body = response.into_string().await.unwrap();
+            assert!(body.contains("Jamais"));
+        }
+
+        #[async_test]
+        async fn should_not_render_check_memberships_when_unauthenticated() {
+            let members_sate_mutex = Mutex::new(MembersState::new(None, Members::default()));
+
+            let rocket = rocket::build()
+                .mount(
+                    "/",
+                    routes![check_memberships, check_memberships_unauthenticated],
+                )
+                .manage(members_sate_mutex)
+                .attach(Template::fairing());
+
+            let client = Client::tracked(rocket).await.unwrap();
+            let request = client.get("/check-memberships");
+
+            let response = request.dispatch().await;
+            assert_eq!(Status::SeeOther, response.status());
+            assert_eq!(
+                "/fileo/login?page=/check-memberships",
+                response.headers().get_one("location").unwrap()
+            );
+        }
     }
-    // endregion
 }
