@@ -6,6 +6,7 @@ mod fileo;
 mod navbar;
 mod stepper;
 mod template;
+mod uda;
 mod user_interface;
 mod utils;
 

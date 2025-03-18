@@ -20,6 +20,9 @@
                 <li>
                     <a href="/check-memberships">Vérifier les licences</a>
                 </li>
+                <li>
+                    <a href="/uda/select">Sélectionner une instance UDA</a>
+                </li>
             </ul>
         </div>
     </div>

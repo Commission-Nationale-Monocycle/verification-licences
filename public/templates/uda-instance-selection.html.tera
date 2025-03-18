@@ -1,0 +1,14 @@
+{% extends "base" %}
+
+{% block content %}
+    <div class="input-container">
+        <label for="uda-instance-selector">Sélectionnez une instance UDA (dernière mise à jour : {{ last_update }})</label>
+        <select id="uda-instance-selector"
+                class="block py-2.5 px-0 w-full text-sm text-gray-500 bg-transparent border-0 border-b-2 border-gray-200 appearance-none dark:text-gray-400 dark:border-gray-700 focus:outline-none focus:ring-0 focus:border-gray-200 peer">
+            {% for instance in instances | reverse %}
+                <option value="{{ instance.url }}">{{ instance.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button onclick="app.update_uda_instances_list()">Mettre à jour la liste</button>
+{% endblock content %}
