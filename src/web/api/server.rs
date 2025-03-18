@@ -6,6 +6,7 @@ use crate::web::api::members_state::MembersState;
 use crate::web::api::{fileo_controller, memberships_controller, uda_controller};
 use crate::web::credentials_storage::CredentialsStorage;
 use crate::web::server::Server;
+use dto::uda::InstancesList;
 use regex::Regex;
 use rocket::{Build, Rocket};
 use std::sync::Mutex;
@@ -35,6 +36,7 @@ impl Server for ApiServer {
             .manage(Mutex::new(members_state))
             .manage(Mutex::new(CredentialsStorage::<FileoCredentials>::default()))
             .manage(Mutex::new(CredentialsStorage::<UdaCredentials>::default()))
+            .manage(Mutex::new(InstancesList::default()))
             .mount(
                 "/api/",
                 routes![

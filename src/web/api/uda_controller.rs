@@ -11,12 +11,14 @@ use crate::uda::login::authenticate_into_uda;
 use crate::uda::retrieve_members::retrieve_members;
 use crate::web::credentials_storage::CredentialsStorage;
 use crate::web::error::WebError::{ConnectionFailed, LackOfPermissions};
+use dto::uda::InstancesList;
 use reqwest::Client;
 use rocket::State;
 use rocket::form::validate::Contains;
 use rocket::http::{Cookie, CookieJar, Status};
 use rocket::serde::json::{Json, Value, json};
 use rocket::time::Duration;
+use std::ops::Deref;
 use std::sync::Mutex;
 use uuid::Uuid;
 
@@ -117,14 +119,24 @@ pub async fn confirm_members(
     )
 }
 
+/// Retrieve and return a list of all existing UDA instances, alongside with the last update date
+/// - i.e. the date this endpoint is called.
 #[get("/uda/instances")]
-pub async fn list_instances(configuration: &State<Configuration>) -> Result<Value, Status> {
+pub async fn list_instances(
+    configuration: &State<Configuration>,
+    instances_list: &State<Mutex<InstancesList>>,
+) -> Result<Value, Status> {
     let client = build_client().map_err(log_error_and_return(Status::InternalServerError))?;
     let instances = retrieve_uda_instances(&client, configuration.inner())
         .await
         .map_err(log_error_and_return(Status::BadGateway))?;
 
-    Ok(json!(instances))
+    let mut mutex_guard = instances_list
+        .lock()
+        .map_err(log_error_and_return(Status::InternalServerError))?;
+    mutex_guard.set_instances(instances);
+
+    Ok(json!(mutex_guard.deref()))
 }
 
 async fn authenticate(client: &Client, credentials: &UdaCredentials) -> Result<(), Status> {
@@ -441,8 +453,11 @@ mod tests {
         use crate::uda::instances::tests::{BODY, get_expected_instances};
         use crate::web::api::uda_controller::list_instances;
         use dto::uda::Instance;
+        use dto::uda::InstancesList;
         use rocket::http::Status;
         use rocket::local::asynchronous::Client;
+        use std::ops::Deref;
+        use std::sync::Mutex;
         use wiremock::matchers::{method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -457,15 +472,24 @@ mod tests {
 
             let configuration =
                 Configuration::new(format!("{}/tenants?locale=en", mock_server.uri()));
+            let instances_state = InstancesList::default();
             let rocket = rocket::build()
                 .manage(configuration)
+                .manage(Mutex::new(instances_state))
                 .mount("/", routes![list_instances]);
 
             let client = Client::tracked(rocket).await.unwrap();
             let request = client.get("/uda/instances");
 
-            let instances: Vec<Instance> = request.dispatch().await.into_json().await.unwrap();
-            assert_eq!(get_expected_instances(), instances);
+            let instances_list: InstancesList = request.dispatch().await.into_json().await.unwrap();
+            assert_eq!(&get_expected_instances(), instances_list.instances());
+            let instances_state = client
+                .rocket()
+                .state::<Mutex<InstancesList>>()
+                .unwrap()
+                .lock()
+                .unwrap();
+            assert_eq!(instances_state.deref(), &instances_list);
         }
 
         #[async_test]
@@ -481,6 +505,7 @@ mod tests {
                 Configuration::new(format!("{}/tenants?locale=en", mock_server.uri()));
             let rocket = rocket::build()
                 .manage(configuration)
+                .manage(Mutex::new(InstancesList::default()))
                 .mount("/", routes![list_instances]);
 
             let client = Client::tracked(rocket).await.unwrap();
@@ -488,6 +513,13 @@ mod tests {
 
             let status = request.dispatch().await.status();
             assert_eq!(Status::BadGateway, status);
+            let instances_state = client
+                .rocket()
+                .state::<Mutex<InstancesList>>()
+                .unwrap()
+                .lock()
+                .unwrap();
+            assert_eq!(instances_state.instances(), &Vec::<Instance>::new());
         }
     }
 
