@@ -4,6 +4,7 @@ mod check_memberships;
 mod error;
 mod fileo;
 mod json;
+mod login_form;
 mod navbar;
 mod stepper;
 mod template;
