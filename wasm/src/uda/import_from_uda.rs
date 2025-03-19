@@ -7,8 +7,8 @@ use crate::template::get_template;
 use crate::uda::credentials::UdaCredentials;
 use crate::user_interface::set_loading;
 use crate::utils::{
-    add_class, append_child, get_element_by_id, get_element_by_id_dyn, get_value_from_element,
-    query_selector_single_element, set_attribute,
+    add_class, append_child, clear_element, get_element_by_id, get_element_by_id_dyn,
+    get_value_from_element, query_selector_single_element, set_attribute,
 };
 use crate::web::fetch;
 use dto::uda_member::UdaMember;
@@ -105,6 +105,7 @@ async fn retrieve_members() -> Result<Vec<UdaMember>> {
 
 fn display_members(document: &Document, members: &Vec<UdaMember>) -> Result<()> {
     let container = get_element_by_id(document, "checked-members")?;
+    clear_element(&container);
     for member in members {
         match create_member_card(document, member) {
             Ok(element) => {
