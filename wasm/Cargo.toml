@@ -25,12 +25,11 @@ wasm-logger = "0.2.0"
 # code size when deploying.
 console_error_panic_hook = { version = "0.1.7", optional = true }
 
-web-sys = { version = "0.3.77", features = ["DateTimeValue", "Document", "DocumentFragment", "Element", "EventListener", "File", "FileList", "HtmlAnchorElement", "HtmlButtonElement", "HtmlCollection", "HtmlInputElement", "HtmlTemplateElement", "HtmlTextAreaElement", "KeyboardEvent", "Location", "UrlSearchParams", "Window"] }
+web-sys = { version = "0.3.77", features = ["DateTimeValue", "Document", "DocumentFragment", "Element", "EventListener", "File", "FileList", "Headers", "HtmlAnchorElement", "HtmlButtonElement", "HtmlCollection", "HtmlInputElement", "HtmlTemplateElement", "HtmlTextAreaElement", "KeyboardEvent", "Location", "Request", "RequestInit", "Response", "UrlSearchParams", "Window", "ReadableStream"] }
 
 # Other tools
 serde = { version = "1.0.218", features = ["derive"] }
 log = "0.4.26"
-reqwest = "0.12.12"
 serde_json = "1.0.139"
 
 [dev-dependencies]
