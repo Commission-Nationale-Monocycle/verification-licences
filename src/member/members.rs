@@ -1,7 +1,7 @@
 use crate::member::Membership;
 use crate::member::memberships::Memberships;
 use dto::checked_member::CheckedMember;
-use dto::member_to_check::MemberToCheck;
+use dto::member_identifier::MemberIdentifier;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -27,21 +27,27 @@ impl From<HashMap<String, Memberships>> for Members {
 }
 
 impl Members {
-    /// Maps each [MemberToCheck] to its corresponding member if known.
+    /// Maps each member to check to its corresponding member if known.
     /// Otherwise, maps it to [None].
-    pub fn check_members(&self, members_to_check: &[MemberToCheck]) -> Vec<CheckedMember> {
+    pub fn check_members<T>(&self, members_to_check: Vec<T>) -> Vec<CheckedMember<T>>
+    where
+        T: MemberIdentifier,
+    {
         members_to_check
-            .iter()
+            .into_iter()
             .map(|member_to_check| {
                 CheckedMember::new(
                     member_to_check.clone(),
-                    self.check_member(member_to_check).cloned(),
+                    self.check_member(&member_to_check).cloned(),
                 )
             })
             .collect()
     }
 
-    fn check_member(&self, member_to_check: &MemberToCheck) -> Option<&Membership> {
+    fn check_member<T>(&self, member_to_check: &T) -> Option<&Membership>
+    where
+        T: MemberIdentifier,
+    {
         let membership_num_to_check = member_to_check.membership_num().clone()?;
 
         self.iter()
@@ -75,7 +81,7 @@ mod tests {
             Memberships::from([membership.clone()]),
         )]));
         let member_to_check = MemberToCheck::new(
-            Some(MEMBERSHIP_NUMBER.to_owned()),
+            MEMBERSHIP_NUMBER.to_owned(),
             MEMBER_NAME.to_owned(),
             MEMBER_FIRSTNAME.to_owned(),
         );
@@ -85,7 +91,7 @@ mod tests {
                 member_to_check.clone(),
                 Some(membership)
             )],
-            members.check_members(&[member_to_check])
+            members.check_members(vec![member_to_check])
         );
     }
 
@@ -98,14 +104,14 @@ mod tests {
         )]));
         let invalid_membership_number = format!("{MEMBERSHIP_NUMBER} oops");
         let member_to_check = MemberToCheck::new(
-            Some(invalid_membership_number),
+            invalid_membership_number,
             MEMBER_NAME.to_owned(),
             MEMBER_FIRSTNAME.to_owned(),
         );
 
         assert_eq!(
             vec![CheckedMember::new(member_to_check.clone(), None)],
-            members.check_members(&[member_to_check])
+            members.check_members(vec![member_to_check])
         );
     }
     // endregion
@@ -119,7 +125,7 @@ mod tests {
             Memberships::from([membership.clone()]),
         )]));
         let member_to_check = MemberToCheck::new(
-            Some(MEMBERSHIP_NUMBER.to_owned()),
+            MEMBERSHIP_NUMBER.to_owned(),
             MEMBER_NAME.to_owned(),
             MEMBER_FIRSTNAME.to_owned(),
         );
@@ -136,7 +142,7 @@ mod tests {
         )]));
         let invalid_membership_number = format!("{MEMBERSHIP_NUMBER} oops");
         let member_to_check = MemberToCheck::new(
-            Some(invalid_membership_number),
+            invalid_membership_number,
             MEMBER_NAME.to_owned(),
             MEMBER_FIRSTNAME.to_owned(),
         );

@@ -6,7 +6,7 @@ use crate::web::error::WebError::LackOfPermissions;
 use calamine::{
     Data, RangeDeserializer, RangeDeserializerBuilder, Reader, Xls, open_workbook_from_rs,
 };
-use dto::uda::Participant;
+use dto::participant::Participant;
 use reqwest::Client;
 use std::io::Cursor;
 
@@ -83,7 +83,7 @@ fn retrieve_imported_participants_from_xls<T: AsRef<[u8]>>(
 
 #[cfg(test)]
 pub mod tests {
-    use dto::uda::Participant;
+    use dto::participant::Participant;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 

@@ -1,6 +1,4 @@
 use crate::Result;
-use crate::alert::{AlertLevel, create_alert};
-use crate::error::Error;
 use crate::template::get_template;
 use crate::utils::{append_child, create_element, query_selector_single_element};
 use MemberStatus::Unknown;
@@ -23,10 +21,7 @@ pub fn create_card_for_member_to_check(
 
     let card = query_selector_single_element(&container, "div")?;
 
-    let membership_num = member_to_check
-        .membership_num()
-        .clone()
-        .unwrap_or("Aucun numéro de licence n'a été fourni".to_owned());
+    let membership_num = member_to_check.membership_num();
     query_selector_single_element(&card, ".membership-number")?.set_inner_html(&membership_num);
     query_selector_single_element(&card, ".name")?.set_inner_html(member_to_check.name());
     query_selector_single_element(&card, ".firstname")?.set_inner_html(member_to_check.firstname());
@@ -36,7 +31,7 @@ pub fn create_card_for_member_to_check(
 
 pub fn create_card_for_checked_member(
     document: &Document,
-    checked_member: &CheckedMember,
+    checked_member: &CheckedMember<MemberToCheck>,
 ) -> Result<Element> {
     let container = create_element(document, "div")?;
 
@@ -46,10 +41,7 @@ pub fn create_card_for_checked_member(
 
     let card = query_selector_single_element(&container, "div")?;
 
-    let membership_num = checked_member.member_to_check().membership_num().clone().ok_or_else(|| {
-        create_alert("Un membre a été vérifié, sans pour autant avoir de numéro de licence. Ce cas ne devrait pas se produire.", AlertLevel::Error);
-        Error::new("Membership does not provide number. Can't display card.".to_owned())
-    })?;
+    let membership_num = checked_member.member_to_check().membership_num();
     query_selector_single_element(&card, ".membership-number")?.set_inner_html(&membership_num);
     query_selector_single_element(&card, ".name")?
         .set_inner_html(checked_member.member_to_check().name());

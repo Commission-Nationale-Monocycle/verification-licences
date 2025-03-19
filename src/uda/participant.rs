@@ -1,5 +1,5 @@
 use derive_getters::Getters;
-use dto::uda::Participant;
+use dto::participant::Participant;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Getters, Serialize, Deserialize, PartialEq)]
