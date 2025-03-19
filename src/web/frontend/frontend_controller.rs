@@ -14,7 +14,7 @@ use std::sync::Mutex;
 #[get("/fileo/login")]
 pub async fn fileo_login() -> Template {
     Template::render(
-        "fileo-login",
+        "fileo/fileo-login",
         context! {
             title: "Connexion à Fileo"
         },
@@ -38,7 +38,7 @@ pub async fn list_memberships(
             .collect();
 
         Ok(Template::render(
-            "memberships",
+            "fileo/memberships",
             context! {
                 title: "Liste des licences",
                 memberships: memberships
@@ -68,7 +68,7 @@ pub async fn check_memberships(
             Some(file_details) => file_details.update_date().format("%d/%m/%Y").to_string(),
         };
         Ok(Template::render(
-            "check-memberships",
+            "fileo/check-memberships",
             context! {
                 title: "Vérifier les licences",
                 last_update: last_update
@@ -96,7 +96,7 @@ pub async fn uda_instance_selection(
     };
 
     Ok(Template::render(
-        "uda-instance-selection",
+        "uda/uda-instance-selection",
         context! {
             title: "Sélection de l'instance UDA à vérifier",
             instances: instances_list.instances(),

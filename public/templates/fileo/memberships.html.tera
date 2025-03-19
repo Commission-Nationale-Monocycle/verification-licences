@@ -1,11 +1,11 @@
-{% import "membership" as macro %}
+{% import "fileo/membership" as macro %}
 
-{% extends "base" %}
+{% extends "fileo/fileo-base" %}
 
-{% block content %}
+{% block fileo_content %}
    <table>
        {% for membership in memberships %}
            {{ macro::render_membership(membership=membership) }}
        {% endfor %}
    </table>
-{% endblock content %}
+{% endblock %}

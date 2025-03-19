@@ -1,6 +1,6 @@
-{% extends "base" %}
+{% extends "fileo/fileo-base" %}
 
-{% block content %}
+{% block fileo_content %}
     {% include "stepper" %}
 
     <div class="step current-step">
@@ -60,6 +60,6 @@
         </div>
     </div>
 
-    {% include "member-to-check" %}
-    {% include "checked-member" %}
-{% endblock content %}
+    {% include "fileo/member-to-check" %}
+    {% include "fileo/checked-member" %}
+{% endblock %}

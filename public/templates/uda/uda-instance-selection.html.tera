@@ -1,6 +1,8 @@
-{% extends "base" %}
+{% extends "uda/uda-base" %}
 
-{% block content %}
+{% block uda_content %}
+    {% include "stepper" %}
+
     <div class="input-container">
         <label for="uda-instance-selector">Sélectionnez une instance UDA (dernière mise à jour : {{ last_update }})</label>
         <select id="uda-instance-selector"
@@ -11,4 +13,4 @@
         </select>
     </div>
     <button onclick="app.update_uda_instances_list()">Mettre à jour la liste</button>
-{% endblock content %}
+{% endblock %}

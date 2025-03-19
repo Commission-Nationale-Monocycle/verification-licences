@@ -1,9 +1,22 @@
 use crate::alert::{AlertLevel, create_alert, unwrap_or_alert, unwrap_without_alert};
 use crate::error::Error;
+use crate::stepper::add_step;
 use crate::user_interface::set_loading;
 use crate::utils::get_window;
 use crate::web::fetch;
 use wasm_bindgen::prelude::wasm_bindgen;
+use web_sys::Document;
+
+pub fn init_uda_page(document: &Document) {
+    if let Some(stepper) = document
+        .get_elements_by_class_name("stepper")
+        .get_with_index(0)
+    {
+        unwrap_or_alert(add_step(document, &stepper, "Import"));
+        unwrap_or_alert(add_step(document, &stepper, "Vérification"));
+        unwrap_or_alert(add_step(document, &stepper, "Notification"));
+    }
+}
 
 #[wasm_bindgen]
 pub async fn update_uda_instances_list() {

@@ -1,0 +1,7 @@
+{% extends "base" %}
+
+{% block content %}
+    <div id="uda-container">
+        {% block uda_content %}{% endblock %}
+    </div>
+{% endblock %}

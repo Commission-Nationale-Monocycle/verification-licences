@@ -1,6 +1,6 @@
-{% extends "base" %}
+{% extends "fileo/fileo-base" %}
 
-{% block content %}
+{% block fileo_content %}
     <div class="login-form login-form-fileo">
         <div>
             Afin de pouvoir vérifier les licences, il est impératif de se connecter à Fileo.
