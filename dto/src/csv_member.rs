@@ -5,14 +5,17 @@ use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
 
+/// A [CsvMember] is a member whose been imported from a CSV file or string.
+/// It doesn't have much information, as we want to keep it simple
+/// for event organizer to check whether participants have a valid membership or not.
 #[derive(Debug, Getters, Serialize, Deserialize, Eq, PartialEq, Clone)]
-pub struct MemberToCheck {
+pub struct CsvMember {
     membership_num: String,
     name: String,
     firstname: String,
 }
 
-impl MemberToCheck {
+impl CsvMember {
     pub fn new(membership_num: String, name: String, firstname: String) -> Self {
         Self {
             membership_num,
@@ -22,14 +25,14 @@ impl MemberToCheck {
     }
 }
 
-impl MemberIdentifier for MemberToCheck {
+impl MemberIdentifier for CsvMember {
     fn membership_num(&self) -> Option<String> {
         Some(self.membership_num().clone())
     }
 }
 
-impl MemberToCheck {
-    /// Load members to check rom a CSV-formatted String, such as:
+impl CsvMember {
+    /// Load members to check from a CSV-formatted String, such as:
     /// `membership_num;name;firstname`
     pub fn load_members_to_check_from_csv_string(
         members_to_check: &str,
@@ -57,7 +60,7 @@ impl MemberToCheck {
                 if record.len() != 3 {
                     wrong_lines.push(record.iter().collect::<Vec<_>>().join(";"));
                 } else {
-                    members_to_check.insert(MemberToCheck::new(
+                    members_to_check.insert(CsvMember::new(
                         record.get(0).unwrap().to_owned(),
                         record.get(1).unwrap().to_owned(),
                         record.get(2).unwrap().to_owned(),
@@ -70,13 +73,13 @@ impl MemberToCheck {
     }
 }
 
-impl PartialOrd for MemberToCheck {
+impl PartialOrd for CsvMember {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for MemberToCheck {
+impl Ord for CsvMember {
     fn cmp(&self, other: &Self) -> Ordering {
         if self.name != other.name {
             self.name.cmp(other.name())
@@ -90,38 +93,38 @@ impl Ord for MemberToCheck {
 
 #[cfg(test)]
 mod tests {
-    use crate::member_to_check::MemberToCheck;
-    use std::collections::BTreeSet;
+    mod load_members_to_check_from_csv_string {
+        use crate::csv_member::CsvMember;
+        use std::collections::BTreeSet;
 
-    // region load_members_to_check_from_csv_string
-    #[test]
-    fn should_load_members_to_check_from_csv_string() {
-        let membership_num = "123".to_owned();
-        let name = "Doe".to_owned();
-        let firstname = "John".to_owned();
-        let csv = format!("{membership_num};{name};{firstname}");
-        let result = MemberToCheck::load_members_to_check_from_csv_string(&csv);
-        assert_eq!(
-            (
-                BTreeSet::from_iter(vec![MemberToCheck {
-                    membership_num,
-                    name,
-                    firstname
-                }]),
-                vec![]
-            ),
-            result
-        )
-    }
+        #[test]
+        fn success() {
+            let membership_num = "123".to_owned();
+            let name = "Doe".to_owned();
+            let firstname = "John".to_owned();
+            let csv = format!("{membership_num};{name};{firstname}");
+            let result = CsvMember::load_members_to_check_from_csv_string(&csv);
+            assert_eq!(
+                (
+                    BTreeSet::from_iter(vec![CsvMember {
+                        membership_num,
+                        name,
+                        firstname
+                    }]),
+                    vec![]
+                ),
+                result
+            )
+        }
 
-    #[test]
-    fn should_not_load_members_to_check_from_csv_string_when_wrong_row() {
-        let membership_num = "123".to_owned();
-        let name = "Doe".to_owned();
-        let csv = format!("{membership_num};{name}");
-        let result = MemberToCheck::load_members_to_check_from_csv_string(&csv);
-        let expected_result = (BTreeSet::new(), vec![csv]);
-        assert_eq!(expected_result, result)
+        #[test]
+        fn fail_when_wrong_row() {
+            let membership_num = "123".to_owned();
+            let name = "Doe".to_owned();
+            let csv = format!("{membership_num};{name}");
+            let result = CsvMember::load_members_to_check_from_csv_string(&csv);
+            let expected_result = (BTreeSet::new(), vec![csv]);
+            assert_eq!(expected_result, result)
+        }
     }
-    // endregion
 }

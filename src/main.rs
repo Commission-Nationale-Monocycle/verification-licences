@@ -4,7 +4,7 @@ extern crate rocket;
 mod demo_mock_server;
 mod error;
 mod fileo;
-mod member;
+mod membership;
 mod tools;
 mod uda;
 mod web;

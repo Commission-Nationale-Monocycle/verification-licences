@@ -8,8 +8,8 @@ use crate::fileo::error::FileoError::{
     CantLoadListOnServer, CantRetrieveDownloadLink, MalformedMembershipsDownloadResponse,
     MembershipsFileFolderCreationFailed, MembershipsFileWriteFailed, NoDownloadLink,
 };
-use crate::member::config::MembershipsProviderConfig;
-use crate::member::file_details::FileDetails;
+use crate::membership::config::MembershipsProviderConfig;
+use crate::membership::file_details::FileDetails;
 use crate::tools::web::build_client;
 use crate::tools::{log_error_and_return, log_message_and_return};
 use crate::web::error::WebError::{
@@ -264,8 +264,8 @@ mod tests {
     use super::*;
     use crate::error::ApplicationError;
     use crate::error::ApplicationError::{Fileo, Web};
-    use crate::member::config::MembershipsProviderConfig;
-    use crate::member::get_memberships_file_folder;
+    use crate::membership::config::MembershipsProviderConfig;
+    use crate::membership::get_memberships_file_folder;
     use crate::tools::test::tests::temp_dir;
 
     #[async_test]

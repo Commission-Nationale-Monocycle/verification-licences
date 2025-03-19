@@ -2,9 +2,8 @@ use std::collections::BTreeSet;
 use std::ops::{Deref, DerefMut};
 
 use derive_getters::Getters;
+use dto::membership::Membership;
 use rocket::serde::{Deserialize, Serialize};
-
-use crate::member::Membership;
 
 /// A sorted list of unique [Membership]s.
 #[derive(Debug, Serialize, Deserialize, Default, Eq, PartialEq, Getters)]
@@ -46,8 +45,8 @@ mod tests {
 
     use chrono::NaiveDate;
 
-    use crate::member::Membership;
-    use crate::member::memberships::Memberships;
+    use crate::membership::memberships::Memberships;
+    use dto::membership::Membership;
 
     #[test]
     fn should_retrieve_last_membership() {

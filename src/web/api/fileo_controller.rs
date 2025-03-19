@@ -1,11 +1,11 @@
 use crate::fileo::authentication::AUTHENTICATION_COOKIE;
 use crate::fileo::credentials::FileoCredentials;
 use crate::fileo::download::{download_memberships_list, login_to_fileo};
-use crate::member::config::MembershipsProviderConfig;
-use crate::member::import_from_file::{clean_old_files, import_from_file};
+use crate::membership::config::MembershipsProviderConfig;
+use crate::membership::import_from_file::{clean_old_files, import_from_file};
 use crate::tools::web::build_client;
 use crate::tools::{log_error_and_return, log_message, log_message_and_return};
-use crate::web::api::members_state::MembersState;
+use crate::web::api::memberships_state::MembershipsState;
 use crate::web::credentials_storage::CredentialsStorage;
 use rocket::State;
 use rocket::http::{Cookie, CookieJar, Status};
@@ -52,7 +52,7 @@ pub async fn login(
 #[get("/fileo/memberships", format = "text/plain-text")]
 pub async fn download_memberships(
     memberships_provider_config: &State<MembershipsProviderConfig>,
-    members_state: &State<Mutex<MembersState>>,
+    memberships_state: &State<Mutex<MembershipsState>>,
     credentials: FileoCredentials,
 ) -> Result<String, Status> {
     let file_details = download_memberships_list(memberships_provider_config, &credentials)
@@ -62,11 +62,11 @@ pub async fn download_memberships(
             Status::InternalServerError,
         ))?;
 
-    let members = import_from_file(file_details.filepath()).map_err(log_message_and_return(
+    let memberships = import_from_file(file_details.filepath()).map_err(log_message_and_return(
         "Error while reading memberships file.",
         Status::InternalServerError,
     ))?;
-    let mut members_state = members_state.lock().map_err(log_message_and_return(
+    let mut memberships_state = memberships_state.lock().map_err(log_message_and_return(
         "Couldn't acquire lock",
         Status::InternalServerError,
     ))?;
@@ -75,20 +75,22 @@ pub async fn download_memberships(
     clean_old_files(memberships_provider_config.folder(), &file_update_date)
         .map_err(log_message("Couldn't clean old files."))
         .ok();
-    members_state.set_file_details(file_details);
-    members_state.set_members(members);
-    Ok(json!(members_state.members()).to_string())
+    memberships_state.set_file_details(file_details);
+    memberships_state.set_memberships(memberships);
+    Ok(json!(memberships_state.memberships()).to_string())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use crate::member::config::MembershipsProviderConfig;
-    use crate::member::members::Members;
+    use crate::membership::config::MembershipsProviderConfig;
+    use crate::membership::grouped_memberships::GroupedMemberships;
     use crate::tools::test::tests::temp_dir;
-    use crate::web::api::members_state::MembersState;
-    use dto::membership::tests::{MEMBERSHIP_NUMBER, get_expected_membership, get_member_as_csv};
+    use crate::web::api::memberships_state::MembershipsState;
+    use dto::membership::tests::{
+        MEMBERSHIP_NUMBER, get_expected_membership, get_membership_as_csv,
+    };
     use encoding::all::ISO_8859_1;
     use encoding::{EncoderTrap, Encoding};
     use regex::Regex;
@@ -112,8 +114,8 @@ mod tests {
         )
     }
 
-    fn create_member_state_mutex() -> Mutex<MembersState> {
-        Mutex::new(MembersState::default())
+    fn create_member_state_mutex() -> Mutex<MembershipsState> {
+        Mutex::new(MembershipsState::default())
     }
 
     async fn setup_login(mock_server: &MockServer) {
@@ -239,7 +241,7 @@ mod tests {
             ))
             .mount(&mock_server)
             .await;
-        let member_as_csv = get_member_as_csv();
+        let member_as_csv = get_membership_as_csv();
         let member_as_csv = ISO_8859_1
             .encode(&member_as_csv, EncoderTrap::Strict)
             .unwrap();
@@ -251,15 +253,16 @@ mod tests {
             .await;
 
         let config_state = State::from(&config);
-        let members_state_mutex = Mutex::new(MembersState::new(None, Members::default()));
-        let members_state = State::from(&members_state_mutex);
+        let memberships_state_mutex =
+            Mutex::new(MembershipsState::new(None, GroupedMemberships::default()));
+        let memberships_state = State::from(&memberships_state_mutex);
         let credentials =
             FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
 
-        let result = download_memberships(config_state, members_state, credentials)
+        let result = download_memberships(config_state, memberships_state, credentials)
             .await
             .unwrap();
-        let members: Members = json::from_str(&result).unwrap();
+        let members: GroupedMemberships = json::from_str(&result).unwrap();
         assert_eq!(
             &get_expected_membership(),
             members
@@ -282,12 +285,13 @@ mod tests {
         let config = create_memberships_provider_test_config(&mock_server.uri());
 
         let config_state = State::from(&config);
-        let members_state_mutex = Mutex::new(MembersState::new(None, Members::default()));
-        let members_state = State::from(&members_state_mutex);
+        let memberships_state_mutex =
+            Mutex::new(MembershipsState::new(None, GroupedMemberships::default()));
+        let memberships_state = State::from(&memberships_state_mutex);
         let credentials =
             FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
 
-        let result = download_memberships(config_state, members_state, credentials).await;
+        let result = download_memberships(config_state, memberships_state, credentials).await;
         assert_eq!(Status::InternalServerError, result.unwrap_err());
     }
     // endregion

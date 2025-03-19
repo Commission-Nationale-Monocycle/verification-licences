@@ -9,8 +9,8 @@ use crate::utils::{
 use crate::web::fetch;
 use crate::{json, user_interface};
 use dto::checked_member::CheckedMember;
+use dto::csv_member::CsvMember;
 use dto::email::Email;
-use dto::member_to_check::MemberToCheck;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{Document, HtmlButtonElement, HtmlInputElement, HtmlTextAreaElement};
@@ -40,7 +40,7 @@ pub async fn handle_members_to_check_file(input: HtmlInputElement) -> Result<(),
     });
 
     let (members_to_check, wrong_lines) =
-        MemberToCheck::load_members_to_check_from_csv_string(&csv_content);
+        CsvMember::load_members_to_check_from_csv_string(&csv_content);
 
     unwrap_or_alert(user_interface::render_lines(
         &document,
@@ -74,7 +74,7 @@ pub async fn handle_form_submission(document: &Document) {
         return;
     }
 
-    let url = "/api/members/check";
+    let url = "/api/members/csv/check";
     let body = format!("members_to_check={members_to_check}");
     match fetch(
         url,
@@ -88,7 +88,7 @@ pub async fn handle_form_submission(document: &Document) {
             let status = response.status();
             if (200..400).contains(&status) {
                 let text = response.body().clone().unwrap_or(String::new());
-                let checked_members: Vec<CheckedMember<MemberToCheck>> = json::from_str(&text);
+                let checked_members: Vec<CheckedMember<CsvMember>> = json::from_str(&text);
                 unwrap_or_alert(user_interface::handle_checked_members(&checked_members));
                 next_step(document);
                 unwrap_or_alert(set_loading(false));

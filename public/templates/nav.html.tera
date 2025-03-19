@@ -18,10 +18,10 @@
                     <a href="/memberships">Liste des licences</a>
                 </li>
                 <li>
-                    <a href="/check-memberships">Importer depuis un fichier CSV</a>
+                    <a href="/csv/check">Importer depuis un fichier CSV</a>
                 </li>
                 <li>
-                    <a href="/uda/import">Importer depuis UDA</a>
+                    <a href="/uda/check">Importer depuis UDA</a>
                 </li>
             </ul>
         </div>

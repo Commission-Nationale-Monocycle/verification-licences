@@ -57,7 +57,7 @@ pub async fn login() {
                 let url_to_redirect = if let Some(redirect) = query_params.get("page") {
                     redirect
                 } else {
-                    "/check-memberships".to_owned()
+                    "/csv/check".to_owned()
                 };
                 let result = location.set_href(&url_to_redirect);
                 if let Err(error) = result {

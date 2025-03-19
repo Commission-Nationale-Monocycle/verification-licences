@@ -34,15 +34,15 @@
     </div>
 
     <div class="step">
-        <div id="checked-participants" class="flex flex-col md:flex-row flex-wrap">
+        <div id="checked-members" class="flex flex-col md:flex-row flex-wrap">
 
         </div>
     </div>
     <div class="step"></div>
 
-    <template id="participant-template">
-        <div class="participant-to-check">
-            <div>Participant à vérifier</div>
+    <template id="member-template">
+        <div class="member-to-check">
+            <div>Membre à vérifier</div>
             <div>Numéro d'adhésion : <div class="membership-number"></div></div>
             <div>Nom : <div class="name"></div></div>
             <div>Prénom : <div class="first-name"></div></div>

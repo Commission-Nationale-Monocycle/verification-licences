@@ -4,7 +4,7 @@ use crate::tools::log_error_and_return;
 use crate::uda::configuration::Configuration;
 use crate::uda::error::UdaError;
 use crate::web::error::WebError::{CantReadPageContent, ConnectionFailed};
-use dto::uda::Instance;
+use dto::uda_instance::Instance;
 use reqwest::Client;
 use scraper::{ElementRef, Html, Selector};
 

@@ -21,10 +21,10 @@ impl Server for FrontendServer {
                     frontend_controller::fileo_login,
                     frontend_controller::list_memberships,
                     frontend_controller::list_memberships_unauthenticated,
-                    frontend_controller::check_memberships,
-                    frontend_controller::check_memberships_unauthenticated,
-                    frontend_controller::uda_import,
-                    frontend_controller::uda_import_unauthenticated,
+                    frontend_controller::check_members_from_csv,
+                    frontend_controller::check_members_from_csv_unauthenticated,
+                    frontend_controller::check_members_from_uda,
+                    frontend_controller::check_members_from_uda_unauthenticated,
                 ],
             )
             .mount("/", FileServer::from("./public/static"))

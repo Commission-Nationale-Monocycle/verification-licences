@@ -19,7 +19,7 @@ impl FileDetails {
 
 #[cfg(test)]
 mod tests {
-    use crate::member::file_details::FileDetails;
+    use crate::membership::file_details::FileDetails;
     use chrono::NaiveDate;
     use std::ffi::OsString;
 

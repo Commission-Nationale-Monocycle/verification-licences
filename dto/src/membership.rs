@@ -95,12 +95,12 @@ pub mod tests {
     }
 
     const HEADER: &str = "Nom d'usage;Prénom;Sexe;Date de Naissance;Age;Numéro d'adhérent;Email;Réglé;Date Fin d'adhésion;Adherent expiré;Nom de structure;Code de structure";
-    const MEMBER_AS_CSV: &str =
+    const MEMBERSHIP_AS_CSV: &str =
         "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oui;30-09-2025;Non;My club;Z01234";
     pub const MEMBER_NAME: &str = "Doe";
     pub const MEMBER_FIRSTNAME: &str = "Jon";
     pub const MEMBERSHIP_NUMBER: &str = "123456";
-    const MALFORMED_MEMBER_AS_CSV: &str =
+    const MALFORMED_MEMBERSHIP_AS_CSV: &str =
         "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oops;30-09-2025;Non;My club;Z01234";
 
     pub fn get_expected_membership() -> Membership {
@@ -120,12 +120,12 @@ pub mod tests {
         }
     }
 
-    pub fn get_member_as_csv() -> String {
-        format!("{HEADER}\n{MEMBER_AS_CSV}")
+    pub fn get_membership_as_csv() -> String {
+        format!("{HEADER}\n{MEMBERSHIP_AS_CSV}")
     }
 
-    pub fn get_malformed_member_as_csv() -> String {
-        format!("{HEADER}\n{MALFORMED_MEMBER_AS_CSV}")
+    pub fn get_malformed_membership_as_csv() -> String {
+        format!("{HEADER}\n{MALFORMED_MEMBERSHIP_AS_CSV}")
     }
 
     #[parameterized(
@@ -140,7 +140,7 @@ pub mod tests {
         Ordering::Equal,
         }
     )]
-    fn should_sort_members(
+    fn should_sort_memberships(
         end_dates: ((i32, u32, u32), (i32, u32, u32)),
         expected_result: Ordering,
     ) {

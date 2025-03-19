@@ -6,7 +6,7 @@ use crate::utils::{
 };
 use dto::checked_member::CheckedMember;
 use dto::checked_member::MemberStatus::Expired;
-use dto::member_to_check::MemberToCheck;
+use dto::csv_member::CsvMember;
 use std::collections::BTreeSet;
 use web_sys::{Document, Element, HtmlInputElement};
 
@@ -14,7 +14,7 @@ use web_sys::{Document, Element, HtmlInputElement};
 pub fn render_lines(
     document: &Document,
     csv_content: &str,
-    members_to_check: &BTreeSet<MemberToCheck>,
+    members_to_check: &BTreeSet<CsvMember>,
     wrong_lines: &[String],
 ) -> Result<()> {
     let members_to_check_hidden_input = get_members_to_check_hidden_input(document)?;
@@ -48,7 +48,7 @@ pub fn render_lines(
 
 fn create_members_to_check_lines(
     document: &Document,
-    members_to_check: &[&MemberToCheck],
+    members_to_check: &[&CsvMember],
 ) -> Result<Vec<Element>> {
     members_to_check
         .iter()
@@ -78,7 +78,7 @@ fn create_wrong_lines(document: &Document, wrong_lines: &[String]) -> Result<Ele
 // endregion
 
 // region Handle checked members
-pub fn handle_checked_members(checked_members: &Vec<CheckedMember<MemberToCheck>>) -> Result<()> {
+pub fn handle_checked_members(checked_members: &Vec<CheckedMember<CsvMember>>) -> Result<()> {
     let document = get_document()?;
     let parent = get_element_by_id(&document, "checked-members")?;
     clear_element(&parent);

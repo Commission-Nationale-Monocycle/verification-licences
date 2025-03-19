@@ -1,17 +1,17 @@
 use crate::error::{ApplicationError, Result};
 use crate::tools::{log_error_and_return, log_message_and_return};
 use crate::uda::error::UdaError::{MalformedXlsFile, OrganizationMembershipsAccessFailed};
-use crate::uda::participant::ImportedParticipant;
+use crate::uda::imported_uda_member::ImportedUdaMember;
 use crate::web::error::WebError::LackOfPermissions;
 use calamine::{
     Data, RangeDeserializer, RangeDeserializerBuilder, Reader, Xls, open_workbook_from_rs,
 };
-use dto::participant::Participant;
+use dto::uda_member::UdaMember;
 use reqwest::Client;
 use std::io::Cursor;
 
 /// Retrieve members from UDA's organisation membership page.
-pub async fn retrieve_participants(client: &Client, base_url: &str) -> Result<Vec<Participant>> {
+pub async fn retrieve_members(client: &Client, base_url: &str) -> Result<Vec<UdaMember>> {
     let url = format!("{base_url}/en/organization_memberships/export.xls");
 
     let response = client
@@ -27,10 +27,10 @@ pub async fn retrieve_participants(client: &Client, base_url: &str) -> Result<Ve
             OrganizationMembershipsAccessFailed,
         ))?;
 
-        retrieve_imported_participants_from_xls(Cursor::new(body)).map(|imported_participants| {
-            imported_participants
+        retrieve_imported_members_from_xls(Cursor::new(body)).map(|imported_members| {
+            imported_members
                 .into_iter()
-                .map(|imported_participant| imported_participant.into())
+                .map(|imported_member| imported_member.into())
                 .collect()
         })
     } else if status.as_u16() == 401 {
@@ -45,9 +45,9 @@ pub async fn retrieve_participants(client: &Client, base_url: &str) -> Result<Ve
     }
 }
 
-fn retrieve_imported_participants_from_xls<T: AsRef<[u8]>>(
+fn retrieve_imported_members_from_xls<T: AsRef<[u8]>>(
     cursor: Cursor<T>,
-) -> Result<Vec<ImportedParticipant>> {
+) -> Result<Vec<ImportedUdaMember>> {
     let mut workbook: Xls<_> =
         open_workbook_from_rs(cursor).map_err(log_error_and_return(MalformedXlsFile))?;
     let sheets = workbook.sheet_names();
@@ -59,7 +59,7 @@ fn retrieve_imported_participants_from_xls<T: AsRef<[u8]>>(
             "Can't read organization_memberships content",
             MalformedXlsFile,
         ))?;
-    let deserializer: RangeDeserializer<'_, Data, ImportedParticipant> =
+    let deserializer: RangeDeserializer<'_, Data, ImportedUdaMember> =
         RangeDeserializerBuilder::new()
             .has_headers(true)
             .from_range(&range)
@@ -68,32 +68,32 @@ fn retrieve_imported_participants_from_xls<T: AsRef<[u8]>>(
                 MalformedXlsFile,
             ))?;
 
-    let participants = deserializer
+    let members = deserializer
         .flat_map(|result| match result {
-            Ok(participant) => Some(participant),
+            Ok(member) => Some(member),
             Err(error) => {
-                warn!("Can't deserialize participant. Ignoring. {:?}", error);
+                warn!("Can't deserialize UDA member. Ignoring. {:?}", error);
                 None
             }
         })
         .collect();
 
-    Ok(participants)
+    Ok(members)
 }
 
 #[cfg(test)]
 pub mod tests {
-    use dto::participant::Participant;
+    use dto::uda_member::UdaMember;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     fn get_test_file_content() -> Vec<u8> {
-        std::fs::read("test/resources/uda_participant.xls").unwrap()
+        std::fs::read("test/resources/uda_members.xls").unwrap()
     }
 
-    fn get_expected_participants() -> Vec<Participant> {
+    fn get_expected_member() -> Vec<UdaMember> {
         vec![
-            Participant::new(
+            UdaMember::new(
                 1,
                 Some("123456".to_owned()),
                 "Jon".to_owned(),
@@ -102,7 +102,7 @@ pub mod tests {
                 Some("Le club de test".to_owned()),
                 true,
             ),
-            Participant::new(
+            UdaMember::new(
                 2,
                 Some("654321".to_owned()),
                 "Jonette".to_owned(),
@@ -114,7 +114,7 @@ pub mod tests {
         ]
     }
 
-    pub async fn setup_participant_retrieval(mock_server: &MockServer) -> Vec<Participant> {
+    pub async fn setup_member_retrieval(mock_server: &MockServer) -> Vec<UdaMember> {
         let body = get_test_file_content();
 
         Mock::given(method("GET"))
@@ -123,15 +123,15 @@ pub mod tests {
             .mount(mock_server)
             .await;
 
-        get_expected_participants()
+        get_expected_member()
     }
 
-    mod retrieve_participants {
+    mod retrieve_members {
         use crate::error::ApplicationError::{Uda, Web};
         use crate::tools::web::build_client;
         use crate::uda::error::UdaError;
-        use crate::uda::retrieve_members::retrieve_participants;
-        use crate::uda::retrieve_members::tests::setup_participant_retrieval;
+        use crate::uda::retrieve_members::retrieve_members;
+        use crate::uda::retrieve_members::tests::setup_member_retrieval;
         use crate::web::error::WebError::LackOfPermissions;
         use UdaError::OrganizationMembershipsAccessFailed;
         use wiremock::matchers::{method, path};
@@ -140,11 +140,9 @@ pub mod tests {
         #[async_test]
         async fn success() {
             let mock_server = MockServer::start().await;
-            let expected_result = setup_participant_retrieval(&mock_server).await;
+            let expected_result = setup_member_retrieval(&mock_server).await;
             let client = build_client().unwrap();
-            let result = retrieve_participants(&client, &mock_server.uri())
-                .await
-                .unwrap();
+            let result = retrieve_members(&client, &mock_server.uri()).await.unwrap();
             assert_eq!(expected_result, result);
         }
 
@@ -158,7 +156,7 @@ pub mod tests {
                 .mount(&mock_server)
                 .await;
 
-            let error = retrieve_participants(&client, &mock_server.uri())
+            let error = retrieve_members(&client, &mock_server.uri())
                 .await
                 .unwrap_err();
             assert!(matches!(error, Uda(OrganizationMembershipsAccessFailed)));
@@ -174,25 +172,25 @@ pub mod tests {
                 .mount(&mock_server)
                 .await;
 
-            let error = retrieve_participants(&client, &mock_server.uri())
+            let error = retrieve_members(&client, &mock_server.uri())
                 .await
                 .unwrap_err();
             assert!(matches!(error, Web(LackOfPermissions)));
         }
     }
 
-    mod retrieve_imported_participants_from_xls {
+    mod retrieve_imported_members_from_xls {
         use crate::error::ApplicationError::Uda;
         use crate::uda::error::UdaError;
-        use crate::uda::participant::ImportedParticipant;
-        use crate::uda::retrieve_members::retrieve_imported_participants_from_xls;
+        use crate::uda::imported_uda_member::ImportedUdaMember;
+        use crate::uda::retrieve_members::retrieve_imported_members_from_xls;
         use crate::uda::retrieve_members::tests::get_test_file_content;
         use UdaError::MalformedXlsFile;
         use std::io::Cursor;
 
-        fn get_expected_imported_participants() -> Vec<ImportedParticipant> {
+        fn get_expected_imported_members() -> Vec<ImportedUdaMember> {
             vec![
-                ImportedParticipant::new(
+                ImportedUdaMember::new(
                     1,
                     Some("123456".to_owned()),
                     None,
@@ -209,7 +207,7 @@ pub mod tests {
                     Some("Le club de test".to_owned()),
                     true,
                 ),
-                ImportedParticipant::new(
+                ImportedUdaMember::new(
                     2,
                     Some("654321".to_owned()),
                     None,
@@ -232,18 +230,17 @@ pub mod tests {
         #[test]
         fn success() {
             let content = get_test_file_content();
-            let participants =
-                retrieve_imported_participants_from_xls(Cursor::new(content)).unwrap();
-            assert_eq!(get_expected_imported_participants(), participants)
+            let members = retrieve_imported_members_from_xls(Cursor::new(content)).unwrap();
+            assert_eq!(get_expected_imported_members(), members)
         }
 
         #[test]
-        fn ignore_participant_when_missing_field() {
-            let content = std::fs::read("test/resources/uda_participant_1_invalid.xls").unwrap();
+        fn ignore_member_when_missing_field() {
+            let content = std::fs::read("test/resources/uda_members_1_invalid.xls").unwrap();
             let cursor = Cursor::new(content);
-            let participants = retrieve_imported_participants_from_xls(cursor).unwrap();
+            let members = retrieve_imported_members_from_xls(cursor).unwrap();
             assert_eq!(
-                vec![ImportedParticipant::new(
+                vec![ImportedUdaMember::new(
                     1,
                     Some("123456".to_owned()),
                     None,
@@ -260,13 +257,13 @@ pub mod tests {
                     Some("Le club de test".to_owned()),
                     true,
                 )],
-                participants
+                members
             );
         }
 
         #[test]
         fn fail_when_malformed_xls() {
-            let error = retrieve_imported_participants_from_xls(Cursor::new(""))
+            let error = retrieve_imported_members_from_xls(Cursor::new(""))
                 .err()
                 .unwrap();
             assert!(matches!(error, Uda(MalformedXlsFile)));
