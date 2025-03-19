@@ -314,7 +314,7 @@ mod tests {
         use crate::uda::retrieve_members::tests::setup_participant_retrieval;
         use crate::web::api::uda_controller::retrieve_participants_to_check;
         use crate::web::credentials_storage::CredentialsStorage;
-        use dto::uda::Participant;
+        use dto::participant::Participant;
         use rocket::http::Status;
         use rocket::local::asynchronous::Client;
         use std::sync::Mutex;

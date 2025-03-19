@@ -88,7 +88,7 @@ pub async fn handle_form_submission(document: &Document) {
             let status = response.status();
             if (200..400).contains(&status) {
                 let text = response.body().clone().unwrap_or(String::new());
-                let checked_members: Vec<CheckedMember> = json::from_str(&text);
+                let checked_members: Vec<CheckedMember<MemberToCheck>> = json::from_str(&text);
                 unwrap_or_alert(user_interface::handle_checked_members(&checked_members));
                 next_step(document);
                 unwrap_or_alert(set_loading(false));

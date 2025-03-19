@@ -78,7 +78,7 @@ fn create_wrong_lines(document: &Document, wrong_lines: &[String]) -> Result<Ele
 // endregion
 
 // region Handle checked members
-pub fn handle_checked_members(checked_members: &Vec<CheckedMember>) -> Result<()> {
+pub fn handle_checked_members(checked_members: &Vec<CheckedMember<MemberToCheck>>) -> Result<()> {
     let document = get_document()?;
     let parent = get_element_by_id(&document, "checked-members")?;
     clear_element(&parent);

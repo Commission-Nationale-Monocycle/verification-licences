@@ -40,7 +40,7 @@ pub async fn check_memberships(
 
     let members: &Members = members_state.members();
     let members_to_check = members_to_check.into_iter().collect::<Vec<_>>();
-    let vec = members.check_members(&members_to_check);
+    let vec = members.check_members(members_to_check);
 
     Ok(json!(vec).to_string())
 }

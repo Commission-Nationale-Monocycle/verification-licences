@@ -1,23 +1,30 @@
+use crate::member_identifier::MemberIdentifier;
 use csv::Reader;
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
 
-#[derive(Debug, Getters, Serialize, Deserialize, Clone, Eq, PartialEq)]
+#[derive(Debug, Getters, Serialize, Deserialize, Eq, PartialEq, Clone)]
 pub struct MemberToCheck {
-    membership_num: Option<String>,
+    membership_num: String,
     name: String,
     firstname: String,
 }
 
 impl MemberToCheck {
-    pub fn new(membership_num: Option<String>, name: String, firstname: String) -> Self {
+    pub fn new(membership_num: String, name: String, firstname: String) -> Self {
         Self {
             membership_num,
             name,
             firstname,
         }
+    }
+}
+
+impl MemberIdentifier for MemberToCheck {
+    fn membership_num(&self) -> Option<String> {
+        Some(self.membership_num().clone())
     }
 }
 
@@ -51,7 +58,7 @@ impl MemberToCheck {
                     wrong_lines.push(record.iter().collect::<Vec<_>>().join(";"));
                 } else {
                     members_to_check.insert(MemberToCheck::new(
-                        Some(record.get(0).unwrap().to_owned()),
+                        record.get(0).unwrap().to_owned(),
                         record.get(1).unwrap().to_owned(),
                         record.get(2).unwrap().to_owned(),
                     ));
@@ -97,7 +104,7 @@ mod tests {
         assert_eq!(
             (
                 BTreeSet::from_iter(vec![MemberToCheck {
-                    membership_num: Some(membership_num),
+                    membership_num,
                     name,
                     firstname
                 }]),

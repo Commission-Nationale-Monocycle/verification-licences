@@ -1,5 +1,5 @@
 use crate::checked_member::MemberStatus::{Expired, Unknown, UpToDate};
-use crate::member_to_check::MemberToCheck;
+use crate::member_identifier::MemberIdentifier;
 use crate::membership::Membership;
 use chrono::Utc;
 use derive_getters::Getters;
@@ -14,13 +14,13 @@ pub enum MemberStatus {
 }
 
 #[derive(Debug, Getters, Serialize, Deserialize, PartialEq)]
-pub struct CheckedMember {
-    member_to_check: MemberToCheck,
+pub struct CheckedMember<T: MemberIdentifier> {
+    member_to_check: T,
     membership: Option<Membership>,
 }
 
-impl CheckedMember {
-    pub fn new(member_to_check: MemberToCheck, membership: Option<Membership>) -> Self {
+impl<T: MemberIdentifier> CheckedMember<T> {
+    pub fn new(member_to_check: T, membership: Option<Membership>) -> Self {
         Self {
             member_to_check,
             membership,
@@ -41,7 +41,7 @@ impl CheckedMember {
     }
 }
 
-impl PartialOrd for CheckedMember {
+impl<T: MemberIdentifier> PartialOrd for CheckedMember<T> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         if self.membership.is_some() && other.membership.is_none() {
             Some(Ordering::Greater)
@@ -56,16 +56,17 @@ impl PartialOrd for CheckedMember {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::member_to_check::MemberToCheck;
     use chrono::Days;
     use std::cmp::Ordering::{Greater, Less};
     // region utils
 
     fn get_member_to_check_2() -> MemberToCheck {
-        MemberToCheck::new(Some("2".to_owned()), "".to_owned(), "".to_owned())
+        MemberToCheck::new("2".to_owned(), "".to_owned(), "".to_owned())
     }
 
     fn get_member_to_check_1() -> MemberToCheck {
-        MemberToCheck::new(Some("1".to_owned()), "".to_owned(), "".to_owned())
+        MemberToCheck::new("1".to_owned(), "".to_owned(), "".to_owned())
     }
 
     fn get_membership_2() -> Membership {

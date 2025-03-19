@@ -11,7 +11,7 @@ use crate::utils::{
     query_selector_single_element, set_attribute,
 };
 use crate::web::fetch;
-use dto::uda::Participant;
+use dto::participant::Participant;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::{Document, Element, HtmlSelectElement};
 
