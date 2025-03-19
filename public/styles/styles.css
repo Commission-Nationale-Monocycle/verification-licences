@@ -179,7 +179,7 @@ body.loading #spinner-container {
 }
 
 .member-to-check div:is(
-.member-to-check-membership-number, .member-to-check-name, .member-to-check-firstname,
+.membership-number, .name, .firstname,
 .membership-name, .membership-firstname, .membership-end-date
 ) {
     @apply inline

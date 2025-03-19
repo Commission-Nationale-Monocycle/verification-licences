@@ -3,13 +3,17 @@ use crate::alert::{AlertLevel, create_alert, unwrap_or_alert};
 use crate::error::Error;
 use crate::json;
 use crate::stepper::next_step;
+use crate::template::get_template;
 use crate::uda::credentials::UdaCredentials;
 use crate::user_interface::set_loading;
-use crate::utils::{get_element_by_id_dyn, get_value_from_element};
+use crate::utils::{
+    add_class, append_child, get_element_by_id, get_element_by_id_dyn, get_value_from_element,
+    query_selector_single_element, set_attribute,
+};
 use crate::web::fetch;
 use dto::uda::Participant;
 use wasm_bindgen::prelude::wasm_bindgen;
-use web_sys::{Document, HtmlSelectElement};
+use web_sys::{Document, Element, HtmlSelectElement};
 
 #[wasm_bindgen(js_name = "importFromUda")]
 pub async fn import_from_uda_page(document: &Document) {
@@ -28,7 +32,6 @@ pub async fn import_from_uda_page(document: &Document) {
         );
         return;
     }
-    // FIXME: use participants
     let participants = unwrap_or_alert(retrieve_participants().await.map_err(|error| {
         Error::from_parent(
             "Erreur, veuillez réessyer.".to_owned(),
@@ -36,6 +39,14 @@ pub async fn import_from_uda_page(document: &Document) {
         )
     }));
 
+    unwrap_or_alert(
+        display_participants(document, &participants).map_err(|error| {
+            Error::from_parent(
+                "Erreur, veuillez réessyer.".to_owned(),
+                Error::new(error.to_string()),
+            )
+        }),
+    );
     next_step(document);
 
     unwrap_or_alert(set_loading(false));
@@ -92,4 +103,53 @@ async fn retrieve_participants() -> Result<Vec<Participant>> {
             "Can't retrieve participants [status: {status}"
         )))
     }
+}
+
+fn display_participants(document: &Document, participants: &Vec<Participant>) -> Result<()> {
+    let container = get_element_by_id(document, "checked-participants")?;
+    for participant in participants {
+        match create_participant_card(document, participant) {
+            Ok(element) => {
+                append_child(&container, &element)?;
+            }
+            Err(error) => {
+                log::warn!("Participant can't be displayed: {:?}", error);
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn create_participant_card(document: &Document, participant: &Participant) -> Result<Element> {
+    let element = get_template(document, "participant-template")?;
+    query_selector_single_element(&element, ".membership-number")?.set_inner_html(
+        &participant
+            .membership_number()
+            .clone()
+            .unwrap_or("Non renseigné".to_string()),
+    );
+    query_selector_single_element(&element, ".name")?
+        .set_inner_html(participant.last_name().as_str());
+    query_selector_single_element(&element, ".first-name")?
+        .set_inner_html(participant.first_name().as_str());
+    let club_element = query_selector_single_element(&element, ".club")?;
+    if let Some(club) = participant.club() {
+        club_element.set_inner_html(club);
+    } else {
+        let club_parent = club_element
+            .parent_element()
+            .ok_or_else(|| Error::new("No club element parent.".to_owned()))?;
+        add_class(&club_parent, "hidden");
+    }
+    let email_address_element = query_selector_single_element(&element, ".email-address")?;
+    let email_address = participant.email().as_str();
+    email_address_element.set_inner_html(email_address);
+    set_attribute(
+        &email_address_element,
+        "href",
+        &format!("mailto:{email_address}"),
+    )?;
+
+    Ok(element)
 }

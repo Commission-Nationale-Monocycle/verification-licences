@@ -27,12 +27,9 @@ pub fn create_card_for_member_to_check(
         .membership_num()
         .clone()
         .unwrap_or("Aucun numéro de licence n'a été fourni".to_owned());
-    query_selector_single_element(&card, ".member-to-check-membership-number")?
-        .set_inner_html(&membership_num);
-    query_selector_single_element(&card, ".member-to-check-name")?
-        .set_inner_html(member_to_check.name());
-    query_selector_single_element(&card, ".member-to-check-firstname")?
-        .set_inner_html(member_to_check.firstname());
+    query_selector_single_element(&card, ".membership-number")?.set_inner_html(&membership_num);
+    query_selector_single_element(&card, ".name")?.set_inner_html(member_to_check.name());
+    query_selector_single_element(&card, ".firstname")?.set_inner_html(member_to_check.firstname());
 
     Ok(card)
 }
@@ -53,11 +50,10 @@ pub fn create_card_for_checked_member(
         create_alert("Un membre a été vérifié, sans pour autant avoir de numéro de licence. Ce cas ne devrait pas se produire.", AlertLevel::Error);
         Error::new("Membership does not provide number. Can't display card.".to_owned())
     })?;
-    query_selector_single_element(&card, ".member-to-check-membership-number")?
-        .set_inner_html(&membership_num);
-    query_selector_single_element(&card, ".member-to-check-name")?
+    query_selector_single_element(&card, ".membership-number")?.set_inner_html(&membership_num);
+    query_selector_single_element(&card, ".name")?
         .set_inner_html(checked_member.member_to_check().name());
-    query_selector_single_element(&card, ".member-to-check-firstname")?
+    query_selector_single_element(&card, ".firstname")?
         .set_inner_html(checked_member.member_to_check().firstname());
 
     if status == UpToDate || status == Expired {
