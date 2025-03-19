@@ -1,18 +1,14 @@
 use crate::error::{ApplicationError, Result};
 use crate::tools::{log_error_and_return, log_message_and_return};
-use crate::uda::error::UdaError;
 use crate::uda::error::UdaError::{MalformedXlsFile, OrganizationMembershipsAccessFailed};
 use crate::uda::participant::ImportedParticipant;
 use crate::web::error::WebError::LackOfPermissions;
 use calamine::{
     Data, RangeDeserializer, RangeDeserializerBuilder, Reader, Xls, open_workbook_from_rs,
 };
-use dto::member_to_check::MemberToCheck;
 use dto::uda::Participant;
 use reqwest::Client;
-use rocket::http::hyper::body::{Buf, Bytes};
-use scraper::{ElementRef, Html, Node, Selector};
-use std::io::{BufReader, Cursor, Read};
+use std::io::Cursor;
 
 /// Retrieve members from UDA's organisation membership page.
 pub async fn retrieve_participants(client: &Client, base_url: &str) -> Result<Vec<Participant>> {
@@ -55,7 +51,7 @@ fn retrieve_imported_participants_from_xls<T: AsRef<[u8]>>(
     let mut workbook: Xls<_> =
         open_workbook_from_rs(cursor).map_err(log_error_and_return(MalformedXlsFile))?;
     let sheets = workbook.sheet_names();
-    let first_sheet = sheets.get(0);
+    let first_sheet = sheets.first();
     let worksheet_name = first_sheet.ok_or(MalformedXlsFile)?;
     let range = workbook
         .worksheet_range(worksheet_name)
@@ -87,7 +83,6 @@ fn retrieve_imported_participants_from_xls<T: AsRef<[u8]>>(
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
     use dto::uda::Participant;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};

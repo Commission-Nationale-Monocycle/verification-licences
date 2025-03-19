@@ -54,6 +54,7 @@ impl From<ImportedParticipant> for Participant {
 
 #[cfg(test)]
 impl ImportedParticipant {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: u16,
         manual_organization_membership: Option<String>,
