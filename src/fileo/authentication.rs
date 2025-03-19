@@ -22,7 +22,6 @@ impl<'r> FromRequest<'r> for FileoCredentials {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::fileo::credentials::FileoCredentials;
     use crate::web::credentials_storage::CredentialsStorage;
     use rocket::http::{Cookie, Status};
     use rocket::local::asynchronous::Client;

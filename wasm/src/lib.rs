@@ -3,6 +3,7 @@ mod card_creator;
 mod check_memberships;
 mod error;
 mod fileo;
+mod json;
 mod navbar;
 mod stepper;
 mod template;
