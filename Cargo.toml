@@ -34,6 +34,7 @@ mail-send = "0.5.0"
 uuid = { version = "1.15.1" , features = ["v4"]}
 wiremock = { version = "0.6.3", optional = true }   # Included only for demo purposes
 thiserror = "2.0.12"
+calamine = "0.26.1"
 
 [dev-dependencies]
 # Internal

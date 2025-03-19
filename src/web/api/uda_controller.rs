@@ -8,7 +8,7 @@ use crate::uda::confirm_member::confirm_member;
 use crate::uda::credentials::UdaCredentials;
 use crate::uda::instances::retrieve_uda_instances;
 use crate::uda::login::authenticate_into_uda;
-use crate::uda::retrieve_members::retrieve_members;
+use crate::uda::retrieve_members::retrieve_participants;
 use crate::web::credentials_storage::CredentialsStorage;
 use crate::web::error::WebError::{ConnectionFailed, LackOfPermissions};
 use dto::uda::InstancesList;
@@ -52,7 +52,7 @@ pub async fn retrieve_members_to_check(credentials: UdaCredentials) -> Result<St
     let client = build_client().map_err(log_error_and_return(Status::InternalServerError))?;
     authenticate(&client, &credentials).await?;
     let url = credentials.uda_url();
-    match retrieve_members(&client, url).await {
+    match retrieve_participants(&client, url).await {
         Ok(members_to_check) => Ok(json!(members_to_check).to_string()),
         Err(Web(LackOfPermissions)) => Err(Status::Unauthorized),
         Err(_) => Err(Status::BadGateway),
@@ -311,10 +311,10 @@ mod tests {
         use crate::uda::authentication::AUTHENTICATION_COOKIE;
         use crate::uda::credentials::UdaCredentials;
         use crate::uda::login::tests::setup_authentication;
-        use crate::uda::retrieve_members::tests::setup_members_to_check_retrieval;
+        use crate::uda::retrieve_members::tests::setup_participant_retrieval;
         use crate::web::api::uda_controller::retrieve_members_to_check;
         use crate::web::credentials_storage::CredentialsStorage;
-        use dto::member_to_check::MemberToCheck;
+        use dto::uda::Participant;
         use rocket::http::Status;
         use rocket::local::asynchronous::Client;
         use std::sync::Mutex;
@@ -324,7 +324,7 @@ mod tests {
         async fn success() {
             let mock_server = MockServer::start().await;
             let credentials = setup_authentication(&mock_server).await;
-            let expected_result = setup_members_to_check_retrieval(&mock_server).await;
+            let expected_result = setup_participant_retrieval(&mock_server).await;
 
             let uuid = "e9af5e0f-c441-4bcd-bf22-31cc5b1f2f9e";
             let mut credentials_storage = CredentialsStorage::<UdaCredentials>::default();
@@ -342,8 +342,8 @@ mod tests {
 
             let response = request.dispatch().await;
             assert_eq!(Status::Ok, response.status());
-            let members_to_check: Vec<MemberToCheck> = response.into_json().await.unwrap();
-            assert_eq!(expected_result, members_to_check);
+            let participants: Vec<Participant> = response.into_json().await.unwrap();
+            assert_eq!(expected_result, participants);
         }
 
         #[async_test]

@@ -5,4 +5,5 @@ pub(crate) mod credentials;
 pub mod error;
 pub mod instances;
 pub mod login;
+mod participant;
 pub(crate) mod retrieve_members;

@@ -10,6 +10,8 @@ pub enum UdaError {
     MalformedSelector(String),
     #[error("The member can't be marked as confirmed [id: {0}]")]
     MemberConfirmationFailed(u16),
+    #[error("The exported XLS file is malformed")]
+    MalformedXlsFile,
 }
 
 impl From<SelectorErrorKind<'_>> for UdaError {

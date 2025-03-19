@@ -27,3 +27,36 @@ impl InstancesList {
         self.update_date = Some(Utc::now().date_naive());
     }
 }
+
+#[derive(Debug, Getters, PartialEq, Serialize, Deserialize)]
+pub struct Participant {
+    id: u16,
+    membership_number: Option<String>,
+    first_name: String,
+    last_name: String,
+    email: String,
+    club: Option<String>,
+    confirmed: bool,
+}
+
+impl Participant {
+    pub fn new(
+        id: u16,
+        membership_number: Option<String>,
+        first_name: String,
+        last_name: String,
+        email: String,
+        club: Option<String>,
+        confirmed: bool,
+    ) -> Self {
+        Self {
+            id,
+            membership_number,
+            first_name,
+            last_name,
+            email,
+            club,
+            confirmed,
+        }
+    }
+}
