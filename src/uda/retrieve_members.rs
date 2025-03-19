@@ -1,15 +1,18 @@
 use crate::error::{ApplicationError, Result};
 use crate::tools::{log_error_and_return, log_message_and_return};
-use crate::uda::error::UdaError;
-use crate::uda::error::UdaError::OrganizationMembershipsAccessFailed;
+use crate::uda::error::UdaError::{MalformedXlsFile, OrganizationMembershipsAccessFailed};
+use crate::uda::participant::ImportedParticipant;
 use crate::web::error::WebError::LackOfPermissions;
-use dto::member_to_check::MemberToCheck;
+use calamine::{
+    Data, RangeDeserializer, RangeDeserializerBuilder, Reader, Xls, open_workbook_from_rs,
+};
+use dto::uda::Participant;
 use reqwest::Client;
-use scraper::{ElementRef, Html, Node, Selector};
+use std::io::Cursor;
 
 /// Retrieve members from UDA's organisation membership page.
-pub async fn retrieve_members(client: &Client, base_url: &str) -> Result<Vec<MemberToCheck>> {
-    let url = format!("{base_url}/en/organization_memberships");
+pub async fn retrieve_participants(client: &Client, base_url: &str) -> Result<Vec<Participant>> {
+    let url = format!("{base_url}/en/organization_memberships/export.xls");
 
     let response = client
         .get(url)
@@ -19,16 +22,20 @@ pub async fn retrieve_members(client: &Client, base_url: &str) -> Result<Vec<Mem
 
     let status = response.status();
     if status.is_success() {
-        let body = response.text().await.map_err(log_message_and_return(
+        let body = response.bytes().await.map_err(log_message_and_return(
             "Can't read organization_memberships content",
             OrganizationMembershipsAccessFailed,
         ))?;
-        if body.contains("Unicycling Society/Federation Membership Management") {
-            retrieve_members_from_html(&body)
-        } else {
-            error!("Can't access organization_memberships page. Lack of permissions?");
-            Err(ApplicationError::from(LackOfPermissions))
-        }
+
+        retrieve_imported_participants_from_xls(Cursor::new(body)).map(|imported_participants| {
+            imported_participants
+                .into_iter()
+                .map(|imported_participant| imported_participant.into())
+                .collect()
+        })
+    } else if status.as_u16() == 401 {
+        error!("Can't access organization_memberships page. Lack of permissions?");
+        Err(ApplicationError::from(LackOfPermissions))
     } else {
         error!(
             "Can't reach organization_memberships page: {:?}",
@@ -38,392 +45,231 @@ pub async fn retrieve_members(client: &Client, base_url: &str) -> Result<Vec<Mem
     }
 }
 
-fn retrieve_members_from_html(body: &str) -> Result<Vec<MemberToCheck>> {
-    let regex = "[id^=reg_]";
-    let selector = Selector::parse(regex).map_err(UdaError::from)?;
-    let document = Html::parse_document(body);
-    Ok(document
-        .select(&selector)
-        .flat_map(extract_member_from_row)
-        .collect())
-}
+fn retrieve_imported_participants_from_xls<T: AsRef<[u8]>>(
+    cursor: Cursor<T>,
+) -> Result<Vec<ImportedParticipant>> {
+    let mut workbook: Xls<_> =
+        open_workbook_from_rs(cursor).map_err(log_error_and_return(MalformedXlsFile))?;
+    let sheets = workbook.sheet_names();
+    let first_sheet = sheets.first();
+    let worksheet_name = first_sheet.ok_or(MalformedXlsFile)?;
+    let range = workbook
+        .worksheet_range(worksheet_name)
+        .map_err(log_message_and_return(
+            "Can't read organization_memberships content",
+            MalformedXlsFile,
+        ))?;
+    let deserializer: RangeDeserializer<'_, Data, ImportedParticipant> =
+        RangeDeserializerBuilder::new()
+            .has_headers(true)
+            .from_range(&range)
+            .map_err(log_message_and_return(
+                "Can't read organization_memberships content",
+                MalformedXlsFile,
+            ))?;
 
-/// From a row, extract a MemberToCheck.
-/// If the row is malformed (= does not match with what's expected), then ignore the row.
-///
-/// The implementation is ugly, but it's difficult to do otherwise because of Scraper's lib.
-/// Ideally, we'd like to extract each value extraction, but we can't do so because `NodeRef` is inaccessible.
-fn extract_member_from_row(row: ElementRef) -> Option<MemberToCheck> {
-    let cells = row
-        .children()
-        .filter(|child| match child.value() {
-            Node::Element(_) => true,
-            // Ignoring all the line feeds that don't matter here.
-            _ => false,
+    let participants = deserializer
+        .flat_map(|result| match result {
+            Ok(participant) => Some(participant),
+            Err(error) => {
+                warn!("Can't deserialize participant. Ignoring. {:?}", error);
+                None
+            }
         })
-        .collect::<Vec<_>>();
+        .collect();
 
-    if cells.len() < 4 {
-        warn!(
-            "Member row is too short. Should have at least 4 cells. Ignoring. [row: {}]",
-            row.html()
-        );
-        return None;
-    }
-
-    let id_span = cells[1]
-        .children()
-        .find(|child| matches!(child.value(), Node::Element(_)));
-    if id_span.is_none() {
-        warn!(
-            "Missing id span for member. Ignoring. [row: {}]",
-            row.html()
-        );
-        return None;
-    }
-
-    let id_text = id_span.unwrap().first_child();
-    if id_text.is_none() {
-        warn!("Wrong structure for id. Ignoring. [row: {}]", row.html());
-        return None;
-    }
-
-    let id_value = id_text.unwrap().value().as_text();
-    if id_value.is_none() {
-        warn!(
-            "ID span of member doesn't contain only text. Ignoring. [row: {}]",
-            row.html()
-        );
-        return None;
-    }
-
-    let id_text = id_value.unwrap();
-    let id = if id_text.text.to_string() == "set number" {
-        None
-    } else {
-        Some(id_text.to_string().trim_start_matches("ID #").to_owned())
-    };
-
-    let first_name = cells[2]
-        .first_child()
-        .or_else(|| {
-            warn!(
-                "Missing first name for member. Ignoring. [row: {}]",
-                row.html()
-            );
-            None
-        })?
-        .value()
-        .as_text()
-        .map(|s| s.to_string())
-        .or_else(|| {
-            warn!(
-                "First name cells contains more than text. Ignoring. [row: {}]",
-                row.html()
-            );
-            None
-        })?;
-    let last_name = cells[3]
-        .first_child()
-        .or_else(|| {
-            warn!(
-                "Missing last name for member. Ignoring. [row: {}]",
-                row.html()
-            );
-            None
-        })?
-        .value()
-        .as_text()
-        .map(|s| s.to_string())
-        .or_else(|| {
-            warn!(
-                "Missing last name for member. Ignoring. [row: {}]",
-                row.html()
-            );
-            None
-        })?;
-
-    Some(MemberToCheck::new(id, first_name, last_name))
+    Ok(participants)
 }
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
-    use crate::error::ApplicationError::{Uda, Web};
-    use crate::tools::web::build_client;
+    use dto::uda::Participant;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    pub async fn setup_members_to_check_retrieval(mock_server: &MockServer) -> Vec<MemberToCheck> {
-        let expected_id_1 = "123456";
-        let expected_first_name_1 = "Jon";
-        let expected_name_1 = "DOE";
-        let expected_id_2 = "654321";
-        let expected_first_name_2 = "Jonette";
-        let expected_name_2 = "Snow";
+    fn get_test_file_content() -> Vec<u8> {
+        std::fs::read("test/resources/uda_participant.xls").unwrap()
+    }
 
-        let body = format!(
-            r##"<html><body><h1>Unicycling Society/Federation Membership Management</h1><table><tr class="even" id="reg_0" role="row"><td><a href="/fr/registrants/0">0</a></td><td><span class="member_number js--toggle" data-toggle-target="#member_number_form_0" id="membership_number_0">ID #{expected_id_1}</span><span class="is--hidden" id="member_number_form_0"><form action="/fr/organization_memberships/0/update_number" accept-charset="UTF-8" data-remote="true" method="post"><input name="utf8" type="hidden" value="✓" autocomplete="off"><input type="hidden" name="_method" value="put" autocomplete="off"><input type="hidden" name="authenticity_token" value="pHkm6aZpTgLtAUdx3Nklm7nBsG5ECpEhKp9lB1_8YLjP9OwPhlEdYXdcrnDgAnue37U-8VOS6mJDWeaHqvgOag" autocomplete="off"><input type="text" name="membership_number" id="membership_number" value=""><input type="submit" name="commit" value="Update Membership #" class="button tiny" data-disable-with="Update Membership #"></form></span></td><td>{expected_first_name_1}</td><td>{expected_name_1}</td><td>29</td><td>1990-05-06</td><td>Setif</td><td>Sétif</td><td>Algérie</td><td></td><td>false<br></td><td><a data-remote="true" rel="nofollow" data-method="put" href="/fr/organization_memberships/0/toggle_confirm">Mark as confirmed</a></td></tr><tr class="even" id="reg_1" role="row"><td><a href="/fr/registrants/1">1</a></td><td><span class="member_number js--toggle" data-toggle-target="#member_number_form_1" id="membership_number_1">ID #{expected_id_2}</span><span class="is--hidden" id="member_number_form_1"><form action="/fr/organization_memberships/1/update_number" accept-charset="UTF-8" data-remote="true" method="post"><input name="utf8" type="hidden" value="✓" autocomplete="off"><input type="hidden" name="_method" value="put" autocomplete="off"><input type="hidden" name="authenticity_token" value="pHkm6aZpTgLtAUdx3Nklm7nBsG5ECpEhKp9lB1_8YLjP9OwPhlEdYXdcrnDgAnue37U-8VOS6mJDWeaHqvgOag" autocomplete="off"><input type="text" name="membership_number" id="membership_number" value=""><input type="submit" name="commit" value="Update Membership #" class="button tiny" data-disable-with="Update Membership #"></form></span></td><td>{expected_first_name_2}</td><td>{expected_name_2}</td><td>29</td><td>1990-05-06</td><td>Setif</td><td>Sétif</td><td>Algérie</td><td></td><td>false<br></td><td><a data-remote="true" rel="nofollow" data-method="put" href="/fr/organization_memberships/1/toggle_confirm">Mark as confirmed</a></td></tr></table></body></html>"##
-        );
-
-        Mock::given(method("GET"))
-            .and(path("/en/organization_memberships"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(&body))
-            .mount(mock_server)
-            .await;
-
+    fn get_expected_participants() -> Vec<Participant> {
         vec![
-            MemberToCheck::new(
-                Some(expected_id_1.to_owned()),
-                expected_first_name_1.to_owned(),
-                expected_name_1.to_owned(),
+            Participant::new(
+                1,
+                Some("123456".to_owned()),
+                "Jon".to_owned(),
+                "Doe".to_owned(),
+                "jon.doe@email.com".to_owned(),
+                Some("Le club de test".to_owned()),
+                true,
             ),
-            MemberToCheck::new(
-                Some(expected_id_2.to_owned()),
-                expected_first_name_2.to_owned(),
-                expected_name_2.to_owned(),
+            Participant::new(
+                2,
+                Some("654321".to_owned()),
+                "Jonette".to_owned(),
+                "Snow".to_owned(),
+                "jonette.snow@email.com".to_owned(),
+                None,
+                false,
             ),
         ]
     }
 
-    // region retrieve_members
-    #[async_test]
-    async fn should_retrieve_members() {
-        let mock_server = MockServer::start().await;
-        let expected_result = setup_members_to_check_retrieval(&mock_server).await;
-        let client = build_client().unwrap();
-        let result = retrieve_members(&client, &mock_server.uri()).await.unwrap();
-        assert_eq!(expected_result, result);
-    }
+    pub async fn setup_participant_retrieval(mock_server: &MockServer) -> Vec<Participant> {
+        let body = get_test_file_content();
 
-    #[async_test]
-    async fn should_fail_to_retrieve_members_when_unreachable() {
-        let mock_server = MockServer::start().await;
-        let client = build_client().unwrap();
         Mock::given(method("GET"))
-            .and(path("/en/organization_memberships"))
-            .respond_with(ResponseTemplate::new(500))
-            .mount(&mock_server)
+            .and(path("/en/organization_memberships/export.xls"))
+            .respond_with(ResponseTemplate::new(200).set_body_bytes(body))
+            .mount(mock_server)
             .await;
 
-        let error = retrieve_members(&client, &mock_server.uri())
-            .await
-            .unwrap_err();
-        assert!(matches!(error, Uda(OrganizationMembershipsAccessFailed)));
+        get_expected_participants()
     }
 
-    #[async_test]
-    async fn should_fail_to_retrieve_members_when_lack_of_permissions() {
-        let body = "<html><body>You should log in to access this page.</body></html>";
+    mod retrieve_participants {
+        use crate::error::ApplicationError::{Uda, Web};
+        use crate::tools::web::build_client;
+        use crate::uda::error::UdaError;
+        use crate::uda::retrieve_members::retrieve_participants;
+        use crate::uda::retrieve_members::tests::setup_participant_retrieval;
+        use crate::web::error::WebError::LackOfPermissions;
+        use UdaError::OrganizationMembershipsAccessFailed;
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
 
-        let mock_server = MockServer::start().await;
-        let client = build_client().unwrap();
-        Mock::given(method("GET"))
-            .and(path("/en/organization_memberships"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(body))
-            .mount(&mock_server)
-            .await;
+        #[async_test]
+        async fn success() {
+            let mock_server = MockServer::start().await;
+            let expected_result = setup_participant_retrieval(&mock_server).await;
+            let client = build_client().unwrap();
+            let result = retrieve_participants(&client, &mock_server.uri())
+                .await
+                .unwrap();
+            assert_eq!(expected_result, result);
+        }
 
-        let error = retrieve_members(&client, &mock_server.uri())
-            .await
-            .unwrap_err();
-        assert!(matches!(error, Web(LackOfPermissions)));
-    }
-    // endregion
+        #[async_test]
+        async fn fail_when_unreachable() {
+            let mock_server = MockServer::start().await;
+            let client = build_client().unwrap();
+            Mock::given(method("GET"))
+                .and(path("en/organization_memberships/export.xls"))
+                .respond_with(ResponseTemplate::new(500))
+                .mount(&mock_server)
+                .await;
 
-    // region retrieve_members_from_html
-    #[test]
-    fn should_retrieve_members_from_html() {
-        let expected_id_1 = "123456";
-        let expected_first_name_1 = "Jon";
-        let expected_name_1 = "DOE";
-        let expected_id_2 = "654321";
-        let expected_first_name_2 = "Jonette";
-        let expected_name_2 = "Snow";
-        let expected_result = vec![
-            MemberToCheck::new(
-                Some(expected_id_1.to_owned()),
-                expected_first_name_1.to_owned(),
-                expected_name_1.to_owned(),
-            ),
-            MemberToCheck::new(
-                Some(expected_id_2.to_owned()),
-                expected_first_name_2.to_owned(),
-                expected_name_2.to_owned(),
-            ),
-        ];
+            let error = retrieve_participants(&client, &mock_server.uri())
+                .await
+                .unwrap_err();
+            assert!(matches!(error, Uda(OrganizationMembershipsAccessFailed)));
+        }
 
-        let body = format!(
-            r##"<html><body><table><tr class="even" id="reg_0" role="row"><td><a href="/fr/registrants/0">0</a></td><td><span class="member_number js--toggle" data-toggle-target="#member_number_form_0" id="membership_number_0">ID #{expected_id_1}</span><span class="is--hidden" id="member_number_form_0"><form action="/fr/organization_memberships/0/update_number" accept-charset="UTF-8" data-remote="true" method="post"><input name="utf8" type="hidden" value="✓" autocomplete="off"><input type="hidden" name="_method" value="put" autocomplete="off"><input type="hidden" name="authenticity_token" value="pHkm6aZpTgLtAUdx3Nklm7nBsG5ECpEhKp9lB1_8YLjP9OwPhlEdYXdcrnDgAnue37U-8VOS6mJDWeaHqvgOag" autocomplete="off"><input type="text" name="membership_number" id="membership_number" value=""><input type="submit" name="commit" value="Update Membership #" class="button tiny" data-disable-with="Update Membership #"></form></span></td><td>{expected_first_name_1}</td><td>{expected_name_1}</td><td>29</td><td>1990-05-06</td><td>Setif</td><td>Sétif</td><td>Algérie</td><td></td><td>false<br></td><td><a data-remote="true" rel="nofollow" data-method="put" href="/fr/organization_memberships/0/toggle_confirm">Mark as confirmed</a></td></tr><tr class="even" id="reg_1" role="row"><td><a href="/fr/registrants/1">1</a></td><td><span class="member_number js--toggle" data-toggle-target="#member_number_form_1" id="membership_number_1">ID #{expected_id_2}</span><span class="is--hidden" id="member_number_form_1"><form action="/fr/organization_memberships/1/update_number" accept-charset="UTF-8" data-remote="true" method="post"><input name="utf8" type="hidden" value="✓" autocomplete="off"><input type="hidden" name="_method" value="put" autocomplete="off"><input type="hidden" name="authenticity_token" value="pHkm6aZpTgLtAUdx3Nklm7nBsG5ECpEhKp9lB1_8YLjP9OwPhlEdYXdcrnDgAnue37U-8VOS6mJDWeaHqvgOag" autocomplete="off"><input type="text" name="membership_number" id="membership_number" value=""><input type="submit" name="commit" value="Update Membership #" class="button tiny" data-disable-with="Update Membership #"></form></span></td><td>{expected_first_name_2}</td><td>{expected_name_2}</td><td>29</td><td>1990-05-06</td><td>Setif</td><td>Sétif</td><td>Algérie</td><td></td><td>false<br></td><td><a data-remote="true" rel="nofollow" data-method="put" href="/fr/organization_memberships/1/toggle_confirm">Mark as confirmed</a></td></tr></table></body></html>"##
-        );
+        #[async_test]
+        async fn fail_when_lack_of_permissions() {
+            let mock_server = MockServer::start().await;
+            let client = build_client().unwrap();
+            Mock::given(method("GET"))
+                .and(path("en/organization_memberships/export.xls"))
+                .respond_with(ResponseTemplate::new(401))
+                .mount(&mock_server)
+                .await;
 
-        let result = retrieve_members_from_html(&body).unwrap();
-        assert_eq!(expected_result, result);
-    }
-
-    #[test]
-    fn should_retrieve_0_member_from_html_when_no_row() {
-        let body = "<html><body><table></table></body></html>".to_string();
-
-        let result = retrieve_members_from_html(&body).unwrap();
-        assert!(
-            result.is_empty(),
-            "There should not be any member to check when no row [result: {result:?}]"
-        );
-    }
-    // endregion
-
-    // region extract_member_from_row
-    #[test]
-    fn should_extract_member_from_row() {
-        let expected_id = "123456";
-        let expected_first_name = "Jon";
-        let expected_name = "DOE";
-        let expected_result = MemberToCheck::new(
-            Some(expected_id.to_owned()),
-            expected_first_name.to_owned(),
-            expected_name.to_owned(),
-        );
-
-        let body = format!(
-            r##"<html><body><table><tr class="even" id="reg_0" role="row"><td><a href="/fr/registrants/0">0</a></td><td><span class="member_number js--toggle" data-toggle-target="#member_number_form_0" id="membership_number_0">ID #{expected_id}</span><span class="is--hidden" id="member_number_form_0"><form action="/fr/organization_memberships/0/update_number" accept-charset="UTF-8" data-remote="true" method="post"><input name="utf8" type="hidden" value="✓" autocomplete="off"><input type="hidden" name="_method" value="put" autocomplete="off"><input type="hidden" name="authenticity_token" value="pHkm6aZpTgLtAUdx3Nklm7nBsG5ECpEhKp9lB1_8YLjP9OwPhlEdYXdcrnDgAnue37U-8VOS6mJDWeaHqvgOag" autocomplete="off"><input type="text" name="membership_number" id="membership_number" value=""><input type="submit" name="commit" value="Update Membership #" class="button tiny" data-disable-with="Update Membership #"></form></span></td><td>{expected_first_name}</td><td>{expected_name}</td><td>29</td><td>1990-05-06</td><td>Setif</td><td>Sétif</td><td>Algérie</td><td></td><td>false<br></td><td><a data-remote="true" rel="nofollow" data-method="put" href="/fr/organization_memberships/0/toggle_confirm">Mark as confirmed</a></td></tr></table></body></html>"##
-        );
-        let document = Html::parse_document(&body);
-        let selector = Selector::parse("[id^=reg_]").unwrap();
-        let row = document.select(&selector).next().unwrap();
-
-        let result = extract_member_from_row(row).unwrap();
-        assert_eq!(expected_result, result);
+            let error = retrieve_participants(&client, &mock_server.uri())
+                .await
+                .unwrap_err();
+            assert!(matches!(error, Web(LackOfPermissions)));
+        }
     }
 
-    #[test]
-    fn should_fail_extract_member_from_row_when_too_short() {
-        let expected_id = "123456";
-        let expected_first_name = "Jon";
+    mod retrieve_imported_participants_from_xls {
+        use crate::error::ApplicationError::Uda;
+        use crate::uda::error::UdaError;
+        use crate::uda::participant::ImportedParticipant;
+        use crate::uda::retrieve_members::retrieve_imported_participants_from_xls;
+        use crate::uda::retrieve_members::tests::get_test_file_content;
+        use UdaError::MalformedXlsFile;
+        use std::io::Cursor;
 
-        let body = format!(
-            r##"<html><body><table><tr class="even" id="reg_0" role="row"><td><a href="/fr/registrants/0">0</a></td><td><span class="member_number js--toggle" data-toggle-target="#member_number_form_0" id="membership_number_0">ID #{expected_id}</span><span class="is--hidden" id="member_number_form_0"><form action="/fr/organization_memberships/0/update_number" accept-charset="UTF-8" data-remote="true" method="post"><input name="utf8" type="hidden" value="✓" autocomplete="off"><input type="hidden" name="_method" value="put" autocomplete="off"><input type="hidden" name="authenticity_token" value="pHkm6aZpTgLtAUdx3Nklm7nBsG5ECpEhKp9lB1_8YLjP9OwPhlEdYXdcrnDgAnue37U-8VOS6mJDWeaHqvgOag" autocomplete="off"><input type="text" name="membership_number" id="membership_number" value=""><input type="submit" name="commit" value="Update Membership #" class="button tiny" data-disable-with="Update Membership #"></form></span></td><td>{expected_first_name}</td></tr></table></body></html>"##
-        );
-        let document = Html::parse_document(&body);
+        fn get_expected_imported_participants() -> Vec<ImportedParticipant> {
+            vec![
+                ImportedParticipant::new(
+                    1,
+                    Some("123456".to_owned()),
+                    None,
+                    "Jon".to_owned(),
+                    "Doe".to_owned(),
+                    "01.02.1983".to_owned(),
+                    "42, Le Village".to_owned(),
+                    "Cartuin".to_owned(),
+                    Some("Creuse".to_owned()),
+                    "23340".to_owned(),
+                    "FR".to_owned(),
+                    Some("0123456789".to_owned()),
+                    "jon.doe@email.com".to_owned(),
+                    Some("Le club de test".to_owned()),
+                    true,
+                ),
+                ImportedParticipant::new(
+                    2,
+                    Some("654321".to_owned()),
+                    None,
+                    "Jonette".to_owned(),
+                    "Snow".to_owned(),
+                    "12.11.1990".to_owned(),
+                    "1337, Là-bas".to_owned(),
+                    "Setif".to_owned(),
+                    Some("Sétif".to_owned()),
+                    "19046".to_owned(),
+                    "DZ".to_owned(),
+                    Some("987654321".to_owned()),
+                    "jonette.snow@email.com".to_owned(),
+                    None,
+                    false,
+                ),
+            ]
+        }
 
-        let selector = Selector::parse("[id^=reg_]").unwrap();
-        let row = document.select(&selector).next().unwrap();
+        #[test]
+        fn success() {
+            let content = get_test_file_content();
+            let participants =
+                retrieve_imported_participants_from_xls(Cursor::new(content)).unwrap();
+            assert_eq!(get_expected_imported_participants(), participants)
+        }
 
-        let result = extract_member_from_row(row);
-        assert_eq!(None, result);
+        #[test]
+        fn ignore_participant_when_missing_field() {
+            let content = std::fs::read("test/resources/uda_participant_1_invalid.xls").unwrap();
+            let cursor = Cursor::new(content);
+            let participants = retrieve_imported_participants_from_xls(cursor).unwrap();
+            assert_eq!(
+                vec![ImportedParticipant::new(
+                    1,
+                    Some("123456".to_owned()),
+                    None,
+                    "Jon".to_owned(),
+                    "Doe".to_owned(),
+                    "01.02.1983".to_owned(),
+                    "42, Le Village".to_owned(),
+                    "Cartuin".to_owned(),
+                    Some("Creuse".to_owned()),
+                    "23340".to_owned(),
+                    "FR".to_owned(),
+                    Some("0123456789".to_owned()),
+                    "jon.doe@email.com".to_owned(),
+                    Some("Le club de test".to_owned()),
+                    true,
+                )],
+                participants
+            );
+        }
+
+        #[test]
+        fn fail_when_malformed_xls() {
+            let error = retrieve_imported_participants_from_xls(Cursor::new(""))
+                .err()
+                .unwrap();
+            assert!(matches!(error, Uda(MalformedXlsFile)));
+        }
     }
-
-    #[test]
-    fn should_fail_extract_member_from_row_when_id_cell_contains_more_than_text() {
-        let expected_id = "123456";
-        let expected_first_name = "Jon";
-        let expected_name = "DOE";
-
-        let body = format!(
-            r##"<html><body><table><tr class="even" id="reg_0" role="row"><td><a href="/fr/registrants/0">0</a></td><td><span class="member_number js--toggle" data-toggle-target="#member_number_form_0" id="membership_number_0"><p>ID #{expected_id}</p></span><span class="is--hidden" id="member_number_form_0"><form action="/fr/organization_memberships/0/update_number" accept-charset="UTF-8" data-remote="true" method="post"><input name="utf8" type="hidden" value="✓" autocomplete="off"><input type="hidden" name="_method" value="put" autocomplete="off"><input type="hidden" name="authenticity_token" value="pHkm6aZpTgLtAUdx3Nklm7nBsG5ECpEhKp9lB1_8YLjP9OwPhlEdYXdcrnDgAnue37U-8VOS6mJDWeaHqvgOag" autocomplete="off"><input type="text" name="membership_number" id="membership_number" value=""><input type="submit" name="commit" value="Update Membership #" class="button tiny" data-disable-with="Update Membership #"></form></span></td><td>{expected_first_name}</td><td>{expected_name}</td><td>29</td><td>1990-05-06</td><td>Setif</td><td>Sétif</td><td>Algérie</td><td></td><td>false<br></td><td><a data-remote="true" rel="nofollow" data-method="put" href="/fr/organization_memberships/0/toggle_confirm">Mark as confirmed</a></td></tr></table></body></html>"##
-        );
-        let document = Html::parse_document(&body);
-        let selector = Selector::parse("[id^=reg_]").unwrap();
-        let row = document.select(&selector).next().unwrap();
-
-        let result = extract_member_from_row(row);
-        assert_eq!(None, result);
-    }
-
-    #[test]
-    fn should_fail_extract_member_from_row_when_id_cell_wrongly_structured() {
-        let expected_first_name = "Jon";
-        let expected_name = "DOE";
-
-        let body = format!(
-            r##"<html><body><table><tr class="even" id="reg_0" role="row"><td><a href="/fr/registrants/0">0</a></td><td>What are ya lookin' for, son?<span class="is--hidden" id="member_number_form_0"><form action="/fr/organization_memberships/0/update_number" accept-charset="UTF-8" data-remote="true" method="post"><input name="utf8" type="hidden" value="✓" autocomplete="off"><input type="hidden" name="_method" value="put" autocomplete="off"><input type="hidden" name="authenticity_token" value="pHkm6aZpTgLtAUdx3Nklm7nBsG5ECpEhKp9lB1_8YLjP9OwPhlEdYXdcrnDgAnue37U-8VOS6mJDWeaHqvgOag" autocomplete="off"><input type="text" name="membership_number" id="membership_number" value=""><input type="submit" name="commit" value="Update Membership #" class="button tiny" data-disable-with="Update Membership #"></form></span></td><td>{expected_first_name}</td><td>{expected_name}</td><td>29</td><td>1990-05-06</td><td>Setif</td><td>Sétif</td><td>Algérie</td><td></td><td>false<br></td><td><a data-remote="true" rel="nofollow" data-method="put" href="/fr/organization_memberships/0/toggle_confirm">Mark as confirmed</a></td></tr></table></body></html>"##
-        );
-        let document = Html::parse_document(&body);
-        let selector = Selector::parse("[id^=reg_]").unwrap();
-        let row = document.select(&selector).next().unwrap();
-
-        let result = extract_member_from_row(row);
-        assert_eq!(None, result);
-    }
-
-    #[test]
-    fn should_fail_extract_member_from_row_when_id_cell_misses_span() {
-        let expected_first_name = "Jon";
-        let expected_name = "DOE";
-
-        let body = format!(
-            r##"<html><body><table><tr class="even" id="reg_0" role="row"><td><a href="/fr/registrants/0">0</a></td><td><span class="is--hidden" id="member_number_form_0"><form action="/fr/organization_memberships/0/update_number" accept-charset="UTF-8" data-remote="true" method="post"><input name="utf8" type="hidden" value="✓" autocomplete="off"><input type="hidden" name="_method" value="put" autocomplete="off"><input type="hidden" name="authenticity_token" value="pHkm6aZpTgLtAUdx3Nklm7nBsG5ECpEhKp9lB1_8YLjP9OwPhlEdYXdcrnDgAnue37U-8VOS6mJDWeaHqvgOag" autocomplete="off"><input type="text" name="membership_number" id="membership_number" value=""><input type="submit" name="commit" value="Update Membership #" class="button tiny" data-disable-with="Update Membership #"></form></span></td><td>{expected_first_name}</td><td>{expected_name}</td><td>29</td><td>1990-05-06</td><td>Setif</td><td>Sétif</td><td>Algérie</td><td></td><td>false<br></td><td><a data-remote="true" rel="nofollow" data-method="put" href="/fr/organization_memberships/0/toggle_confirm">Mark as confirmed</a></td></tr></table></body></html>"##
-        );
-        let document = Html::parse_document(&body);
-        let selector = Selector::parse("[id^=reg_]").unwrap();
-        let row = document.select(&selector).next().unwrap();
-
-        let result = extract_member_from_row(row);
-        assert_eq!(None, result);
-    }
-
-    #[test]
-    fn should_fail_to_extract_member_from_row_when_missing_first_name() {
-        let expected_id = "123456";
-        let expected_name = "DOE";
-
-        let body = format!(
-            r##"<html><body><table><tr class="even" id="reg_0" role="row"><td><a href="/fr/registrants/0">0</a></td><td><span class="member_number js--toggle" data-toggle-target="#member_number_form_0" id="membership_number_0">ID #{expected_id}</span><span class="is--hidden" id="member_number_form_0"><form action="/fr/organization_memberships/0/update_number" accept-charset="UTF-8" data-remote="true" method="post"><input name="utf8" type="hidden" value="✓" autocomplete="off"><input type="hidden" name="_method" value="put" autocomplete="off"><input type="hidden" name="authenticity_token" value="pHkm6aZpTgLtAUdx3Nklm7nBsG5ECpEhKp9lB1_8YLjP9OwPhlEdYXdcrnDgAnue37U-8VOS6mJDWeaHqvgOag" autocomplete="off"><input type="text" name="membership_number" id="membership_number" value=""><input type="submit" name="commit" value="Update Membership #" class="button tiny" data-disable-with="Update Membership #"></form></span></td><td></td><td>{expected_name}</td><td>29</td><td>1990-05-06</td><td>Setif</td><td>Sétif</td><td>Algérie</td><td></td><td>false<br></td><td><a data-remote="true" rel="nofollow" data-method="put" href="/fr/organization_memberships/0/toggle_confirm">Mark as confirmed</a></td></tr></table></body></html>"##
-        );
-        let document = Html::parse_document(&body);
-        let selector = Selector::parse("[id^=reg_]").unwrap();
-        let row = document.select(&selector).next().unwrap();
-
-        let result = extract_member_from_row(row);
-        assert_eq!(None, result);
-    }
-
-    #[test]
-    fn should_fail_to_extract_member_from_row_when_first_name_contains_more_than_text() {
-        let expected_id = "123456";
-        let expected_name = "DOE";
-
-        let body = format!(
-            r##"<html><body><table><tr class="even" id="reg_0" role="row"><td><a href="/fr/registrants/0">0</a></td><td><span class="member_number js--toggle" data-toggle-target="#member_number_form_0" id="membership_number_0">ID #{expected_id}</span><span class="is--hidden" id="member_number_form_0"><form action="/fr/organization_memberships/0/update_number" accept-charset="UTF-8" data-remote="true" method="post"><input name="utf8" type="hidden" value="✓" autocomplete="off"><input type="hidden" name="_method" value="put" autocomplete="off"><input type="hidden" name="authenticity_token" value="pHkm6aZpTgLtAUdx3Nklm7nBsG5ECpEhKp9lB1_8YLjP9OwPhlEdYXdcrnDgAnue37U-8VOS6mJDWeaHqvgOag" autocomplete="off"><input type="text" name="membership_number" id="membership_number" value=""><input type="submit" name="commit" value="Update Membership #" class="button tiny" data-disable-with="Update Membership #"></form></span></td><td><p>Oops</p></td><td>{expected_name}</td><td>29</td><td>1990-05-06</td><td>Setif</td><td>Sétif</td><td>Algérie</td><td></td><td>false<br></td><td><a data-remote="true" rel="nofollow" data-method="put" href="/fr/organization_memberships/0/toggle_confirm">Mark as confirmed</a></td></tr></table></body></html>"##
-        );
-        let document = Html::parse_document(&body);
-        let selector = Selector::parse("[id^=reg_]").unwrap();
-        let row = document.select(&selector).next().unwrap();
-
-        let result = extract_member_from_row(row);
-        assert_eq!(None, result);
-    }
-
-    #[test]
-    fn should_fail_to_extract_member_from_row_when_missing_name() {
-        let expected_id = "123456";
-        let expected_first_name = "Jon";
-
-        let body = format!(
-            r##"<html><body><table><tr class="even" id="reg_0" role="row"><td><a href="/fr/registrants/0">0</a></td><td><span class="member_number js--toggle" data-toggle-target="#member_number_form_0" id="membership_number_0">ID #{expected_id}</span><span class="is--hidden" id="member_number_form_0"><form action="/fr/organization_memberships/0/update_number" accept-charset="UTF-8" data-remote="true" method="post"><input name="utf8" type="hidden" value="✓" autocomplete="off"><input type="hidden" name="_method" value="put" autocomplete="off"><input type="hidden" name="authenticity_token" value="pHkm6aZpTgLtAUdx3Nklm7nBsG5ECpEhKp9lB1_8YLjP9OwPhlEdYXdcrnDgAnue37U-8VOS6mJDWeaHqvgOag" autocomplete="off"><input type="text" name="membership_number" id="membership_number" value=""><input type="submit" name="commit" value="Update Membership #" class="button tiny" data-disable-with="Update Membership #"></form></span></td><td>{expected_first_name}</td><td></td><td>29</td><td>1990-05-06</td><td>Setif</td><td>Sétif</td><td>Algérie</td><td></td><td>false<br></td><td><a data-remote="true" rel="nofollow" data-method="put" href="/fr/organization_memberships/0/toggle_confirm">Mark as confirmed</a></td></tr></table></body></html>"##
-        );
-        let document = Html::parse_document(&body);
-        let selector = Selector::parse("[id^=reg_]").unwrap();
-        let row = document.select(&selector).next().unwrap();
-
-        let result = extract_member_from_row(row);
-        assert_eq!(None, result);
-    }
-
-    #[test]
-    fn should_fail_to_extract_member_from_row_when_name_contains_more_than_text() {
-        let expected_id = "123456";
-        let expected_first_name = "Jon";
-
-        let body = format!(
-            r##"<html><body><table><tr class="even" id="reg_0" role="row"><td><a href="/fr/registrants/0">0</a></td><td><span class="member_number js--toggle" data-toggle-target="#member_number_form_0" id="membership_number_0">ID #{expected_id}</span><span class="is--hidden" id="member_number_form_0"><form action="/fr/organization_memberships/0/update_number" accept-charset="UTF-8" data-remote="true" method="post"><input name="utf8" type="hidden" value="✓" autocomplete="off"><input type="hidden" name="_method" value="put" autocomplete="off"><input type="hidden" name="authenticity_token" value="pHkm6aZpTgLtAUdx3Nklm7nBsG5ECpEhKp9lB1_8YLjP9OwPhlEdYXdcrnDgAnue37U-8VOS6mJDWeaHqvgOag" autocomplete="off"><input type="text" name="membership_number" id="membership_number" value=""><input type="submit" name="commit" value="Update Membership #" class="button tiny" data-disable-with="Update Membership #"></form></span></td><td>{expected_first_name}</td><td><p>Oops</p></td><td>29</td><td>1990-05-06</td><td>Setif</td><td>Sétif</td><td>Algérie</td><td></td><td>false<br></td><td><a data-remote="true" rel="nofollow" data-method="put" href="/fr/organization_memberships/0/toggle_confirm">Mark as confirmed</a></td></tr></table></body></html>"##
-        );
-        let document = Html::parse_document(&body);
-        let selector = Selector::parse("[id^=reg_]").unwrap();
-        let row = document.select(&selector).next().unwrap();
-
-        let result = extract_member_from_row(row);
-        assert_eq!(None, result);
-    }
-    // endregion
 }
