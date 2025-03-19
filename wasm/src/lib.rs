@@ -4,6 +4,7 @@ mod check_memberships;
 mod error;
 mod fileo;
 mod json;
+mod login_form;
 mod navbar;
 mod stepper;
 mod template;
@@ -15,7 +16,8 @@ mod web;
 use crate::alert::{unwrap_or_alert, unwrap_without_alert};
 use crate::error::Error;
 use crate::fileo::init_fileo_page;
-use crate::utils::get_document;
+use crate::uda::init_uda_page;
+use crate::utils::{get_document, get_element_by_id};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(start)]
@@ -26,7 +28,11 @@ fn run() {
     let document = &unwrap_without_alert(get_document());
     unwrap_or_alert(navbar::init_navbar(document));
 
-    init_fileo_page(document);
+    if get_element_by_id(document, "fileo-container").is_ok() {
+        init_fileo_page(document);
+    } else if get_element_by_id(document, "uda-container").is_ok() {
+        init_uda_page(document);
+    }
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

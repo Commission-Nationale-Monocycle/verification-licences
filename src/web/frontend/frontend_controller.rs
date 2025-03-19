@@ -14,7 +14,7 @@ use std::sync::Mutex;
 #[get("/fileo/login")]
 pub async fn fileo_login() -> Template {
     Template::render(
-        "fileo-login",
+        "fileo/fileo-login",
         context! {
             title: "Connexion à Fileo"
         },
@@ -38,7 +38,7 @@ pub async fn list_memberships(
             .collect();
 
         Ok(Template::render(
-            "memberships",
+            "fileo/memberships",
             context! {
                 title: "Liste des licences",
                 memberships: memberships
@@ -68,7 +68,7 @@ pub async fn check_memberships(
             Some(file_details) => file_details.update_date().format("%d/%m/%Y").to_string(),
         };
         Ok(Template::render(
-            "check-memberships",
+            "fileo/check-memberships",
             context! {
                 title: "Vérifier les licences",
                 last_update: last_update
@@ -82,8 +82,9 @@ pub async fn check_memberships_unauthenticated() -> Redirect {
     Redirect::to(uri!("/fileo/login/?page=/check-memberships"))
 }
 
-#[get("/uda/select")]
-pub async fn uda_instance_selection(
+#[get("/uda/import")]
+pub async fn uda_import(
+    _credentials: FileoCredentials, // Fileo credentials are required for importing from UDA as well
     uda_instances_list: &State<Mutex<InstancesList>>,
 ) -> Result<Template, Status> {
     let instances_list = uda_instances_list
@@ -96,13 +97,18 @@ pub async fn uda_instance_selection(
     };
 
     Ok(Template::render(
-        "uda-instance-selection",
+        "uda/uda-import",
         context! {
-            title: "Sélection de l'instance UDA à vérifier",
+            title: "Connexion à UDA",
             instances: instances_list.instances(),
             last_update: last_update
         },
     ))
+}
+
+#[get("/uda/import", rank = 2)]
+pub async fn uda_import_unauthenticated() -> Redirect {
+    Redirect::to(uri!("/fileo/login/?page=/uda/import"))
 }
 
 #[catch(404)]

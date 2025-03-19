@@ -48,12 +48,12 @@ pub async fn login(
 
 /// Retrieve all members from UDA's organisation membership page if authorized.
 #[get("/uda/retrieve")]
-pub async fn retrieve_members_to_check(credentials: UdaCredentials) -> Result<String, Status> {
+pub async fn retrieve_participants_to_check(credentials: UdaCredentials) -> Result<String, Status> {
     let client = build_client().map_err(log_error_and_return(Status::InternalServerError))?;
     authenticate(&client, &credentials).await?;
     let url = credentials.uda_url();
     match retrieve_participants(&client, url).await {
-        Ok(members_to_check) => Ok(json!(members_to_check).to_string()),
+        Ok(participants) => Ok(json!(participants).to_string()),
         Err(Web(LackOfPermissions)) => Err(Status::Unauthorized),
         Err(_) => Err(Status::BadGateway),
     }
@@ -307,12 +307,12 @@ mod tests {
         }
     }
 
-    mod retrieve_members_to_check {
+    mod retrieve_participants_to_check {
         use crate::uda::authentication::AUTHENTICATION_COOKIE;
         use crate::uda::credentials::UdaCredentials;
         use crate::uda::login::tests::setup_authentication;
         use crate::uda::retrieve_members::tests::setup_participant_retrieval;
-        use crate::web::api::uda_controller::retrieve_members_to_check;
+        use crate::web::api::uda_controller::retrieve_participants_to_check;
         use crate::web::credentials_storage::CredentialsStorage;
         use dto::uda::Participant;
         use rocket::http::Status;
@@ -333,7 +333,7 @@ mod tests {
 
             let rocket = rocket::build()
                 .manage(credentials_storage_mutex)
-                .mount("/", routes![retrieve_members_to_check]);
+                .mount("/", routes![retrieve_participants_to_check]);
 
             let client = Client::tracked(rocket).await.unwrap();
             let request = client
@@ -354,7 +354,7 @@ mod tests {
 
             let rocket = rocket::build()
                 .manage(credentials_storage_mutex)
-                .mount("/", routes![retrieve_members_to_check]);
+                .mount("/", routes![retrieve_participants_to_check]);
 
             let client = Client::tracked(rocket).await.unwrap();
             let request = client
@@ -376,7 +376,7 @@ mod tests {
 
             let rocket = rocket::build()
                 .manage(credentials_storage_mutex)
-                .mount("/", routes![retrieve_members_to_check]);
+                .mount("/", routes![retrieve_participants_to_check]);
 
             let client = Client::tracked(rocket).await.unwrap();
             let request = client

@@ -1,6 +1,7 @@
 use crate::Result;
 #[cfg(not(test))]
 use crate::template::get_template;
+use crate::user_interface::set_loading;
 #[cfg(not(test))]
 use crate::utils::{append_child, get_body};
 use crate::utils::{get_document, get_element_by_id, query_selector_single_element};
@@ -26,6 +27,7 @@ fn get_alert_template(document: &Document, level: &AlertLevel) -> Result<Element
 #[cfg(not(test))]
 #[wasm_bindgen]
 pub fn create_alert(text: &str, level: AlertLevel) {
+    set_loading(false).ok();
     let document = unwrap_without_alert(get_document());
     document
         .get_element_by_id("alert")
@@ -79,6 +81,7 @@ pub fn unwrap_without_alert<T>(result: Result<T>) -> T {
         Ok(value) => value,
         Err(error) => {
             log::error!("{:#?}", error);
+            set_loading(false).ok();
             panic!("{error:#?}");
         }
     }

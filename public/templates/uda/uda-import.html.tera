@@ -1,0 +1,53 @@
+{% extends "uda/uda-base" %}
+
+{% block uda_content %}
+    {% include "stepper" %}
+
+    <div class="step current-step">
+        <div class="login-form login-form-uda">
+            <div>
+                Afin d'importer des participants d'UDA, il est impératif de se connecter avec un compte possédant le droit
+                "Membership admin".
+            </div>
+            <div class="input-container">
+                <label for="uda-instance-selector">Sélectionnez une instance UDA (dernière mise à jour : {{ last_update }}
+                    )</label>
+                <div class="uda-instance-selector-container">
+                    <select id="uda-instance-selector" class="peer">
+                        {% for instance in instances | reverse %}
+                            <option value="{{ instance.url }}">{{ instance.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button onclick="app.update_uda_instances_list()">Mettre à jour la liste</button>
+                </div>
+            </div>
+            <div>
+                <label for="login">Identifiant</label>
+                <input type="text" id="login" required/>
+            </div>
+            <div>
+                <label for="password" class="">Mot de passe</label>
+                <input type="password" id="password" required/>
+            </div>
+            <button id="uda-login-button" type="button" onclick="app.importFromUda(document)">Importer</button>
+        </div>
+    </div>
+
+    <div class="step">
+        <div id="checked-participants" class="flex flex-col md:flex-row flex-wrap">
+
+        </div>
+    </div>
+    <div class="step"></div>
+
+    <template id="participant-template">
+        <div class="participant-to-check">
+            <div>Participant à vérifier</div>
+            <div>Numéro d'adhésion : <div class="membership-number"></div></div>
+            <div>Nom : <div class="name"></div></div>
+            <div>Prénom : <div class="first-name"></div></div>
+            <div>Club : <div class="club"></div></div>
+            <div>Adresse mail : <div class="email-address-container"><a class="email-address"></a></div></div>
+        </div>
+    </template>
+{% endblock %}

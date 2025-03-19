@@ -1,0 +1,7 @@
+{% extends "base" %}
+
+{% block content %}
+<div id="fileo-container">
+    {% block fileo_content %}{% endblock %}
+</div>
+{% endblock content %}

@@ -23,7 +23,8 @@ impl Server for FrontendServer {
                     frontend_controller::list_memberships_unauthenticated,
                     frontend_controller::check_memberships,
                     frontend_controller::check_memberships_unauthenticated,
-                    frontend_controller::uda_instance_selection,
+                    frontend_controller::uda_import,
+                    frontend_controller::uda_import_unauthenticated,
                 ],
             )
             .mount("/", FileServer::from("./public/static"))
