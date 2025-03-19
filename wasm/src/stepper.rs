@@ -1,7 +1,39 @@
+use crate::Result;
 use crate::alert::{AlertLevel, create_alert};
-use crate::utils::{add_class, remove_class};
+use crate::error::Error;
+use crate::template::get_template;
+use crate::utils::{add_class, remove_class, set_attribute};
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::{Document, Element, HtmlCollection};
+
+pub fn add_step(document: &Document, stepper: &Element, step_name: &str) -> Result<()> {
+    let steps = stepper.get_elements_by_tag_name("li");
+    let steps_count = steps.length();
+
+    let step_element = get_template(document, "step-template")?;
+    if steps_count == 0 {
+        add_class(&step_element, "stepper-current-step");
+    }
+    set_attribute(
+        &step_element,
+        "onclick",
+        &format!("app.go_to_step(document, {steps_count})"),
+    )?;
+    let step_name_element = step_element
+        .get_elements_by_class_name("step-name")
+        .get_with_index(0)
+        .ok_or_else(|| Error::new("Step name element not found".to_owned()))?;
+    let current_step_name_content = step_name_element.inner_html();
+    step_name_element.set_inner_html(&format!("{current_step_name_content}{step_name}"));
+
+    let step_index_element = step_element
+        .get_elements_by_class_name("step-index")
+        .get_with_index(0)
+        .ok_or_else(|| Error::new("Step index element not found".to_owned()))?;
+    step_index_element.set_text_content(Some(&format!("{}.", steps_count + 1)));
+
+    Ok(())
+}
 
 #[wasm_bindgen]
 pub fn next_step(document: &Document) {
