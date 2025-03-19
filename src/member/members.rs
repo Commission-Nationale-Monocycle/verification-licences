@@ -68,14 +68,14 @@ mod tests {
     use dto::checked_member::CheckedMember;
     use dto::member_to_check::MemberToCheck;
     use dto::membership::tests::{
-        MEMBER_FIRSTNAME, MEMBER_NAME, MEMBERSHIP_NUMBER, get_expected_member,
+        MEMBER_FIRSTNAME, MEMBER_NAME, MEMBERSHIP_NUMBER, get_expected_membership,
     };
     use std::collections::HashMap;
 
     // region check_members
     #[test]
     fn members_should_be_checked() {
-        let membership = get_expected_member();
+        let membership = get_expected_membership();
         let members = Members::from(HashMap::from([(
             MEMBERSHIP_NUMBER.to_string(),
             Memberships::from([membership.clone()]),
@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn members_should_not_be_checked() {
-        let membership = get_expected_member();
+        let membership = get_expected_membership();
         let members = Members::from(HashMap::from([(
             MEMBERSHIP_NUMBER.to_string(),
             Memberships::from([membership]),
@@ -119,7 +119,7 @@ mod tests {
     // region check_member
     #[test]
     fn member_should_be_checked() {
-        let membership = get_expected_member();
+        let membership = get_expected_membership();
         let members = Members::from(HashMap::from([(
             MEMBERSHIP_NUMBER.to_string(),
             Memberships::from([membership.clone()]),
@@ -135,7 +135,7 @@ mod tests {
 
     #[test]
     fn member_should_not_be_checked() {
-        let membership = get_expected_member();
+        let membership = get_expected_membership();
         let members = Members::from(HashMap::from([(
             MEMBERSHIP_NUMBER.to_string(),
             Memberships::from([membership]),
