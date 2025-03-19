@@ -2,7 +2,7 @@ use crate::Result;
 use crate::alert::{AlertLevel, create_alert};
 use crate::error::Error;
 use crate::template::get_template;
-use crate::utils::{add_class, remove_class, set_attribute};
+use crate::utils::{add_class, append_child, remove_class, set_attribute};
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::{Document, Element, HtmlCollection};
 
@@ -31,6 +31,8 @@ pub fn add_step(document: &Document, stepper: &Element, step_name: &str) -> Resu
         .get_with_index(0)
         .ok_or_else(|| Error::new("Step index element not found".to_owned()))?;
     step_index_element.set_text_content(Some(&format!("{}.", steps_count + 1)));
+
+    append_child(stepper, &step_element)?;
 
     Ok(())
 }
