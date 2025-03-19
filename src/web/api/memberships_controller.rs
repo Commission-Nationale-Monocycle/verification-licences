@@ -37,7 +37,7 @@ pub async fn check_memberships(
             }
         };
 
-    let result = check(&members_state, members_to_check.into_iter().collect())?;
+    let result = check(members_state, members_to_check.into_iter().collect())?;
 
     Ok(json!(result).to_string())
 }
@@ -49,7 +49,7 @@ pub async fn check_participants(
     _fileo_credentials: FileoCredentials,
     _uda_credentials: UdaCredentials,
 ) -> Result<String, String> {
-    let result = check(&members_state, participants_to_check.into_inner())?;
+    let result = check(members_state, participants_to_check.into_inner())?;
 
     Ok(json!(result).to_string())
 }
