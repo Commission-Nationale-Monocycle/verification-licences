@@ -71,7 +71,7 @@ mod tests {
     use crate::tools::test::tests::temp_dir;
     use crate::web::api::members_state::MembersState;
     use chrono::NaiveDate;
-    use dto::membership::tests::{MEMBERSHIP_NUMBER, get_expected_member, get_member_as_csv};
+    use dto::membership::tests::{MEMBERSHIP_NUMBER, get_expected_membership, get_member_as_csv};
 
     // region load_members_file_details
     #[test]
@@ -137,7 +137,7 @@ mod tests {
                 )),
                 Members::from(HashMap::from([(
                     MEMBERSHIP_NUMBER.to_owned(),
-                    Memberships::from([get_expected_member()])
+                    Memberships::from([get_expected_membership()])
                 )]))
             ),
             state

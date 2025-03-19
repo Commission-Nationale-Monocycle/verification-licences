@@ -41,6 +41,7 @@ impl Server for ApiServer {
                 "/api/",
                 routes![
                     memberships_controller::check_memberships,
+                    memberships_controller::check_participants,
                     memberships_controller::notify_members,
                     fileo_controller::login,
                     fileo_controller::download_memberships,

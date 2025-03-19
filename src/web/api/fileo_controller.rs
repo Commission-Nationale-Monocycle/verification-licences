@@ -88,7 +88,7 @@ mod tests {
     use crate::member::members::Members;
     use crate::tools::test::tests::temp_dir;
     use crate::web::api::members_state::MembersState;
-    use dto::membership::tests::{MEMBERSHIP_NUMBER, get_expected_member, get_member_as_csv};
+    use dto::membership::tests::{MEMBERSHIP_NUMBER, get_expected_membership, get_member_as_csv};
     use encoding::all::ISO_8859_1;
     use encoding::{EncoderTrap, Encoding};
     use regex::Regex;
@@ -261,7 +261,7 @@ mod tests {
             .unwrap();
         let members: Members = json::from_str(&result).unwrap();
         assert_eq!(
-            &get_expected_member(),
+            &get_expected_membership(),
             members
                 .get(MEMBERSHIP_NUMBER)
                 .unwrap()

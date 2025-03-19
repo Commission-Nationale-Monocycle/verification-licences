@@ -103,7 +103,7 @@ pub mod tests {
     const MALFORMED_MEMBER_AS_CSV: &str =
         "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oops;30-09-2025;Non;My club;Z01234";
 
-    pub fn get_expected_member() -> Membership {
+    pub fn get_expected_membership() -> Membership {
         Membership {
             name: "Doe".to_string(),
             firstname: "Jon".to_string(),

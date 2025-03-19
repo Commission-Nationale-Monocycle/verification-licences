@@ -162,7 +162,7 @@ mod tests {
     use crate::tools::test::tests::temp_dir;
     use chrono::NaiveDate;
     use dto::membership::tests::{
-        get_expected_member, get_malformed_member_as_csv, get_member_as_csv,
+        get_expected_membership, get_malformed_member_as_csv, get_member_as_csv,
     };
     use regex::bytes::Regex;
 
@@ -177,7 +177,7 @@ mod tests {
 
         let result = import_from_file(file_path.as_ref()).unwrap();
         assert_eq!(
-            &Memberships::from([get_expected_member()]),
+            &Memberships::from([get_expected_membership()]),
             result.get("123456").unwrap()
         )
     }
@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn should_load_members() {
         let entry = get_member_as_csv();
-        let expected_member = get_expected_member();
+        let expected_member = get_expected_membership();
 
         let mut reader = csv::ReaderBuilder::new()
             .delimiter(b';')
