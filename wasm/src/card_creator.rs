@@ -22,7 +22,7 @@ pub fn create_card_for_member_to_check(
     let card = query_selector_single_element(&container, "div")?;
 
     let membership_num = member_to_check.membership_num();
-    query_selector_single_element(&card, ".membership-number")?.set_inner_html(&membership_num);
+    query_selector_single_element(&card, ".membership-number")?.set_inner_html(membership_num);
     query_selector_single_element(&card, ".name")?.set_inner_html(member_to_check.name());
     query_selector_single_element(&card, ".firstname")?.set_inner_html(member_to_check.firstname());
 
@@ -42,7 +42,7 @@ pub fn create_card_for_checked_member(
     let card = query_selector_single_element(&container, "div")?;
 
     let membership_num = checked_member.member_to_check().membership_num();
-    query_selector_single_element(&card, ".membership-number")?.set_inner_html(&membership_num);
+    query_selector_single_element(&card, ".membership-number")?.set_inner_html(membership_num);
     query_selector_single_element(&card, ".name")?
         .set_inner_html(checked_member.member_to_check().name());
     query_selector_single_element(&card, ".firstname")?
