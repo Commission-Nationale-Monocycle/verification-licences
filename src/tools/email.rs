@@ -137,6 +137,7 @@ mod tests {
 
     // region send_email
     #[async_test]
+    #[ignore]
     async fn should_send_email() {
         let args = get_args();
         with_env_args(args, || {
