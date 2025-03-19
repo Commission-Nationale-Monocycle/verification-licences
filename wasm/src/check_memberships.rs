@@ -2,12 +2,12 @@ use crate::Result;
 use crate::alert::{AlertLevel, create_alert, unwrap_or_alert, unwrap_without_alert};
 use crate::card_creator::EXPIRED_CHECKED_MEMBER_CONTAINER_CLASS_NAME;
 use crate::stepper::next_step;
+use crate::user_interface;
 use crate::user_interface::{get_email_body, get_email_subject, set_loading};
 use crate::utils::{
-    get_document, get_element_by_id_dyn, get_value_from_element, get_window,
-    query_selector_single_element,
+    get_document, get_element_by_id_dyn, get_value_from_element, query_selector_single_element,
 };
-use crate::{build_client, user_interface};
+use crate::web::fetch;
 use dto::checked_member::CheckedMember;
 use dto::email::Email;
 use dto::member_to_check::MemberToCheck;
@@ -75,43 +75,43 @@ pub async fn handle_form_submission(document: &Document) {
         return;
     }
 
-    let client = build_client();
-
-    let window = unwrap_without_alert(get_window());
-    let origin = window.location().origin().unwrap();
-    let url = format!("{origin}/api/members/check");
+    let url = "/api/members/check";
     let body = format!("members_to_check={members_to_check}");
-    let response = client
-        .post(&url)
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .body(body)
-        .send()
-        .await
-        .unwrap_or_else(|error| {
+    match fetch(
+        url,
+        "post",
+        Some("application/x-www-form-urlencoded"),
+        Some(&body),
+    )
+    .await
+    {
+        Ok(response) => {
+            let status = response.status();
+            if (200..400).contains(&status) {
+                let text = response.body().clone().unwrap_or(String::new());
+                let checked_members: Vec<CheckedMember> =
+                    serde_json::from_str(&text).expect("can't deserialize checked members");
+                unwrap_or_alert(user_interface::handle_checked_members(&checked_members));
+                next_step(document);
+                unwrap_or_alert(set_loading(false));
+            } else {
+                unwrap_or_alert(set_loading(false));
+                create_alert(
+                    "Le serveur a rencontré une erreur lors du traitement. Veuillez réessayer.",
+                    AlertLevel::Error,
+                );
+                log::error!("Server error: {}", status);
+            }
+        }
+        Err(error) => {
             unwrap_or_alert(set_loading(false));
             create_alert(
-                "Impossible d'envoyer la requête. Veuillez réessayer.",
+                "Le serveur a rencontré une erreur lors du traitement. Veuillez réessayer.",
                 AlertLevel::Error,
             );
-            panic!("can't send request: {error:?}")
-        });
-
-    let status = response.status();
-    if status.is_success() || status.is_redirection() {
-        let text = response.text().await.expect("can't get text");
-        let checked_members: Vec<CheckedMember> =
-            serde_json::from_str(&text).expect("can't deserialize checked members");
-        unwrap_or_alert(user_interface::handle_checked_members(&checked_members));
-        next_step(document);
-        unwrap_or_alert(set_loading(false));
-    } else {
-        unwrap_or_alert(set_loading(false));
-        create_alert(
-            "Le serveur a rencontré une erreur lors du traitement. Veuillez réessayer.",
-            AlertLevel::Error,
-        );
-        log::error!("Server error: {}", response.status().as_str())
-    }
+            log::error!("Server error: {:?}", error);
+        }
+    };
 }
 
 #[wasm_bindgen]
@@ -149,53 +149,46 @@ pub async fn handle_email_sending() {
     let email_subject = unwrap_or_alert(get_email_subject(document));
     let email_body = unwrap_or_alert(get_email_body(document));
 
-    let client = build_client();
-    let origin = unwrap_without_alert(get_window())
-        .location()
-        .origin()
-        .unwrap();
-    let url = format!("{origin}/api/members/notify");
+    let url = "/api/members/notify";
     let body = json!(Email::new(
         email_addresses_to_notify.clone(),
         email_subject.to_owned(),
         email_body.to_owned(),
     ))
     .to_string();
-    let response = client
-        .post(&url)
-        .header("Content-Type", "application/json")
-        .body(body)
-        .send()
-        .await
-        .unwrap_or_else(|error| {
+
+    match fetch(url, "post", Some("application/json"), Some(&body)).await {
+        Ok(response) => {
+            let status = response.status();
+            if (200..400).contains(&status) {
+                let addresses_count = email_addresses_to_notify.len();
+                create_alert(
+                    &format!(
+                        "L'email a bien été envoyé à {} adresse{}.",
+                        &addresses_count,
+                        if addresses_count > 1 { "s" } else { "" }
+                    ),
+                    AlertLevel::Info,
+                );
+                log::info!("Email sent to {:?}!", email_addresses_to_notify);
+                unwrap_or_alert(set_loading(false));
+            } else {
+                unwrap_or_alert(set_loading(false));
+                create_alert(
+                    "Le serveur a rencontré une erreur lors du traitement. Veuillez réessayer.",
+                    AlertLevel::Error,
+                );
+                log::error!("Server error: {}", status);
+            }
+        }
+        Err(error) => {
             unwrap_or_alert(set_loading(false));
             create_alert(
-                "Impossible d'envoyer la requête. Veuillez réessayer.",
+                "Le serveur a rencontré une erreur lors du traitement. Veuillez réessayer.",
                 AlertLevel::Error,
             );
-            panic!("can't send request: {error:?}")
-        });
-
-    let status = response.status();
-    if status.is_success() || status.is_redirection() {
-        let addresses_count = email_addresses_to_notify.len();
-        create_alert(
-            &format!(
-                "L'email a bien été envoyé à {} adresse{}.",
-                &addresses_count,
-                if addresses_count > 1 { "s" } else { "" }
-            ),
-            AlertLevel::Info,
-        );
-        log::info!("Email sent to {:?}!", email_addresses_to_notify);
-        unwrap_or_alert(set_loading(false));
-    } else {
-        unwrap_or_alert(set_loading(false));
-        create_alert(
-            "Impossible d'envoyer l'email. Veuillez réessayer.",
-            AlertLevel::Error,
-        );
-        log::error!("Server error: {}", response.status().as_str());
+            log::error!("Server error: {:?}", error);
+        }
     }
 }
 

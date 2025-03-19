@@ -9,12 +9,12 @@ mod template;
 mod uda;
 mod user_interface;
 mod utils;
+mod web;
 
-use crate::alert::{AlertLevel, create_alert, unwrap_or_alert, unwrap_without_alert};
+use crate::alert::{unwrap_or_alert, unwrap_without_alert};
 use crate::error::Error;
 use crate::fileo::login::init_login_form_fileo;
 use crate::utils::get_document;
-use reqwest::Client;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(start)]
@@ -26,16 +26,6 @@ fn run() {
     unwrap_or_alert(navbar::init_navbar(document));
 
     init_login_form_fileo(document);
-}
-
-fn build_client() -> Client {
-    Client::builder().build().unwrap_or_else(|error| {
-        create_alert(
-            "Impossible d'envoyer la requête. Veuillez réessayer.",
-            AlertLevel::Error,
-        );
-        panic!("could not build client: {error:?}")
-    })
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
