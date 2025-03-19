@@ -264,7 +264,6 @@ mod tests {
     use super::*;
     use crate::error::ApplicationError;
     use crate::error::ApplicationError::{Fileo, Web};
-    use crate::fileo::credentials::FileoCredentials;
     use crate::member::config::MembershipsProviderConfig;
     use crate::member::get_memberships_file_folder;
     use crate::tools::test::tests::temp_dir;

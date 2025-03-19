@@ -1,9 +1,10 @@
 use crate::alert::{AlertLevel, create_alert, unwrap_or_alert, unwrap_without_alert};
 use crate::error::Error;
+use crate::fileo::credentials::FileoCredentials;
+use crate::json;
 use crate::user_interface::set_loading;
 use crate::utils::{get_document, get_element_by_id_dyn, get_location, get_value_from_element};
 use crate::web::fetch;
-use serde_json::json;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -48,10 +49,9 @@ pub async fn login() {
     let login = get_value_from_element(&login_field);
     let password = get_value_from_element(&password_field);
     let url = "/api/fileo/login";
-    let body = json!({
-        "login": login, "password": password
-    })
-    .to_string();
+
+    let credentials = FileoCredentials::new(login, password);
+    let body = json::to_string(&credentials);
 
     match fetch(url, "post", Some("application/json"), Some(&body)).await {
         Ok(response) => {

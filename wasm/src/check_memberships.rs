@@ -2,16 +2,15 @@ use crate::Result;
 use crate::alert::{AlertLevel, create_alert, unwrap_or_alert, unwrap_without_alert};
 use crate::card_creator::EXPIRED_CHECKED_MEMBER_CONTAINER_CLASS_NAME;
 use crate::stepper::next_step;
-use crate::user_interface;
 use crate::user_interface::{get_email_body, get_email_subject, set_loading};
 use crate::utils::{
     get_document, get_element_by_id_dyn, get_value_from_element, query_selector_single_element,
 };
 use crate::web::fetch;
+use crate::{json, user_interface};
 use dto::checked_member::CheckedMember;
 use dto::email::Email;
 use dto::member_to_check::MemberToCheck;
-use serde_json::json;
 use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{Document, HtmlButtonElement, HtmlInputElement, HtmlTextAreaElement};
@@ -89,8 +88,7 @@ pub async fn handle_form_submission(document: &Document) {
             let status = response.status();
             if (200..400).contains(&status) {
                 let text = response.body().clone().unwrap_or(String::new());
-                let checked_members: Vec<CheckedMember> =
-                    serde_json::from_str(&text).expect("can't deserialize checked members");
+                let checked_members: Vec<CheckedMember> = json::from_str(&text);
                 unwrap_or_alert(user_interface::handle_checked_members(&checked_members));
                 next_step(document);
                 unwrap_or_alert(set_loading(false));
@@ -150,12 +148,12 @@ pub async fn handle_email_sending() {
     let email_body = unwrap_or_alert(get_email_body(document));
 
     let url = "/api/members/notify";
-    let body = json!(Email::new(
+    let email = Email::new(
         email_addresses_to_notify.clone(),
         email_subject.to_owned(),
         email_body.to_owned(),
-    ))
-    .to_string();
+    );
+    let body = json::to_string(&email);
 
     match fetch(url, "post", Some("application/json"), Some(&body)).await {
         Ok(response) => {
