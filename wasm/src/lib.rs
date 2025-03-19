@@ -14,7 +14,7 @@ mod web;
 
 use crate::alert::{unwrap_or_alert, unwrap_without_alert};
 use crate::error::Error;
-use crate::fileo::login::init_login_form_fileo;
+use crate::fileo::init_fileo_page;
 use crate::utils::get_document;
 use wasm_bindgen::prelude::*;
 
@@ -26,7 +26,7 @@ fn run() {
     let document = &unwrap_without_alert(get_document());
     unwrap_or_alert(navbar::init_navbar(document));
 
-    init_login_form_fileo(document);
+    init_fileo_page(document);
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
