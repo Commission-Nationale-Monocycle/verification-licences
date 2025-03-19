@@ -1,12 +1,12 @@
 use crate::fileo::credentials::FileoCredentials;
-use crate::member::config::MembershipsProviderConfig;
-use crate::member::get_memberships_file_folder;
+use crate::membership::config::MembershipsProviderConfig;
+use crate::membership::get_memberships_file_folder;
 use crate::uda::credentials::UdaCredentials;
-use crate::web::api::members_state::MembersState;
+use crate::web::api::memberships_state::MembershipsState;
 use crate::web::api::{fileo_controller, memberships_controller, uda_controller};
 use crate::web::credentials_storage::CredentialsStorage;
 use crate::web::server::Server;
-use dto::uda::InstancesList;
+use dto::uda_instance::InstancesList;
 use regex::Regex;
 use rocket::{Build, Rocket};
 use std::sync::Mutex;
@@ -22,31 +22,32 @@ impl ApiServer {
 impl Server for ApiServer {
     fn configure(&self, rocket_build: Rocket<Build>) -> Rocket<Build> {
         let members_provider_config = build_members_provider_config();
-        let members_state = match MembersState::load_members(members_provider_config.folder()) {
-            Ok(state) => state,
-            Err(error) => {
-                error!("{error:#?}");
-                panic!("Initialization failed, aborting.");
-            }
-        };
+        let memberships_state =
+            match MembershipsState::load_memberships(members_provider_config.folder()) {
+                Ok(state) => state,
+                Err(error) => {
+                    error!("{error:#?}");
+                    panic!("Initialization failed, aborting.");
+                }
+            };
 
         rocket_build
             .manage(members_provider_config)
             .manage(build_uda_configuration())
-            .manage(Mutex::new(members_state))
+            .manage(Mutex::new(memberships_state))
             .manage(Mutex::new(CredentialsStorage::<FileoCredentials>::default()))
             .manage(Mutex::new(CredentialsStorage::<UdaCredentials>::default()))
             .manage(Mutex::new(InstancesList::default()))
             .mount(
                 "/api/",
                 routes![
-                    memberships_controller::check_memberships,
-                    memberships_controller::check_participants,
+                    memberships_controller::check_csv_members,
+                    memberships_controller::check_uda_members,
                     memberships_controller::notify_members,
                     fileo_controller::login,
                     fileo_controller::download_memberships,
                     uda_controller::login,
-                    uda_controller::retrieve_participants_to_check,
+                    uda_controller::retrieve_members_to_check,
                     uda_controller::confirm_members,
                     uda_controller::list_instances,
                 ],

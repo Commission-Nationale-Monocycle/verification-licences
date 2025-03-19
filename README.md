@@ -32,7 +32,7 @@ Once everything's installed, you can try and compile the app:
 3. Build and run the app in demo mode with `cargo run --features demo`.
 4. If that's the first time you run the app, you'll have to populate the memberships. You can do so with cURL or any
    other tool: `curl --request GET --url http://127.0.0.1:8000/api/memberships`.
-5. Once the app is started and populated, go to http://127.0.0.1:8000/check-memberships. You should be able to check
+5. Once the app is started and populated, go to http://127.0.0.1:8000/csv/check. You should be able to check
    memberships.
 
 You'll need Fileo credentials to do so.

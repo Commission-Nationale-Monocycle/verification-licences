@@ -1,9 +1,9 @@
 use derive_getters::Getters;
-use dto::participant::Participant;
+use dto::uda_member::UdaMember;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Getters, Serialize, Deserialize, PartialEq)]
-pub struct ImportedParticipant {
+pub struct ImportedUdaMember {
     #[serde(rename = "Id")]
     id: u16,
     #[serde(rename = "Manual Organization Membership#")]
@@ -36,24 +36,24 @@ pub struct ImportedParticipant {
     confirmed: bool,
 }
 
-impl From<ImportedParticipant> for Participant {
-    fn from(imported_participant: ImportedParticipant) -> Self {
-        Participant::new(
-            imported_participant.id,
-            imported_participant
+impl From<ImportedUdaMember> for UdaMember {
+    fn from(imported_member: ImportedUdaMember) -> Self {
+        UdaMember::new(
+            imported_member.id,
+            imported_member
                 .manual_organization_membership
-                .or(imported_participant.system_organization_membership),
-            imported_participant.first_name,
-            imported_participant.last_name,
-            imported_participant.email,
-            imported_participant.club,
-            imported_participant.confirmed,
+                .or(imported_member.system_organization_membership),
+            imported_member.first_name,
+            imported_member.last_name,
+            imported_member.email,
+            imported_member.club,
+            imported_member.confirmed,
         )
     }
 }
 
 #[cfg(test)]
-impl ImportedParticipant {
+impl ImportedUdaMember {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: u16,

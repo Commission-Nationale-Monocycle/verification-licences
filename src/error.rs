@@ -1,5 +1,5 @@
 use crate::fileo::error::FileoError;
-use crate::member::error::MembershipError;
+use crate::membership::error::MembershipError;
 use crate::uda::error::UdaError;
 use crate::web::error::WebError;
 use thiserror::Error;

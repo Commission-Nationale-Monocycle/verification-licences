@@ -1,10 +1,10 @@
 use crate::fileo::credentials::FileoCredentials;
-use crate::member::members::Members;
-use crate::member::memberships::Memberships;
+use crate::membership::grouped_memberships::GroupedMemberships;
+use crate::membership::memberships::Memberships;
 use crate::tools::log_error_and_return;
-use crate::web::api::members_state::MembersState;
+use crate::web::api::memberships_state::MembershipsState;
 use dto::membership::Membership;
-use dto::uda::InstancesList;
+use dto::uda_instance::InstancesList;
 use rocket::http::Status;
 use rocket::response::Redirect;
 use rocket::{Request, State};
@@ -23,16 +23,16 @@ pub async fn fileo_login() -> Template {
 
 #[get("/memberships")]
 pub async fn list_memberships(
-    members_state: &State<Mutex<MembersState>>,
+    memberships_state: &State<Mutex<MembershipsState>>,
     _credentials: FileoCredentials,
 ) -> Result<Template, Status> {
-    let lock_result = members_state.lock();
+    let lock_result = memberships_state.lock();
     if let Err(error) = lock_result {
         log_error_and_return(Err(Status::InternalServerError))(error)
     } else {
-        let members = lock_result.unwrap();
-        let members: &Members = members.members();
-        let memberships: Vec<&Membership> = members
+        let memberships = lock_result.unwrap();
+        let memberships: &GroupedMemberships = memberships.memberships();
+        let memberships: Vec<&Membership> = memberships
             .values()
             .filter_map(Memberships::find_last_membership)
             .collect();
@@ -52,38 +52,38 @@ pub async fn list_memberships_unauthenticated() -> Redirect {
     Redirect::to(uri!("/fileo/login/?page=/memberships"))
 }
 
-#[get("/check-memberships")]
-pub async fn check_memberships(
-    members_state: &State<Mutex<MembersState>>,
+#[get("/csv/check")]
+pub async fn check_members_from_csv(
+    memberships_state: &State<Mutex<MembershipsState>>,
     _credentials: FileoCredentials,
 ) -> Result<Template, Status> {
-    let lock_result = members_state.lock();
+    let lock_result = memberships_state.lock();
     if let Err(error) = lock_result {
         log_error_and_return(Err(Status::InternalServerError))(error)
     } else {
-        let members_state = lock_result.unwrap();
-        let file_details = members_state.file_details();
+        let memberships_state = lock_result.unwrap();
+        let file_details = memberships_state.file_details();
         let last_update = match file_details {
             None => "Jamais".to_owned(),
             Some(file_details) => file_details.update_date().format("%d/%m/%Y").to_string(),
         };
         Ok(Template::render(
-            "fileo/check-memberships",
+            "fileo/check",
             context! {
-                title: "Vérifier les licences",
+                title: "Vérifier les licences depuis un fichier CSV",
                 last_update: last_update
             },
         ))
     }
 }
 
-#[get("/check-memberships", rank = 2)]
-pub async fn check_memberships_unauthenticated() -> Redirect {
-    Redirect::to(uri!("/fileo/login/?page=/check-memberships"))
+#[get("/csv/check", rank = 2)]
+pub async fn check_members_from_csv_unauthenticated() -> Redirect {
+    Redirect::to(uri!("/fileo/login/?page=/csv/check"))
 }
 
-#[get("/uda/import")]
-pub async fn uda_import(
+#[get("/uda/check")]
+pub async fn check_members_from_uda(
     _credentials: FileoCredentials, // Fileo credentials are required for importing from UDA as well
     uda_instances_list: &State<Mutex<InstancesList>>,
 ) -> Result<Template, Status> {
@@ -97,17 +97,17 @@ pub async fn uda_import(
     };
 
     Ok(Template::render(
-        "uda/uda-import",
+        "uda/check",
         context! {
-            title: "Connexion à UDA",
+            title: "Vérifier les licences depuis un import UDA",
             instances: instances_list.instances(),
             last_update: last_update
         },
     ))
 }
 
-#[get("/uda/import", rank = 2)]
-pub async fn uda_import_unauthenticated() -> Redirect {
+#[get("/uda/check", rank = 2)]
+pub async fn check_members_from_uda_unauthenticated() -> Redirect {
     Redirect::to(uri!("/fileo/login/?page=/uda/import"))
 }
 
@@ -146,8 +146,8 @@ mod tests {
     mod list_memberships {
         use crate::fileo::authentication::AUTHENTICATION_COOKIE;
         use crate::fileo::credentials::FileoCredentials;
-        use crate::member::members::Members;
-        use crate::web::api::members_state::MembersState;
+        use crate::membership::grouped_memberships::GroupedMemberships;
+        use crate::web::api::memberships_state::MembershipsState;
         use crate::web::credentials_storage::CredentialsStorage;
         use crate::web::frontend::frontend_controller::{
             list_memberships, list_memberships_unauthenticated,
@@ -166,7 +166,8 @@ mod tests {
             credentials_storage.store(uuid.clone(), credentials);
             let credentials_storage_mutex = Mutex::new(credentials_storage);
 
-            let members_sate_mutex = Mutex::new(MembersState::new(None, Members::default()));
+            let members_sate_mutex =
+                Mutex::new(MembershipsState::new(None, GroupedMemberships::default()));
 
             let rocket = rocket::build()
                 .mount(
@@ -188,7 +189,8 @@ mod tests {
 
         #[async_test]
         async fn should_not_render_membership_list_when_unauthenticated() {
-            let members_sate_mutex = Mutex::new(MembersState::new(None, Members::default()));
+            let members_sate_mutex =
+                Mutex::new(MembershipsState::new(None, GroupedMemberships::default()));
 
             let rocket = rocket::build()
                 .mount(
@@ -210,15 +212,15 @@ mod tests {
         }
     }
 
-    mod check_memberships {
+    mod check_members_from_csv {
         use crate::fileo::authentication::AUTHENTICATION_COOKIE;
         use crate::fileo::credentials::FileoCredentials;
-        use crate::member::file_details::FileDetails;
-        use crate::member::members::Members;
-        use crate::web::api::members_state::MembersState;
+        use crate::membership::file_details::FileDetails;
+        use crate::membership::grouped_memberships::GroupedMemberships;
+        use crate::web::api::memberships_state::MembershipsState;
         use crate::web::credentials_storage::CredentialsStorage;
         use crate::web::frontend::frontend_controller::{
-            check_memberships, check_memberships_unauthenticated,
+            check_members_from_csv, check_members_from_csv_unauthenticated,
         };
         use chrono::Utc;
         use rocket::http::{Cookie, Status};
@@ -228,7 +230,7 @@ mod tests {
         use std::sync::Mutex;
 
         #[async_test]
-        async fn should_render_check_memberships() {
+        async fn success() {
             let credentials =
                 FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
             let mut credentials_storage = CredentialsStorage::default();
@@ -236,27 +238,30 @@ mod tests {
             credentials_storage.store(uuid.clone(), credentials);
             let credentials_storage_mutex = Mutex::new(credentials_storage);
 
-            let members_sate_mutex = Mutex::new(MembersState::new(
+            let memberships_state = Mutex::new(MembershipsState::new(
                 Some(FileDetails::new(
                     Utc::now().date_naive(),
                     OsString::from(""),
                 )),
-                Members::default(),
+                GroupedMemberships::default(),
             ));
 
             let rocket = rocket::build()
                 .mount(
                     "/",
-                    routes![check_memberships, check_memberships_unauthenticated],
+                    routes![
+                        check_members_from_csv,
+                        check_members_from_csv_unauthenticated
+                    ],
                 )
-                .manage(members_sate_mutex)
+                .manage(memberships_state)
                 .manage(credentials_storage_mutex)
                 .attach(Template::fairing());
 
             let client = Client::tracked(rocket).await.unwrap();
             let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
 
-            let request = client.get("/check-memberships").cookie(cookie.clone());
+            let request = client.get("/csv/check").cookie(cookie.clone());
 
             let response = request.dispatch().await;
             assert_eq!(Status::Ok, response.status());
@@ -265,7 +270,7 @@ mod tests {
         }
 
         #[async_test]
-        async fn should_render_check_memberships_when_no_file() {
+        async fn success_when_no_file() {
             let credentials =
                 FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
             let mut credentials_storage = CredentialsStorage::default();
@@ -273,21 +278,25 @@ mod tests {
             credentials_storage.store(uuid.clone(), credentials);
             let credentials_storage_mutex = Mutex::new(credentials_storage);
 
-            let members_sate_mutex = Mutex::new(MembersState::new(None, Members::default()));
+            let memberships_sate_mutex =
+                Mutex::new(MembershipsState::new(None, GroupedMemberships::default()));
 
             let rocket = rocket::build()
                 .mount(
                     "/",
-                    routes![check_memberships, check_memberships_unauthenticated],
+                    routes![
+                        check_members_from_csv,
+                        check_members_from_csv_unauthenticated
+                    ],
                 )
-                .manage(members_sate_mutex)
+                .manage(memberships_sate_mutex)
                 .manage(credentials_storage_mutex)
                 .attach(Template::fairing());
 
             let client = Client::tracked(rocket).await.unwrap();
             let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
 
-            let request = client.get("/check-memberships").cookie(cookie.clone());
+            let request = client.get("/csv/check").cookie(cookie.clone());
 
             let response = request.dispatch().await;
             assert_eq!(Status::Ok, response.status());
@@ -296,24 +305,28 @@ mod tests {
         }
 
         #[async_test]
-        async fn should_not_render_check_memberships_when_unauthenticated() {
-            let members_sate_mutex = Mutex::new(MembersState::new(None, Members::default()));
+        async fn fail_when_unauthenticated() {
+            let members_sate_mutex =
+                Mutex::new(MembershipsState::new(None, GroupedMemberships::default()));
 
             let rocket = rocket::build()
                 .mount(
                     "/",
-                    routes![check_memberships, check_memberships_unauthenticated],
+                    routes![
+                        check_members_from_csv,
+                        check_members_from_csv_unauthenticated
+                    ],
                 )
                 .manage(members_sate_mutex)
                 .attach(Template::fairing());
 
             let client = Client::tracked(rocket).await.unwrap();
-            let request = client.get("/check-memberships");
+            let request = client.get("/csv/check");
 
             let response = request.dispatch().await;
             assert_eq!(Status::SeeOther, response.status());
             assert_eq!(
-                "/fileo/login?page=/check-memberships",
+                "/fileo/login?page=/csv/check",
                 response.headers().get_one("location").unwrap()
             );
         }

@@ -13,6 +13,8 @@ pub enum MemberStatus {
     Unknown,
 }
 
+/// A [CheckedMember] is a member whose membership has been checked.
+/// It may have a membership up-to-date, an expired membership or no membership at all.
 #[derive(Debug, Getters, Serialize, Deserialize, PartialEq)]
 pub struct CheckedMember<T: MemberIdentifier> {
     member_to_check: T,
@@ -56,17 +58,17 @@ impl<T: MemberIdentifier> PartialOrd for CheckedMember<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::member_to_check::MemberToCheck;
+    use crate::csv_member::CsvMember;
     use chrono::Days;
     use std::cmp::Ordering::{Greater, Less};
     // region utils
 
-    fn get_member_to_check_2() -> MemberToCheck {
-        MemberToCheck::new("2".to_owned(), "".to_owned(), "".to_owned())
+    fn get_member_to_check_2() -> CsvMember {
+        CsvMember::new("2".to_owned(), "".to_owned(), "".to_owned())
     }
 
-    fn get_member_to_check_1() -> MemberToCheck {
-        MemberToCheck::new("1".to_owned(), "".to_owned(), "".to_owned())
+    fn get_member_to_check_1() -> CsvMember {
+        CsvMember::new("1".to_owned(), "".to_owned(), "".to_owned())
     }
 
     fn get_membership_2() -> Membership {

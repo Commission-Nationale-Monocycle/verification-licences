@@ -8,10 +8,10 @@ use crate::uda::confirm_member::confirm_member;
 use crate::uda::credentials::UdaCredentials;
 use crate::uda::instances::retrieve_uda_instances;
 use crate::uda::login::authenticate_into_uda;
-use crate::uda::retrieve_members::retrieve_participants;
+use crate::uda::retrieve_members::retrieve_members;
 use crate::web::credentials_storage::CredentialsStorage;
 use crate::web::error::WebError::{ConnectionFailed, LackOfPermissions};
-use dto::uda::InstancesList;
+use dto::uda_instance::InstancesList;
 use reqwest::Client;
 use rocket::State;
 use rocket::form::validate::Contains;
@@ -48,12 +48,12 @@ pub async fn login(
 
 /// Retrieve all members from UDA's organisation membership page if authorized.
 #[get("/uda/retrieve")]
-pub async fn retrieve_participants_to_check(credentials: UdaCredentials) -> Result<String, Status> {
+pub async fn retrieve_members_to_check(credentials: UdaCredentials) -> Result<String, Status> {
     let client = build_client().map_err(log_error_and_return(Status::InternalServerError))?;
     authenticate(&client, &credentials).await?;
     let url = credentials.uda_url();
-    match retrieve_participants(&client, url).await {
-        Ok(participants) => Ok(json!(participants).to_string()),
+    match retrieve_members(&client, url).await {
+        Ok(members) => Ok(json!(members).to_string()),
         Err(Web(LackOfPermissions)) => Err(Status::Unauthorized),
         Err(_) => Err(Status::BadGateway),
     }
@@ -307,14 +307,14 @@ mod tests {
         }
     }
 
-    mod retrieve_participants_to_check {
+    mod retrieve_members_to_check {
         use crate::uda::authentication::AUTHENTICATION_COOKIE;
         use crate::uda::credentials::UdaCredentials;
         use crate::uda::login::tests::setup_authentication;
-        use crate::uda::retrieve_members::tests::setup_participant_retrieval;
-        use crate::web::api::uda_controller::retrieve_participants_to_check;
+        use crate::uda::retrieve_members::tests::setup_member_retrieval;
+        use crate::web::api::uda_controller::retrieve_members_to_check;
         use crate::web::credentials_storage::CredentialsStorage;
-        use dto::participant::Participant;
+        use dto::uda_member::UdaMember;
         use rocket::http::Status;
         use rocket::local::asynchronous::Client;
         use std::sync::Mutex;
@@ -324,7 +324,7 @@ mod tests {
         async fn success() {
             let mock_server = MockServer::start().await;
             let credentials = setup_authentication(&mock_server).await;
-            let expected_result = setup_participant_retrieval(&mock_server).await;
+            let expected_result = setup_member_retrieval(&mock_server).await;
 
             let uuid = "e9af5e0f-c441-4bcd-bf22-31cc5b1f2f9e";
             let mut credentials_storage = CredentialsStorage::<UdaCredentials>::default();
@@ -333,7 +333,7 @@ mod tests {
 
             let rocket = rocket::build()
                 .manage(credentials_storage_mutex)
-                .mount("/", routes![retrieve_participants_to_check]);
+                .mount("/", routes![retrieve_members_to_check]);
 
             let client = Client::tracked(rocket).await.unwrap();
             let request = client
@@ -342,8 +342,8 @@ mod tests {
 
             let response = request.dispatch().await;
             assert_eq!(Status::Ok, response.status());
-            let participants: Vec<Participant> = response.into_json().await.unwrap();
-            assert_eq!(expected_result, participants);
+            let members: Vec<UdaMember> = response.into_json().await.unwrap();
+            assert_eq!(expected_result, members);
         }
 
         #[async_test]
@@ -354,7 +354,7 @@ mod tests {
 
             let rocket = rocket::build()
                 .manage(credentials_storage_mutex)
-                .mount("/", routes![retrieve_participants_to_check]);
+                .mount("/", routes![retrieve_members_to_check]);
 
             let client = Client::tracked(rocket).await.unwrap();
             let request = client
@@ -376,7 +376,7 @@ mod tests {
 
             let rocket = rocket::build()
                 .manage(credentials_storage_mutex)
-                .mount("/", routes![retrieve_participants_to_check]);
+                .mount("/", routes![retrieve_members_to_check]);
 
             let client = Client::tracked(rocket).await.unwrap();
             let request = client
@@ -452,8 +452,8 @@ mod tests {
         use crate::uda::configuration::Configuration;
         use crate::uda::instances::tests::{BODY, get_expected_instances};
         use crate::web::api::uda_controller::list_instances;
-        use dto::uda::Instance;
-        use dto::uda::InstancesList;
+        use dto::uda_instance::Instance;
+        use dto::uda_instance::InstancesList;
         use rocket::http::Status;
         use rocket::local::asynchronous::Client;
         use std::ops::Deref;

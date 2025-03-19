@@ -2,12 +2,12 @@ use crate::fileo::credentials::FileoCredentials;
 use crate::tools::email::send_email;
 use crate::tools::log_message_and_return;
 use crate::uda::credentials::UdaCredentials;
-use crate::web::api::members_state::MembersState;
+use crate::web::api::memberships_state::MembershipsState;
 use dto::checked_member::CheckedMember;
+use dto::csv_member::CsvMember;
 use dto::email::Email;
 use dto::member_identifier::MemberIdentifier;
-use dto::member_to_check::MemberToCheck;
-use dto::participant::Participant;
+use dto::uda_member::UdaMember;
 use rocket::State;
 use rocket::form::Form;
 use rocket::serde::json::{Json, json};
@@ -20,51 +20,51 @@ use std::sync::Mutex;
 /// Return the result as JSON-encoded string,
 /// within which each member having a valid membership has its last occurrence associated,
 /// while each member having no valid membership has no element associated.
-#[post("/members/check", data = "<members_to_check>")]
-pub async fn check_memberships(
-    members_state: &State<Mutex<MembersState>>,
+#[post("/members/csv/check", data = "<members_to_check>")]
+pub async fn check_csv_members(
+    memberships_state: &State<Mutex<MembershipsState>>,
     members_to_check: Form<String>,
     _credentials: FileoCredentials,
 ) -> Result<String, String> {
-    let members_to_check =
-        match MemberToCheck::load_members_to_check_from_csv_string(&members_to_check) {
-            (members_to_check, wrong_lines) if wrong_lines.is_empty() => members_to_check,
-            (members_to_check, wrong_lines) => {
-                wrong_lines.iter().for_each(|wrong_line| {
-                    error!("Line couldn't be read: {wrong_line}");
-                });
-                members_to_check
-            }
-        };
+    let members_to_check = match CsvMember::load_members_to_check_from_csv_string(&members_to_check)
+    {
+        (members_to_check, wrong_lines) if wrong_lines.is_empty() => members_to_check,
+        (members_to_check, wrong_lines) => {
+            wrong_lines.iter().for_each(|wrong_line| {
+                error!("Line couldn't be read: {wrong_line}");
+            });
+            members_to_check
+        }
+    };
 
-    let result = check(members_state, members_to_check.into_iter().collect())?;
+    let result = check(memberships_state, members_to_check.into_iter().collect())?;
 
     Ok(json!(result).to_string())
 }
 
-#[post("/participants/check", data = "<participants_to_check>")]
-pub async fn check_participants(
-    members_state: &State<Mutex<MembersState>>,
-    participants_to_check: Json<Vec<Participant>>,
+#[post("/members/uda/check", data = "<members_to_check>")]
+pub async fn check_uda_members(
+    memberships_state: &State<Mutex<MembershipsState>>,
+    members_to_check: Json<Vec<UdaMember>>,
     _fileo_credentials: FileoCredentials,
     _uda_credentials: UdaCredentials,
 ) -> Result<String, String> {
-    let result = check(members_state, participants_to_check.into_inner())?;
+    let result = check(memberships_state, members_to_check.into_inner())?;
 
     Ok(json!(result).to_string())
 }
 
 fn check<T: MemberIdentifier>(
-    members_state: &Mutex<MembersState>,
+    memberships_state: &Mutex<MembershipsState>,
     members_to_check: Vec<T>,
 ) -> Result<Vec<CheckedMember<T>>, String> {
-    let members_state = members_state.lock().map_err(log_message_and_return(
+    let memberships_state = memberships_state.lock().map_err(log_message_and_return(
         "Couldn't acquire lock",
         "Error while checking members.",
     ))?;
 
-    let members = members_state.members();
-    let checked_members = members.check_members(members_to_check);
+    let memberships = memberships_state.memberships();
+    let checked_members = memberships.check_members(members_to_check);
 
     Ok(checked_members)
 }
@@ -92,17 +92,17 @@ pub async fn notify_members(
 
 #[cfg(test)]
 mod tests {
-    mod check_participants {
+    mod check_members {
         use crate::fileo::credentials::FileoCredentials;
-        use crate::member::members::Members;
-        use crate::member::memberships::Memberships;
+        use crate::membership::grouped_memberships::GroupedMemberships;
+        use crate::membership::memberships::Memberships;
         use crate::uda::credentials::UdaCredentials;
-        use crate::web::api::members_state::MembersState;
-        use crate::web::api::memberships_controller::check_participants;
+        use crate::web::api::memberships_controller::check_uda_members;
+        use crate::web::api::memberships_state::MembershipsState;
         use crate::web::credentials_storage::CredentialsStorage;
         use dto::checked_member::CheckedMember;
         use dto::membership::tests::get_expected_membership;
-        use dto::participant::Participant;
+        use dto::uda_member::UdaMember;
         use rocket::http::hyper::header::CONTENT_TYPE;
         use rocket::http::{ContentType, Header, Status};
         use rocket::local::asynchronous::Client;
@@ -112,7 +112,7 @@ mod tests {
 
         #[async_test]
         async fn success() {
-            let participant_1 = Participant::new(
+            let member_1 = UdaMember::new(
                 1,
                 Some("123456".to_owned()),
                 "Jon".to_owned(),
@@ -121,7 +121,7 @@ mod tests {
                 Some("Le club de test".to_owned()),
                 true,
             );
-            let participant_2 = Participant::new(
+            let member_2 = UdaMember::new(
                 2,
                 Some("654321".to_owned()),
                 "Jonette".to_owned(),
@@ -130,7 +130,7 @@ mod tests {
                 None,
                 false,
             );
-            let participants = vec![participant_1.clone(), participant_2.clone()];
+            let members = vec![member_1.clone(), member_2.clone()];
 
             let fileo_credentials =
                 FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
@@ -150,29 +150,30 @@ mod tests {
             let fileo_credentials_storage_mutex = Mutex::new(fileo_storage);
             let uda_credentials_storage_mutex = Mutex::new(uda_storage);
 
-            let mut members = HashMap::new();
-            members.insert(
+            let mut memberships = HashMap::new();
+            memberships.insert(
                 "123456".to_owned(),
                 Memberships::from([get_expected_membership()]),
             );
-            let members_state = MembersState::new(None, Members::from(members));
-            let members_state = Mutex::new(members_state);
+            let memberships_state =
+                MembershipsState::new(None, GroupedMemberships::from(memberships));
+            let memberships_state = Mutex::new(memberships_state);
 
             let rocket = rocket::build()
                 .manage(fileo_credentials_storage_mutex)
                 .manage(uda_credentials_storage_mutex)
-                .manage(members_state)
-                .mount("/", routes![check_participants]);
+                .manage(memberships_state)
+                .mount("/", routes![check_uda_members]);
 
             let client = Client::tracked(rocket).await.unwrap();
             let request = client
-                .post("/participants/check")
+                .post("/members/uda/check")
                 .cookie((
                     crate::fileo::authentication::AUTHENTICATION_COOKIE,
                     fileo_uuid,
                 ))
                 .cookie((crate::uda::authentication::AUTHENTICATION_COOKIE, uda_uuid))
-                .body(json!(participants).to_string().as_bytes())
+                .body(json!(members).to_string().as_bytes())
                 .header(Header::new(
                     CONTENT_TYPE.to_string(),
                     ContentType::JSON.to_string(),
@@ -181,14 +182,14 @@ mod tests {
             let response = request.dispatch().await;
             assert_eq!(Status::Ok, response.status());
 
-            let checked_participants: Vec<CheckedMember<Participant>> =
+            let checked_members: Vec<CheckedMember<UdaMember>> =
                 response.into_json().await.unwrap();
             assert_eq!(
                 vec![
-                    CheckedMember::new(participant_1, Some(get_expected_membership())),
-                    CheckedMember::new(participant_2, None),
+                    CheckedMember::new(member_1, Some(get_expected_membership())),
+                    CheckedMember::new(member_2, None),
                 ],
-                checked_participants
+                checked_members
             )
         }
     }

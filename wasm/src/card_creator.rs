@@ -4,7 +4,7 @@ use crate::utils::{append_child, create_element, query_selector_single_element};
 use MemberStatus::Unknown;
 use dto::checked_member::MemberStatus::{Expired, UpToDate};
 use dto::checked_member::{CheckedMember, MemberStatus};
-use dto::member_to_check::MemberToCheck;
+use dto::csv_member::CsvMember;
 use wasm_bindgen::JsCast;
 use web_sys::{Document, Element, HtmlAnchorElement};
 
@@ -12,7 +12,7 @@ pub const EXPIRED_CHECKED_MEMBER_CONTAINER_CLASS_NAME: &str = "checked-member-ex
 
 pub fn create_card_for_member_to_check(
     document: &Document,
-    member_to_check: &MemberToCheck,
+    member_to_check: &CsvMember,
 ) -> Result<Element> {
     let container = create_element(document, "div")?;
 
@@ -31,7 +31,7 @@ pub fn create_card_for_member_to_check(
 
 pub fn create_card_for_checked_member(
     document: &Document,
-    checked_member: &CheckedMember<MemberToCheck>,
+    checked_member: &CheckedMember<CsvMember>,
 ) -> Result<Element> {
     let container = create_element(document, "div")?;
 

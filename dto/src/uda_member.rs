@@ -3,8 +3,10 @@ use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 
+/// An [UdaMember] is a participant imported from UDA.
+/// It has a few fields, which can help to manage this member - confirm them, email them, ...
 #[derive(Debug, Getters, PartialEq, Eq, Serialize, Deserialize, Clone)]
-pub struct Participant {
+pub struct UdaMember {
     id: u16,
     membership_number: Option<String>,
     first_name: String,
@@ -14,7 +16,7 @@ pub struct Participant {
     confirmed: bool,
 }
 
-impl Participant {
+impl UdaMember {
     pub fn new(
         id: u16,
         membership_number: Option<String>,
@@ -36,13 +38,13 @@ impl Participant {
     }
 }
 
-impl PartialOrd for Participant {
+impl PartialOrd for UdaMember {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for Participant {
+impl Ord for UdaMember {
     fn cmp(&self, other: &Self) -> Ordering {
         if self.last_name() != other.last_name() {
             self.last_name().cmp(other.last_name())
@@ -54,7 +56,7 @@ impl Ord for Participant {
     }
 }
 
-impl MemberIdentifier for Participant {
+impl MemberIdentifier for UdaMember {
     fn membership_num(&self) -> Option<String> {
         self.membership_number.clone()
     }

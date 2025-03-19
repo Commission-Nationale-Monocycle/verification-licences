@@ -4,25 +4,24 @@ use std::fs;
 use std::fs::File;
 use std::str::FromStr;
 
-use chrono::NaiveDate;
-use csv::Reader;
-use regex::bytes::{Captures, Regex};
-
 use crate::error::Result;
 use crate::fileo::imported_membership::ImportedMembership;
-use crate::member::Membership;
-use crate::member::error::MembershipError::{
+use crate::membership::error::MembershipError::{
     CantBrowseThroughFiles, CantConvertDateFieldToString, CantOpenMembersFile,
     CantOpenMembersFileFolder, InvalidDate, NoFileFound, WrongRegex,
 };
-use crate::member::file_details::FileDetails;
-use crate::member::members::Members;
-use crate::member::memberships::Memberships;
+use crate::membership::file_details::FileDetails;
+use crate::membership::grouped_memberships::GroupedMemberships;
+use crate::membership::memberships::Memberships;
 use crate::tools::{log_message, log_message_and_return};
+use chrono::NaiveDate;
+use csv::Reader;
+use dto::membership::Membership;
+use regex::bytes::{Captures, Regex};
 
 /// Load a list of [Member]s from a file containing [Membership]s.
 /// Members are memberships grouped by membership num.
-pub fn import_from_file(filepath: &OsStr) -> Result<Members> {
+pub fn import_from_file(filepath: &OsStr) -> Result<GroupedMemberships> {
     let error_message = format!("Can't open members file `{:?}`.", filepath.to_str());
     let file = File::open(filepath).map_err(log_message_and_return(
         &error_message,
@@ -49,7 +48,7 @@ where
         .collect::<Vec<_>>()
 }
 
-fn group_members_by_membership(memberships: Vec<Membership>) -> Members {
+fn group_members_by_membership(memberships: Vec<Membership>) -> GroupedMemberships {
     let mut map = HashMap::new();
 
     memberships.into_iter().for_each(|membership| {
@@ -61,7 +60,7 @@ fn group_members_by_membership(memberships: Vec<Membership>) -> Members {
             .or_insert(Memberships::from([membership.clone(); 1]));
     });
 
-    Members::from(map)
+    GroupedMemberships::from(map)
 }
 
 pub fn find_file(members_file_folder: &OsStr) -> Result<FileDetails> {
@@ -149,20 +148,20 @@ mod tests {
     use std::io::BufReader;
 
     use crate::error::ApplicationError;
-    use crate::member::Membership;
-    use crate::member::error::MembershipError::{
+    use crate::membership::error::MembershipError::{
         CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound,
     };
-    use crate::member::import_from_file::{
+    use crate::membership::grouped_memberships::GroupedMemberships;
+    use crate::membership::import_from_file::{
         build_members_file_regex, check_folder, convert_captures_to_date, convert_match_to_integer,
         find_file, group_members_by_membership, import_from_file, load_memberships,
     };
-    use crate::member::members::Members;
-    use crate::member::memberships::Memberships;
+    use crate::membership::memberships::Memberships;
     use crate::tools::test::tests::temp_dir;
     use chrono::NaiveDate;
+    use dto::membership::Membership;
     use dto::membership::tests::{
-        get_expected_membership, get_malformed_member_as_csv, get_member_as_csv,
+        get_expected_membership, get_malformed_membership_as_csv, get_membership_as_csv,
     };
     use regex::bytes::Regex;
 
@@ -173,7 +172,7 @@ mod tests {
         let file_name = "memberships.csv";
         let file_path = dir.join(file_name);
 
-        fs::write(&file_path, get_member_as_csv()).unwrap();
+        fs::write(&file_path, get_membership_as_csv()).unwrap();
 
         let result = import_from_file(file_path.as_ref()).unwrap();
         assert_eq!(
@@ -200,7 +199,7 @@ mod tests {
     // region load_members
     #[test]
     fn should_load_members() {
-        let entry = get_member_as_csv();
+        let entry = get_membership_as_csv();
         let expected_member = get_expected_membership();
 
         let mut reader = csv::ReaderBuilder::new()
@@ -212,7 +211,7 @@ mod tests {
 
     #[test]
     fn should_not_load_members_when_malformed_input() {
-        let entry = get_malformed_member_as_csv();
+        let entry = get_malformed_membership_as_csv();
         let mut reader = csv::ReaderBuilder::new()
             .delimiter(b';')
             .from_reader(BufReader::new(entry.as_bytes()));
@@ -267,7 +266,7 @@ mod tests {
             "".to_string(),
         );
 
-        let expected_map: Members = Members::from(
+        let expected_map: GroupedMemberships = GroupedMemberships::from(
             [
                 (
                     "1".to_owned(),

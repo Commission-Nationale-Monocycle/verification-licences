@@ -1,13 +1,11 @@
 use std::ffi::OsStr;
 
-use dto::membership::Membership;
-
-pub mod config;
-pub mod error;
-pub mod file_details;
-pub mod import_from_file;
-pub mod members;
-pub mod memberships;
+pub(crate) mod config;
+pub(crate) mod error;
+pub(crate) mod file_details;
+pub(crate) mod grouped_memberships;
+pub(crate) mod import_from_file;
+pub(crate) mod memberships;
 
 #[cfg(not(feature = "demo"))]
 const MEMBERSHIPS_FILE_FOLDER: &str = "data";
