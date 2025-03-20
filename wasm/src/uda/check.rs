@@ -24,10 +24,10 @@ fn handle_checked_members(
     document: &Document,
     checked_members: &Vec<CheckedMember<UdaMember>>,
 ) -> Result<()> {
-    let parent = get_element_by_id(&document, "checked-members")?;
+    let parent = get_element_by_id(document, "checked-members")?;
     clear_element(&parent);
     for checked_member in checked_members {
-        let card = create_card_for_uda_checked_member(&document, &checked_member)?;
+        let card = create_card_for_uda_checked_member(document, checked_member)?;
         append_child(&parent, &card)?;
     }
 

@@ -4,17 +4,15 @@ use crate::card_creator::create_card_for_uda_member_to_check;
 use crate::error::Error;
 use crate::json;
 use crate::stepper::next_step;
-use crate::template::get_template;
 use crate::uda::credentials::UdaCredentials;
 use crate::user_interface::set_loading;
 use crate::utils::{
-    add_class, append_child, clear_element, get_element_by_id, get_element_by_id_dyn,
-    get_value_from_element, query_selector_single_element, set_attribute,
+    append_child, clear_element, get_element_by_id, get_element_by_id_dyn, get_value_from_element,
 };
 use crate::web::fetch;
 use dto::uda_member::UdaMember;
 use wasm_bindgen::prelude::wasm_bindgen;
-use web_sys::{Document, Element, HtmlSelectElement};
+use web_sys::{Document, HtmlSelectElement};
 
 #[wasm_bindgen(js_name = "importFromUda")]
 pub async fn import_from_uda_page(document: &Document) {
