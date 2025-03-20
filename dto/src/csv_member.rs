@@ -12,15 +12,15 @@ use std::collections::BTreeSet;
 pub struct CsvMember {
     membership_num: String,
     name: String,
-    firstname: String,
+    first_name: String,
 }
 
 impl CsvMember {
-    pub fn new(membership_num: String, name: String, firstname: String) -> Self {
+    pub fn new(membership_num: String, name: String, first_name: String) -> Self {
         Self {
             membership_num,
             name,
-            firstname,
+            first_name,
         }
     }
 }
@@ -83,8 +83,8 @@ impl Ord for CsvMember {
     fn cmp(&self, other: &Self) -> Ordering {
         if self.name != other.name {
             self.name.cmp(other.name())
-        } else if self.firstname != other.firstname {
-            self.firstname().cmp(other.firstname())
+        } else if self.first_name != other.first_name {
+            self.first_name().cmp(other.first_name())
         } else {
             self.membership_num.cmp(&other.membership_num)
         }
@@ -101,15 +101,15 @@ mod tests {
         fn success() {
             let membership_num = "123".to_owned();
             let name = "Doe".to_owned();
-            let firstname = "John".to_owned();
-            let csv = format!("{membership_num};{name};{firstname}");
+            let first_name = "John".to_owned();
+            let csv = format!("{membership_num};{name};{first_name}");
             let result = CsvMember::load_members_to_check_from_csv_string(&csv);
             assert_eq!(
                 (
                     BTreeSet::from_iter(vec![CsvMember {
                         membership_num,
                         name,
-                        firstname
+                        first_name
                     }]),
                     vec![]
                 ),

@@ -1,6 +1,6 @@
 {% macro render_membership(membership) %}
     <tr {% if membership.end_date | is_in_the_past %} class="bg-red-300" {% endif %}>
-        <td>{{ membership.firstname }}</td>
+        <td>{{ membership.first_name }}</td>
         <td>{{ membership.name }}</td>
         <td>{{ membership.membership_number }}</td>
         <td>{{ membership.end_date | date(format="%d-%m-%Y") }}</td>

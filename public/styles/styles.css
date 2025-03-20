@@ -178,10 +178,8 @@ body.loading #spinner-container {
     @apply font-semibold
 }
 
-.member-to-check div:is(
-.membership-number, .name, .firstname,
-.membership-name, .membership-firstname, .membership-end-date
-) {
+.membership-number, .name, .first-name, .club,
+.membership-name, .membership-first-name, .membership-end-date, .email-address-container {
     @apply inline
 }
 
@@ -193,11 +191,7 @@ body.loading #spinner-container {
     @apply flex flex-col flex-shrink-0 m-2
 }
 
-.membership .email-address-container {
-    @apply inline
-}
-
-.checked-member-expired .send-email-checkbox {
+.send-email-checkbox {
     @apply border-2 rounded-md flex justify-evenly items-center
 }
 

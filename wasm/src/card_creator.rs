@@ -24,7 +24,8 @@ pub fn create_card_for_member_to_check(
     let membership_num = member_to_check.membership_num();
     query_selector_single_element(&card, ".membership-number")?.set_inner_html(membership_num);
     query_selector_single_element(&card, ".name")?.set_inner_html(member_to_check.name());
-    query_selector_single_element(&card, ".firstname")?.set_inner_html(member_to_check.firstname());
+    query_selector_single_element(&card, ".first-name")?
+        .set_inner_html(member_to_check.first_name());
 
     Ok(card)
 }
@@ -45,14 +46,14 @@ pub fn create_card_for_checked_member(
     query_selector_single_element(&card, ".membership-number")?.set_inner_html(membership_num);
     query_selector_single_element(&card, ".name")?
         .set_inner_html(checked_member.member_to_check().name());
-    query_selector_single_element(&card, ".firstname")?
-        .set_inner_html(checked_member.member_to_check().firstname());
+    query_selector_single_element(&card, ".first-name")?
+        .set_inner_html(checked_member.member_to_check().first_name());
 
     if status == UpToDate || status == Expired {
         let membership = checked_member.membership().as_ref().unwrap();
         query_selector_single_element(&card, ".membership-name")?.set_inner_html(membership.name());
-        query_selector_single_element(&card, ".membership-firstname")?
-            .set_inner_html(membership.firstname());
+        query_selector_single_element(&card, ".membership-first-name")?
+            .set_inner_html(membership.first_name());
         query_selector_single_element(&card, ".membership-end-date")?
             .set_inner_html(&membership.end_date().format("%d/%m/%Y").to_string());
         let email_address_container =

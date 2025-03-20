@@ -32,7 +32,7 @@ pub async fn import_from_uda_page(document: &Document) {
         );
         return;
     }
-    let members = unwrap_or_alert(retrieve_members().await.map_err(|error| {
+    let members = unwrap_or_alert(retrieve_members(document).await.map_err(|error| {
         Error::from_parent(
             "Erreur, veuillez réessyer.".to_owned(),
             Error::new(error.to_string()),
@@ -79,7 +79,7 @@ async fn login(document: &Document) -> Result<bool> {
     }
 }
 
-async fn retrieve_members() -> Result<Vec<UdaMember>> {
+async fn retrieve_members(document: &Document) -> Result<Vec<UdaMember>> {
     let response = fetch("/api/uda/retrieve", "get", None, None).await?;
     let status = response.status();
     if (200..400).contains(&status) {
@@ -87,6 +87,7 @@ async fn retrieve_members() -> Result<Vec<UdaMember>> {
             .body()
             .clone()
             .ok_or_else(|| Error::new("No body".to_owned()))?;
+        get_element_by_id(document, "members-as-json")?.set_text_content(Some(&body));
         let members = json::from_str(&body);
         Ok(members)
     } else if status == 401 {
@@ -104,7 +105,7 @@ async fn retrieve_members() -> Result<Vec<UdaMember>> {
 }
 
 fn display_members(document: &Document, members: &Vec<UdaMember>) -> Result<()> {
-    let container = get_element_by_id(document, "checked-members")?;
+    let container = get_element_by_id(document, "members")?;
     clear_element(&container);
     for member in members {
         match create_member_card(document, member) {

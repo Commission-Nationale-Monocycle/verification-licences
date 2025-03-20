@@ -71,7 +71,7 @@ mod tests {
         use dto::checked_member::CheckedMember;
         use dto::csv_member::CsvMember;
         use dto::membership::tests::{
-            MEMBER_FIRSTNAME, MEMBER_NAME, MEMBERSHIP_NUMBER, get_expected_membership,
+            MEMBER_FIRST_NAME, MEMBER_NAME, MEMBERSHIP_NUMBER, get_expected_membership,
         };
         use std::collections::HashMap;
 
@@ -85,7 +85,7 @@ mod tests {
             let member_to_check = CsvMember::new(
                 MEMBERSHIP_NUMBER.to_owned(),
                 MEMBER_NAME.to_owned(),
-                MEMBER_FIRSTNAME.to_owned(),
+                MEMBER_FIRST_NAME.to_owned(),
             );
 
             assert_eq!(
@@ -108,7 +108,7 @@ mod tests {
             let member_to_check = CsvMember::new(
                 invalid_membership_number,
                 MEMBER_NAME.to_owned(),
-                MEMBER_FIRSTNAME.to_owned(),
+                MEMBER_FIRST_NAME.to_owned(),
             );
 
             assert_eq!(
@@ -123,7 +123,7 @@ mod tests {
         use crate::membership::memberships::Memberships;
         use dto::csv_member::CsvMember;
         use dto::membership::tests::{
-            MEMBER_FIRSTNAME, MEMBER_NAME, MEMBERSHIP_NUMBER, get_expected_membership,
+            MEMBER_FIRST_NAME, MEMBER_NAME, MEMBERSHIP_NUMBER, get_expected_membership,
         };
         use std::collections::HashMap;
 
@@ -137,7 +137,7 @@ mod tests {
             let member_to_check = CsvMember::new(
                 MEMBERSHIP_NUMBER.to_owned(),
                 MEMBER_NAME.to_owned(),
-                MEMBER_FIRSTNAME.to_owned(),
+                MEMBER_FIRST_NAME.to_owned(),
             );
 
             assert_eq!(Some(&membership), members.check_member(&member_to_check));
@@ -154,7 +154,7 @@ mod tests {
             let member_to_check = CsvMember::new(
                 invalid_membership_number,
                 MEMBER_NAME.to_owned(),
-                MEMBER_FIRSTNAME.to_owned(),
+                MEMBER_FIRST_NAME.to_owned(),
             );
 
             assert_eq!(None, members.check_member(&member_to_check));

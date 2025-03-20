@@ -4,12 +4,12 @@
             <div>Membre à vérifier</div>
             <div>Numéro d'adhésion : <div class="membership-number"></div></div>
             <div>Nom : <div class="name"></div></div>
-            <div>Prénom : <div class="firstname"></div></div>
+            <div>Prénom : <div class="first-name"></div></div>
         </div>
         <div class="membership">
             <div>Membre associé au numéro d'adhésion fourni</div>
             <div>Nom : <div class="membership-name"></div></div>
-            <div>Prénom : <div class="membership-firstname"></div></div>
+            <div>Prénom : <div class="membership-first-name"></div></div>
             <div>Fin de l'adhésion : <div class="membership-end-date"></div></div>
             <div>Adresse mail :
                 <div class="email-address-container"><a class="membership-email-address"></a></div>
@@ -24,12 +24,12 @@
             <div>Membre à vérifier</div>
             <div>Numéro d'adhésion : <div class="membership-number"></div></div>
             <div>Nom : <div class="name"></div></div>
-            <div>Prénom : <div class="firstname"></div></div>
+            <div>Prénom : <div class="first-name"></div></div>
         </div>
         <div class="membership">
             <div>Membre associé au numéro d'adhésion fourni</div>
             <div>Nom : <div class="membership-name"></div></div>
-            <div>Prénom : <div class="membership-firstname"></div></div>
+            <div>Prénom : <div class="membership-first-name"></div></div>
             <div>Fin de l'adhésion : <div class="membership-end-date"></div></div>
             <div>Adresse mail :
                 <div class="email-address-container"><a class="membership-email-address"></a>
@@ -48,7 +48,7 @@
             <div>Membre à vérifier</div>
             <div>Numéro d'adhésion : <div class="membership-number"></div></div>
             <div>Nom : <div class="name"></div></div>
-            <div>Prénom : <div class="firstname"></div></div>
+            <div>Prénom : <div class="first-name"></div></div>
         </div>
         <div class="membership">
             <div>Aucune adhésion trouvée</div>

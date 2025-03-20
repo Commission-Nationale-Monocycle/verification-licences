@@ -11,7 +11,7 @@ pub struct ImportedMembership {
     #[serde(alias = "Nom d'usage")]
     name: String,
     #[serde(alias = "Prénom")]
-    firstname: String,
+    first_name: String,
     #[serde(alias = "Sexe")]
     gender: String,
     #[serde(
@@ -47,7 +47,7 @@ impl From<ImportedMembership> for Membership {
     fn from(membership: ImportedMembership) -> Self {
         Membership::new(
             membership.name,
-            membership.firstname,
+            membership.first_name,
             membership.gender,
             membership.birthdate,
             membership.age,
@@ -123,7 +123,7 @@ pub mod tests {
     fn should_deserialize_member() {
         let membership = ImportedMembership {
             name: "Doe".to_owned(),
-            firstname: "John".to_owned(),
+            first_name: "John".to_owned(),
             gender: "M".to_string(),
             birthdate: NaiveDate::from_ymd_opt(2000, 10, 11),
             age: Some(24_u8),
@@ -146,7 +146,7 @@ pub mod tests {
     fn should_deserialize_when_empty_date() {
         let membership = ImportedMembership {
             name: "Doe".to_owned(),
-            firstname: "John".to_owned(),
+            first_name: "John".to_owned(),
             gender: "M".to_string(),
             birthdate: None,
             age: None,
