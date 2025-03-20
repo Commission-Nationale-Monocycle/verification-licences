@@ -1,5 +1,5 @@
 use crate::Result;
-use crate::error::Error;
+use crate::error::{DEFAULT_ERROR_MESSAGE, Error};
 use wasm_bindgen::JsCast;
 use web_sys::{Document, Element, HtmlElement, HtmlInputElement, Location, Node, Window};
 
@@ -16,40 +16,60 @@ pub fn set_panic_hook() {
 
 // region Get elements
 pub fn get_window() -> Result<Window> {
-    web_sys::window().ok_or_else(|| Error::new("no global `window` exists".to_owned()))
+    web_sys::window().ok_or_else(|| {
+        Error::new(
+            DEFAULT_ERROR_MESSAGE.to_string(),
+            "no global `window` exists".to_owned(),
+        )
+    })
 }
 
 pub fn get_document() -> Result<Document> {
     let window = get_window()?;
-    window
-        .document()
-        .ok_or_else(|| Error::new("should have a document on window".to_owned()))
+    window.document().ok_or_else(|| {
+        Error::new(
+            DEFAULT_ERROR_MESSAGE.to_string(),
+            "should have a document on window".to_owned(),
+        )
+    })
 }
 
 pub fn get_body() -> Result<HtmlElement> {
     let document = get_document()?;
-    document
-        .body()
-        .ok_or_else(|| Error::new("should have a document on window".to_owned()))
+    document.body().ok_or_else(|| {
+        Error::new(
+            DEFAULT_ERROR_MESSAGE.to_string(),
+            "should have a document on window".to_owned(),
+        )
+    })
 }
 
 pub fn get_element_by_id(document: &Document, id: &str) -> Result<Element> {
-    document
-        .get_element_by_id(id)
-        .ok_or_else(|| Error::new(format!("`{id}` element does not exist")))
+    document.get_element_by_id(id).ok_or_else(|| {
+        Error::new(
+            DEFAULT_ERROR_MESSAGE.to_string(),
+            format!("`{id}` element does not exist"),
+        )
+    })
 }
 
 pub fn get_element_by_id_dyn<T: JsCast>(document: &Document, id: &str) -> Result<T> {
     get_element_by_id(document, id)?
         .dyn_into()
-        .map_err(|error| Error::new(format!("Can't cast element: {error:?}")))
+        .map_err(|error| {
+            Error::new(
+                DEFAULT_ERROR_MESSAGE.to_string(),
+                format!("Can't cast element: {error:?}"),
+            )
+        })
 }
 
 pub fn query_selector_single_element(element: &Element, selector: &str) -> Result<Element> {
     element.query_selector(selector)?.ok_or_else(|| {
-        Error::new(format!(
-            "There should be a single element matching query [selector: {selector}]."
-        ))
+        Error::new(
+            DEFAULT_ERROR_MESSAGE.to_string(),
+            format!("There should be a single element matching query [selector: {selector}]."),
+        )
     })
 }
 

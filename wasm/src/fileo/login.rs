@@ -40,19 +40,9 @@ pub async fn login() {
             if (200..400).contains(&status) {
                 unwrap_or_alert(set_loading(false));
                 let location = unwrap_or_alert(get_location());
-                let query_params = unwrap_or_alert(location.search().map_err(|error| {
-                    Error::from_parent(
-                        "Erreur, veuillez réessayer.".to_owned(),
-                        Error::new(error.as_string().unwrap()),
-                    )
-                }));
+                let query_params = unwrap_or_alert(location.search().map_err(Error::from));
                 let query_params = unwrap_or_alert(
-                    UrlSearchParams::new_with_str(&query_params).map_err(|error| {
-                        Error::from_parent(
-                            "Erreur, veuillez réessayer.".to_owned(),
-                            Error::new(error.as_string().unwrap()),
-                        )
-                    }),
+                    UrlSearchParams::new_with_str(&query_params).map_err(Error::from),
                 );
                 let url_to_redirect = if let Some(redirect) = query_params.get("page") {
                     redirect

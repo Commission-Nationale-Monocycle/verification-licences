@@ -1,7 +1,7 @@
 use crate::Result;
 use crate::alert::{AlertLevel, create_alert, unwrap_or_alert};
 use crate::card_creator::create_card_for_uda_member_to_check;
-use crate::error::Error;
+use crate::error::{DEFAULT_ERROR_MESSAGE, Error};
 use crate::json;
 use crate::stepper::next_step;
 use crate::uda::credentials::UdaCredentials;
@@ -18,12 +18,11 @@ use web_sys::{Document, HtmlSelectElement};
 pub async fn import_from_uda_page(document: &Document) {
     unwrap_or_alert(set_loading(true));
 
-    let is_logged_in = unwrap_or_alert(login(document).await.map_err(|error| {
-        Error::from_parent(
-            "Erreur, veuillez réessyer.".to_owned(),
-            Error::new(error.to_string()),
-        )
-    }));
+    let is_logged_in = unwrap_or_alert(
+        login(document)
+            .await
+            .map_err(|error| Error::from_parent(DEFAULT_ERROR_MESSAGE.to_owned(), error)),
+    );
     if !is_logged_in {
         create_alert(
             "Vos identifiants sont incorrects. Veuillez réessayer.",
@@ -31,19 +30,12 @@ pub async fn import_from_uda_page(document: &Document) {
         );
         return;
     }
-    let members = unwrap_or_alert(retrieve_members(document).await.map_err(|error| {
-        Error::from_parent(
-            "Erreur, veuillez réessyer.".to_owned(),
-            Error::new(error.to_string()),
-        )
-    }));
+    let members = unwrap_or_alert(retrieve_members(document).await);
 
-    unwrap_or_alert(display_members(document, &members).map_err(|error| {
-        Error::from_parent(
-            "Erreur, veuillez réessyer.".to_owned(),
-            Error::new(error.to_string()),
-        )
-    }));
+    unwrap_or_alert(
+        display_members(document, &members)
+            .map_err(|error| Error::from_parent(DEFAULT_ERROR_MESSAGE.to_owned(), error)),
+    );
     next_step(document);
 
     unwrap_or_alert(set_loading(false));
@@ -74,7 +66,10 @@ async fn login(document: &Document) -> Result<bool> {
     } else if status == 401 {
         Ok(false)
     } else {
-        Err(Error::new(format!("Can't login [status: {status}")))
+        Err(Error::new(
+            "Impossible de se connecter à UDA. Veuillez réessayer.".to_owned(),
+            format!("Can't login [status: {status}"),
+        ))
     }
 }
 
@@ -85,21 +80,18 @@ async fn retrieve_members(document: &Document) -> Result<Vec<UdaMember>> {
         let body = response
             .body()
             .clone()
-            .ok_or_else(|| Error::new("No body".to_owned()))?;
+            .ok_or_else(|| Error::new(DEFAULT_ERROR_MESSAGE.to_owned(), "No body".to_owned()))?;
         get_element_by_id(document, "members-as-json")?.set_text_content(Some(&body));
         let members = json::from_str(&body);
         Ok(members)
     } else if status == 401 {
-        // FIXME: this is never displayed, as another later alert would hide this first one.
-        create_alert(
-            "Vous n'avez pas les droits pour récupérer les participants depuis l'instance UDA sélectionnée.",
-            AlertLevel::Error,
-        );
-        Err(Error::new("Can't retrieve UDA members".to_owned()))
+        Err(Error::new("Vous n'avez pas les droits pour récupérer les participants depuis l'instance UDA sélectionnée.".to_owned(),
+        "Unauthorized to retrieve UDA members.".to_owned()))
     } else {
-        Err(Error::new(format!(
-            "Can't retrieve UDA members [status: {status}"
-        )))
+        Err(Error::new(
+            "Impossible de récupérer les membres depuis UDA. Veuillez réessayer.".to_owned(),
+            format!("Unable to retrieve UDA members [status: {status}]"),
+        ))
     }
 }
 

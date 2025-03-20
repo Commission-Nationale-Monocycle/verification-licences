@@ -39,10 +39,8 @@ pub async fn fetch(
         headers.append("Content-Type", content_type)?;
     }
     request_init.set_headers(&JsValue::from(&headers));
-    let request = unwrap_or_alert(
-        Request::new_with_str_and_init(url, &request_init)
-            .map_err(|error| Error::new(error.as_string().unwrap())),
-    );
+    let request =
+        unwrap_or_alert(Request::new_with_str_and_init(url, &request_init).map_err(Error::from));
     let promise = window.fetch_with_request(&request);
     let response = wasm_bindgen_futures::JsFuture::from(promise)
         .await?

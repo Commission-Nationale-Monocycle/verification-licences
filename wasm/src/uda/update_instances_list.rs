@@ -15,11 +15,12 @@ pub async fn update_uda_instances_list() {
             let status = response.status();
             if (200..400).contains(&status) {
                 let location = unwrap_without_alert(get_window()).location();
-                unwrap_or_alert(
-                    location
-                        .reload()
-                        .map_err(|error| Error::new(format!("Can't reload page: {error:?}"))),
-                );
+                unwrap_or_alert(location.reload().map_err(|error| {
+                    Error::from_parent(
+                        format!("Impossible de recharger la page : {error:?}"),
+                        Error::from(error),
+                    )
+                }));
                 unwrap_or_alert(set_loading(false));
             } else {
                 unwrap_or_alert(set_loading(false));
