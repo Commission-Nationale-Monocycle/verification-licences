@@ -30,8 +30,7 @@ pub async fn confirm_members() {
             Some("application/json"),
             Some(&body),
         )
-        .await
-        .map_err(Error::from)?;
+        .await?;
 
         let status = response.status();
         if (200..400).contains(&status) {
