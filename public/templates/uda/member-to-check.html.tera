@@ -6,5 +6,6 @@
         <div>Prénom : <div class="first-name"></div></div>
         <div>Club : <div class="club"></div></div>
         <div>Adresse mail : <div class="email-address-container"><a class="email-address"></a></div></div>
+        <input class="uda-id" type="hidden"/>
     </div>
 </template>
