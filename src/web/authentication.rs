@@ -18,7 +18,7 @@ pub async fn from_request<C: Send + Sync + Clone + 'static>(
         let credentials_storage =
             try_outcome!(req.guard::<&State<Mutex<CredentialsStorage<C>>>>().await);
         match credentials_storage.lock() {
-            Ok(credentials_storage) => match credentials_storage.get(cookie.value()) {
+            Ok(mut credentials_storage) => match credentials_storage.get(cookie.value()) {
                 None => Outcome::Forward(Status::Unauthorized),
                 Some(credentials) => Outcome::Success(credentials.clone()),
             },
