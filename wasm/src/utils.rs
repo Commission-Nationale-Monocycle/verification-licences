@@ -16,39 +16,28 @@ pub fn set_panic_hook() {
 
 // region Get elements
 pub fn get_window() -> Result<Window> {
-    web_sys::window().ok_or_else(|| {
-        Error::new(
-            DEFAULT_ERROR_MESSAGE.to_string(),
-            "no global `window` exists".to_owned(),
-        )
-    })
+    web_sys::window().ok_or_else(|| Error::new(DEFAULT_ERROR_MESSAGE, "no global `window` exists"))
 }
 
 pub fn get_document() -> Result<Document> {
     let window = get_window()?;
-    window.document().ok_or_else(|| {
-        Error::new(
-            DEFAULT_ERROR_MESSAGE.to_string(),
-            "should have a document on window".to_owned(),
-        )
-    })
+    window
+        .document()
+        .ok_or_else(|| Error::new(DEFAULT_ERROR_MESSAGE, "should have a document on window"))
 }
 
 pub fn get_body() -> Result<HtmlElement> {
     let document = get_document()?;
-    document.body().ok_or_else(|| {
-        Error::new(
-            DEFAULT_ERROR_MESSAGE.to_string(),
-            "should have a document on window".to_owned(),
-        )
-    })
+    document
+        .body()
+        .ok_or_else(|| Error::new(DEFAULT_ERROR_MESSAGE, "should have a document on window"))
 }
 
 pub fn get_element_by_id(document: &Document, id: &str) -> Result<Element> {
     document.get_element_by_id(id).ok_or_else(|| {
         Error::new(
-            DEFAULT_ERROR_MESSAGE.to_string(),
-            format!("`{id}` element does not exist"),
+            DEFAULT_ERROR_MESSAGE,
+            &format!("`{id}` element does not exist"),
         )
     })
 }
@@ -58,8 +47,8 @@ pub fn get_element_by_id_dyn<T: JsCast>(document: &Document, id: &str) -> Result
         .dyn_into()
         .map_err(|error| {
             Error::new(
-                DEFAULT_ERROR_MESSAGE.to_string(),
-                format!("Can't cast element: {error:?}"),
+                DEFAULT_ERROR_MESSAGE,
+                &format!("Can't cast element: {error:?}"),
             )
         })
 }
@@ -67,8 +56,8 @@ pub fn get_element_by_id_dyn<T: JsCast>(document: &Document, id: &str) -> Result
 pub fn query_selector_single_element(element: &Element, selector: &str) -> Result<Element> {
     element.query_selector(selector)?.ok_or_else(|| {
         Error::new(
-            DEFAULT_ERROR_MESSAGE.to_string(),
-            format!("There should be a single element matching query [selector: {selector}]."),
+            DEFAULT_ERROR_MESSAGE,
+            &format!("There should be a single element matching query [selector: {selector}]."),
         )
     })
 }

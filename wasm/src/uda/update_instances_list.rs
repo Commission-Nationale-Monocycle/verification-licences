@@ -1,43 +1,30 @@
-use crate::alert::{AlertLevel, create_alert, unwrap_or_alert, unwrap_without_alert};
-use crate::error::Error;
-use crate::user_interface::set_loading;
+use crate::error::{DEFAULT_SERVER_ERROR_MESSAGE, Error};
+use crate::user_interface::with_loading;
 use crate::utils::get_window;
 use crate::web::fetch;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
 pub async fn update_uda_instances_list() {
-    unwrap_or_alert(set_loading(true));
+    with_loading(async || {
+        let url = "/api/uda/instances";
+        let response = fetch(url, "get", None, None)
+            .await
+            .map_err(|error| Error::from_parent(DEFAULT_SERVER_ERROR_MESSAGE, error))?;
+        let status = response.status();
+        if (200..400).contains(&status) {
+            let location = get_window()?.location();
+            location.reload().map_err(|error| {
+                Error::from_parent(
+                    &format!("Impossible de recharger la page : {error:?}"),
+                    Error::from(error),
+                )
+            })?;
 
-    let url = "/api/uda/instances";
-    match fetch(url, "get", None, None).await {
-        Ok(response) => {
-            let status = response.status();
-            if (200..400).contains(&status) {
-                let location = unwrap_without_alert(get_window()).location();
-                unwrap_or_alert(location.reload().map_err(|error| {
-                    Error::from_parent(
-                        format!("Impossible de recharger la page : {error:?}"),
-                        Error::from(error),
-                    )
-                }));
-                unwrap_or_alert(set_loading(false));
-            } else {
-                unwrap_or_alert(set_loading(false));
-                create_alert(
-                    "Le serveur a rencontré une erreur lors du traitement. Veuillez réessayer.",
-                    AlertLevel::Error,
-                );
-                log::error!("Server error: {}", status);
-            }
+            Ok(())
+        } else {
+            Err(Error::from_server_status_error(status))
         }
-        Err(error) => {
-            unwrap_or_alert(set_loading(false));
-            create_alert(
-                "Le serveur a rencontré une erreur lors du traitement. Veuillez réessayer.",
-                AlertLevel::Error,
-            );
-            log::error!("Server error: {:?}", error);
-        }
-    }
+    })
+    .await;
 }

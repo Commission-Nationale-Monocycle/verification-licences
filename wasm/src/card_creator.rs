@@ -71,12 +71,9 @@ pub fn create_card_for_uda_member_to_check(
     if let Some(club) = member_to_check.club() {
         club_element.set_inner_html(club);
     } else {
-        let club_parent = club_element.parent_element().ok_or_else(|| {
-            Error::new(
-                DEFAULT_ERROR_MESSAGE.to_owned(),
-                "No club element parent.".to_owned(),
-            )
-        })?;
+        let club_parent = club_element
+            .parent_element()
+            .ok_or_else(|| Error::new(DEFAULT_ERROR_MESSAGE, "No club element parent."))?;
         add_class(&club_parent, "hidden");
     }
     let email_address_element = query_selector_single_element(&element, ".email-address")?;
