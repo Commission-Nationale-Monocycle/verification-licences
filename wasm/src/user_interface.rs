@@ -1,4 +1,5 @@
 use crate::Result;
+use crate::alert::unwrap_or_alert;
 use crate::card_creator::{
     create_card_for_csv_checked_member, create_card_for_csv_member_to_check,
 };
@@ -145,4 +146,15 @@ pub fn set_loading(loading: bool) -> Result<()> {
     }
 
     Ok(())
+}
+
+pub async fn with_loading<T, F>(f: F) -> T
+where
+    F: AsyncFn() -> Result<T>,
+{
+    unwrap_or_alert(set_loading(true));
+    let result = unwrap_or_alert(f().await);
+    unwrap_or_alert(set_loading(false));
+
+    result
 }

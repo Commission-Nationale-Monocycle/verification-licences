@@ -1,5 +1,5 @@
 use crate::Result;
-use crate::error::Error;
+use crate::error::{DEFAULT_ERROR_MESSAGE, Error};
 use crate::template::get_template;
 use crate::utils::{
     add_class, append_child, create_element, query_selector_single_element, set_attribute,
@@ -73,7 +73,7 @@ pub fn create_card_for_uda_member_to_check(
     } else {
         let club_parent = club_element
             .parent_element()
-            .ok_or_else(|| Error::new("No club element parent.".to_owned()))?;
+            .ok_or_else(|| Error::new(DEFAULT_ERROR_MESSAGE, "No club element parent."))?;
         add_class(&club_parent, "hidden");
     }
     let email_address_element = query_selector_single_element(&element, ".email-address")?;
@@ -113,9 +113,7 @@ fn create_membership_card(
     let card = get_membership_template(document, status)?;
     log::info!("{}", card.inner_html());
     if *status == UpToDate || *status == Expired {
-        let membership = membership.clone().ok_or_else(|| {
-            Error::new("Une erreur s'est produite. Veuillez réessayer".to_owned())
-        })?;
+        let membership = membership.clone().ok_or_else(Error::default)?;
 
         query_selector_single_element(&card, ".membership-name")?.set_inner_html(membership.name());
         query_selector_single_element(&card, ".membership-first-name")?

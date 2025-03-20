@@ -1,8 +1,7 @@
-use crate::alert::unwrap_or_alert;
 use crate::card_creator::create_card_for_uda_checked_member;
-use crate::error::Error;
+use crate::error::{DEFAULT_ERROR_MESSAGE, Error};
 use crate::stepper::next_step;
-use crate::user_interface::set_loading;
+use crate::user_interface::with_loading;
 use crate::utils::{append_child, clear_element, get_element_by_id};
 use crate::web::fetch;
 use crate::{Result, json};
@@ -13,11 +12,13 @@ use web_sys::Document;
 
 #[wasm_bindgen]
 pub async fn check_members(document: &Document) {
-    unwrap_or_alert(set_loading(true));
-    let checked_members = unwrap_or_alert(check(document).await);
-    unwrap_or_alert(handle_checked_members(document, &checked_members));
-    next_step(document);
-    unwrap_or_alert(set_loading(false));
+    with_loading(async || {
+        let checked_members = check(document).await?;
+        handle_checked_members(document, &checked_members)?;
+        next_step(document);
+        Ok(())
+    })
+    .await;
 }
 
 fn handle_checked_members(
@@ -35,10 +36,14 @@ fn handle_checked_members(
 }
 
 async fn check(document: &Document) -> Result<Vec<CheckedMember<UdaMember>>> {
-    let members = get_element_by_id(document, "members-as-json")?
+    let element_id = "members-as-json";
+    let members = get_element_by_id(document, element_id)?
         .text_content()
         .ok_or_else(|| {
-            Error::new("Liste de membres à vérifier introuvable. Veuillez réessayer.".to_owned())
+            Error::new(
+                "Liste de membres à vérifier introuvable. Veuillez réessayer.",
+                &format!("No members to check [id: {element_id}]."),
+            )
         })?;
     let response = fetch(
         "/api/members/uda/check",
@@ -49,8 +54,8 @@ async fn check(document: &Document) -> Result<Vec<CheckedMember<UdaMember>>> {
     .await
     .map_err(|error| {
         Error::from_parent(
-            "Une erreur s'est produite lors de la vérification des participants.".to_owned(),
-            Error::new(error.to_string()),
+            "Une erreur s'est produite lors de la vérification des participants.",
+            error,
         )
     })?;
 
@@ -59,16 +64,20 @@ async fn check(document: &Document) -> Result<Vec<CheckedMember<UdaMember>>> {
         let body = response
             .body()
             .clone()
-            .ok_or_else(|| Error::new("No body".to_owned()))?;
+            .ok_or_else(|| Error::new(DEFAULT_ERROR_MESSAGE, "No body"))?;
         let checked_members = json::from_str(&body);
         Ok(checked_members)
     } else if status == 401 {
         Err(Error::new(
-            "Vous n'avez pas les droits pour vérifier les participants.".to_owned(),
+            "Vous n'avez pas les droits pour vérifier les participants.",
+            "Unauthorized to check participants.",
         ))
     } else {
-        Err(Error::new(format!(
-            "Une erreur s'est produite lors de la vérification des participants [status: {status}]"
-        )))
+        Err(Error::new(
+            &format!(
+                "Une erreur s'est produite lors de la vérification des participants [status: {status}]"
+            ),
+            &format!("Can't check participants [status: {status}]"),
+        ))
     }
 }

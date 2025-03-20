@@ -1,6 +1,6 @@
 use crate::Result;
 use crate::alert::{AlertLevel, create_alert};
-use crate::error::Error;
+use crate::error::{DEFAULT_ERROR_MESSAGE, Error};
 use crate::template::get_template;
 use crate::utils::{add_class, append_child, remove_class, set_attribute};
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -22,14 +22,14 @@ pub fn add_step(document: &Document, stepper: &Element, step_name: &str) -> Resu
     let step_name_element = step_element
         .get_elements_by_class_name("step-name")
         .get_with_index(0)
-        .ok_or_else(|| Error::new("Step name element not found".to_owned()))?;
+        .ok_or_else(|| Error::new(DEFAULT_ERROR_MESSAGE, "Step name element not found"))?;
     let current_step_name_content = step_name_element.inner_html();
     step_name_element.set_inner_html(&format!("{current_step_name_content}{step_name}"));
 
     let step_index_element = step_element
         .get_elements_by_class_name("step-index")
         .get_with_index(0)
-        .ok_or_else(|| Error::new("Step index element not found".to_owned()))?;
+        .ok_or_else(|| Error::new(DEFAULT_ERROR_MESSAGE, "Step index element not found"))?;
     step_index_element.set_text_content(Some(&format!("{}.", steps_count + 1)));
 
     append_child(stepper, &step_element)?;
