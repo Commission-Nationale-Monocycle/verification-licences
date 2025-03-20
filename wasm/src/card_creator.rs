@@ -1,9 +1,7 @@
 use crate::Result;
-use crate::error::{DEFAULT_ERROR_MESSAGE, Error};
+use crate::error::Error;
 use crate::template::get_template;
-use crate::utils::{
-    add_class, append_child, create_element, query_selector_single_element, set_attribute,
-};
+use crate::utils::{append_child, create_element, query_selector_single_element, set_attribute};
 use MemberStatus::Unknown;
 use dto::checked_member::MemberStatus::{Expired, UpToDate};
 use dto::checked_member::{CheckedMember, MemberStatus};
@@ -40,7 +38,7 @@ pub fn create_card_for_csv_checked_member(
     checked_member: &CheckedMember<CsvMember>,
 ) -> Result<Element> {
     let status = checked_member.compute_member_status();
-    let checked_member_card_template = get_checked_member_template(document, &status)?;
+    let checked_member_card_template = get_checked_member_template(document)?;
 
     let member_card =
         create_card_for_csv_member_to_check(document, checked_member.member_to_check())?;
@@ -70,11 +68,6 @@ pub fn create_card_for_uda_member_to_check(
     let club_element = query_selector_single_element(&element, ".club")?;
     if let Some(club) = member_to_check.club() {
         club_element.set_inner_html(club);
-    } else {
-        let club_parent = club_element
-            .parent_element()
-            .ok_or_else(|| Error::new(DEFAULT_ERROR_MESSAGE, "No club element parent."))?;
-        add_class(&club_parent, "hidden");
     }
     let email_address_element = query_selector_single_element(&element, ".email-address")?;
     let email_address = member_to_check.email().as_str();
@@ -93,7 +86,7 @@ pub fn create_card_for_uda_checked_member(
     checked_member: &CheckedMember<UdaMember>,
 ) -> Result<Element> {
     let status = checked_member.compute_member_status();
-    let checked_member_card_template = get_checked_member_template(document, &status)?;
+    let checked_member_card_template = get_checked_member_template(document)?;
 
     let member_card =
         create_card_for_uda_member_to_check(document, checked_member.member_to_check())?;
@@ -111,7 +104,6 @@ fn create_membership_card(
     status: &MemberStatus,
 ) -> Result<Element> {
     let card = get_membership_template(document, status)?;
-    log::info!("{}", card.inner_html());
     if *status == UpToDate || *status == Expired {
         let membership = membership.clone().ok_or_else(Error::default)?;
 
@@ -133,15 +125,8 @@ fn get_member_to_check_template(document: &Document) -> Result<Element> {
     get_template(document, "member-to-check-template")
 }
 
-fn get_checked_member_template(
-    document: &Document,
-    member_status: &MemberStatus,
-) -> Result<Element> {
-    match member_status {
-        UpToDate => get_template(document, "checked-member-up-to-date"),
-        Expired => get_template(document, "checked-member-expired"),
-        Unknown => get_template(document, "checked-member-unknown"),
-    }
+fn get_checked_member_template(document: &Document) -> Result<Element> {
+    get_template(document, "checked-member")
 }
 
 fn get_membership_template(document: &Document, member_status: &MemberStatus) -> Result<Element> {
