@@ -1,0 +1,33 @@
+<template id="membership-up-to-date">
+    <div class="membership">
+        <div>Membre associé au numéro d'adhésion fourni</div>
+        <div>Nom : <div class="membership-name"></div></div>
+        <div>Prénom : <div class="membership-first-name"></div></div>
+        <div>Fin de l'adhésion : <div class="membership-end-date"></div></div>
+        <div>Adresse mail :
+            <div class="email-address-container"><a class="membership-email-address"></a></div>
+        </div>
+    </div>
+</template>
+
+<template id="membership-expired">
+    <div class="membership">
+        <div>Membre associé au numéro d'adhésion fourni</div>
+        <div>Nom : <div class="membership-name"></div></div>
+        <div>Prénom : <div class="membership-first-name"></div></div>
+        <div>Fin de l'adhésion : <div class="membership-end-date"></div></div>
+        <div>Adresse mail :
+            <div class="email-address-container"><a class="membership-email-address"></a>
+            </div>
+        </div>
+        <label class="send-email-checkbox">
+            Envoyer un email <input type="checkbox" checked="" onclick="app.toggle_next_step_button()">
+        </label>
+    </div>
+</template>
+
+<template id="membership-unknown">
+    <div class="membership">
+        <div>Aucune adhésion trouvée</div>
+    </div>
+</template>

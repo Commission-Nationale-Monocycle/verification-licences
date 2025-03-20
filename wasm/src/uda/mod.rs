@@ -1,3 +1,4 @@
+mod check;
 mod credentials;
 mod import_from_uda;
 mod update_instances_list;
@@ -13,6 +14,7 @@ pub fn init_uda_page(document: &Document) {
         .get_with_index(0)
     {
         unwrap_or_alert(add_step(document, &stepper, "Import"));
+        unwrap_or_alert(add_step(document, &stepper, "Participants"));
         unwrap_or_alert(add_step(document, &stepper, "Vérification"));
         unwrap_or_alert(add_step(document, &stepper, "Notification"));
     }

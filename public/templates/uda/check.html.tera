@@ -33,13 +33,21 @@
     </div>
 
     <div class="step">
+        <div id="members" class="flex flex-col md:flex-row flex-wrap">
+        </div>
+        <input id="members-as-json" type="hidden"/>
+        <button type="button" onclick="app.check_members(document)">Vérification</button>
+    </div>
+
+    <div class="step">
         <div id="checked-members" class="flex flex-col md:flex-row flex-wrap">
 
         </div>
     </div>
     <div class="step"></div>
 
-    {% include "member/member-to-check" %}
+    {% include "uda/member-to-check" %}
+    {% include "member/membership" %}
     {% include "member/checked-member" %}
 
 {% endblock %}

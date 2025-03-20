@@ -46,9 +46,11 @@ pub fn get_element_by_id_dyn<T: JsCast>(document: &Document, id: &str) -> Result
 }
 
 pub fn query_selector_single_element(element: &Element, selector: &str) -> Result<Element> {
-    element
-        .query_selector(selector)?
-        .ok_or_else(|| Error::new("There should be a single element matching query.".to_owned()))
+    element.query_selector(selector)?.ok_or_else(|| {
+        Error::new(format!(
+            "There should be a single element matching query [selector: {selector}]."
+        ))
+    })
 }
 
 pub fn get_value_from_element(element: &HtmlInputElement) -> String {

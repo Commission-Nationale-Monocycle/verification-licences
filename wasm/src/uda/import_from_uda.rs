@@ -1,5 +1,6 @@
 use crate::Result;
 use crate::alert::{AlertLevel, create_alert, unwrap_or_alert};
+use crate::card_creator::create_card_for_uda_member_to_check;
 use crate::error::Error;
 use crate::json;
 use crate::stepper::next_step;
@@ -108,7 +109,7 @@ fn display_members(document: &Document, members: &Vec<UdaMember>) -> Result<()> 
     let container = get_element_by_id(document, "members")?;
     clear_element(&container);
     for member in members {
-        match create_member_card(document, member) {
+        match create_card_for_uda_member_to_check(document, member) {
             Ok(element) => {
                 append_child(&container, &element)?;
             }
@@ -119,36 +120,4 @@ fn display_members(document: &Document, members: &Vec<UdaMember>) -> Result<()> 
     }
 
     Ok(())
-}
-
-fn create_member_card(document: &Document, member: &UdaMember) -> Result<Element> {
-    let element = get_template(document, "member-template")?;
-    query_selector_single_element(&element, ".membership-number")?.set_inner_html(
-        &member
-            .membership_number()
-            .clone()
-            .unwrap_or("Non renseigné".to_string()),
-    );
-    query_selector_single_element(&element, ".name")?.set_inner_html(member.last_name().as_str());
-    query_selector_single_element(&element, ".first-name")?
-        .set_inner_html(member.first_name().as_str());
-    let club_element = query_selector_single_element(&element, ".club")?;
-    if let Some(club) = member.club() {
-        club_element.set_inner_html(club);
-    } else {
-        let club_parent = club_element
-            .parent_element()
-            .ok_or_else(|| Error::new("No club element parent.".to_owned()))?;
-        add_class(&club_parent, "hidden");
-    }
-    let email_address_element = query_selector_single_element(&element, ".email-address")?;
-    let email_address = member.email().as_str();
-    email_address_element.set_inner_html(email_address);
-    set_attribute(
-        &email_address_element,
-        "href",
-        &format!("mailto:{email_address}"),
-    )?;
-
-    Ok(element)
 }

@@ -1,5 +1,7 @@
 use crate::Result;
-use crate::card_creator::{create_card_for_checked_member, create_card_for_member_to_check};
+use crate::card_creator::{
+    create_card_for_csv_checked_member, create_card_for_csv_member_to_check,
+};
 use crate::utils::{
     ElementBuilder, add_class, append_child, clear_element, get_body, get_document,
     get_element_by_id, get_element_by_id_dyn, remove_attribute, remove_class, set_attribute,
@@ -52,7 +54,7 @@ fn create_members_to_check_lines(
 ) -> Result<Vec<Element>> {
     members_to_check
         .iter()
-        .map(|member_to_check| create_card_for_member_to_check(document, member_to_check))
+        .map(|member_to_check| create_card_for_csv_member_to_check(document, member_to_check))
         .collect()
 }
 
@@ -83,7 +85,7 @@ pub fn handle_checked_members(checked_members: &Vec<CheckedMember<CsvMember>>) -
     let parent = get_element_by_id(&document, "checked-members")?;
     clear_element(&parent);
     for checked_member in checked_members {
-        let card = create_card_for_checked_member(&document, checked_member)?;
+        let card = create_card_for_csv_checked_member(&document, checked_member)?;
         append_child(&parent, &card)?;
     }
 
@@ -100,8 +102,8 @@ pub fn handle_checked_members(checked_members: &Vec<CheckedMember<CsvMember>>) -
 // endregion
 
 // region Get parts of the document
-fn get_members_to_check_hidden_input(document: &Document) -> Result<HtmlInputElement> {
-    get_element_by_id_dyn(document, "members-to-check")
+pub fn get_members_to_check_hidden_input(document: &Document) -> Result<HtmlInputElement> {
+    get_element_by_id_dyn(document, "members-to-check-input")
 }
 
 fn get_members_to_check_table(document: &Document) -> Result<Element> {

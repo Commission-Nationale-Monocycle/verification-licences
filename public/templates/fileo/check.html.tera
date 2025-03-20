@@ -18,7 +18,7 @@
         </div>
 
         <div id="check-members-form">
-            <input id="members-to-check"
+            <input id="members-to-check-input"
                    name="members_to_check"
                    type="hidden"
                    required>
@@ -61,5 +61,6 @@
     </div>
 
     {% include "fileo/member-to-check" %}
-    {% include "fileo/checked-member" %}
+    {% include "member/membership" %}
+    {% include "member/checked-member" %}
 {% endblock %}

@@ -2,7 +2,9 @@ use crate::Result;
 use crate::alert::{AlertLevel, create_alert, unwrap_or_alert, unwrap_without_alert};
 use crate::card_creator::EXPIRED_CHECKED_MEMBER_CONTAINER_CLASS_NAME;
 use crate::stepper::next_step;
-use crate::user_interface::{get_email_body, get_email_subject, set_loading};
+use crate::user_interface::{
+    get_email_body, get_email_subject, get_members_to_check_hidden_input, set_loading,
+};
 use crate::utils::{
     get_document, get_element_by_id_dyn, get_value_from_element, query_selector_single_element,
 };
@@ -60,10 +62,7 @@ pub async fn handle_members_to_check_file(input: HtmlInputElement) -> Result<(),
 pub async fn handle_form_submission(document: &Document) {
     unwrap_or_alert(set_loading(true));
 
-    let members_to_check_input = unwrap_or_alert(get_element_by_id_dyn::<HtmlInputElement>(
-        document,
-        "members-to-check",
-    ));
+    let members_to_check_input = unwrap_or_alert(get_members_to_check_hidden_input(document));
     let members_to_check = get_value_from_element(&members_to_check_input);
     if members_to_check.trim().is_empty() {
         unwrap_or_alert(set_loading(false));
