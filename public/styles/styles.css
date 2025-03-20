@@ -162,11 +162,11 @@ body.loading #spinner-container {
     @apply flex flex-col md:flex-row flex-shrink-0 m-2 border-2 rounded-md
 }
 
-.checked-member-expired {
+.checked-member:has(.membership-expired) {
     @apply bg-orange-300 dark:bg-orange-600
 }
 
-.checked-member-unknown {
+.checked-member:has(.membership-unknown) {
     @apply bg-red-300 dark:bg-red-500
 }
 
@@ -195,8 +195,12 @@ body.loading #spinner-container {
     @apply border-2 rounded-md flex justify-evenly items-center
 }
 
-.checked-member-unknown .membership {
+.checked-member .membership-unknown {
     @apply justify-center
+}
+
+.checked-member .club:has([content=""]) {
+    @apply hidden
 }
 
 /* endregion */
