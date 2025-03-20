@@ -77,6 +77,13 @@ pub fn create_card_for_uda_member_to_check(
         "href",
         &format!("mailto:{email_address}"),
     )?;
+    let confirmed_container = query_selector_single_element(&element, ".confirmed")?;
+    if *member_to_check.confirmed() {
+        confirmed_container.set_inner_html("✔");
+    } else {
+        confirmed_container.set_inner_html("❌");
+    }
+
     let uda_id_element = query_selector_single_element(&element, ".uda-id")?
         .dyn_into::<HtmlInputElement>()
         .map_err(Error::from)?;

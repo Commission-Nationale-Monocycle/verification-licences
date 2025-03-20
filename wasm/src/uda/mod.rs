@@ -1,4 +1,5 @@
 mod check;
+mod confirm;
 mod credentials;
 mod import_from_uda;
 mod update_instances_list;

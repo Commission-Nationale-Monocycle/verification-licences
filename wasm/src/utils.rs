@@ -62,6 +62,15 @@ pub fn query_selector_single_element(element: &Element, selector: &str) -> Resul
     })
 }
 
+pub fn query_selector_all(element: &Element, selector: &str) -> Result<Vec<Element>> {
+    let node_list = element.query_selector_all(selector)?;
+    let mut elements = vec![];
+    for i in 0..node_list.length() {
+        elements.push(node_list.get(i).unwrap().dyn_into()?);
+    }
+    Ok(elements)
+}
+
 pub fn get_value_from_element(element: &HtmlInputElement) -> String {
     element.value()
 }

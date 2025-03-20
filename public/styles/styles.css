@@ -178,7 +178,7 @@ body.loading #spinner-container {
     @apply font-semibold
 }
 
-.membership-number, .name, .first-name, .club,
+.membership-number, .name, .first-name, .club, .confirmed,
 .membership-name, .membership-first-name, .membership-end-date, .email-address-container {
     @apply inline
 }
