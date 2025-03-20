@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 #[derive(Debug, Serialize, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
 pub struct Membership {
     name: String,
-    firstname: String,
+    first_name: String,
     gender: String,
     birthdate: Option<NaiveDate>,
     age: Option<u8>,
@@ -23,7 +23,7 @@ impl Membership {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: String,
-        firstname: String,
+        first_name: String,
         gender: String,
         birthdate: Option<NaiveDate>,
         age: Option<u8>,
@@ -37,7 +37,7 @@ impl Membership {
     ) -> Self {
         Self {
             name,
-            firstname,
+            first_name,
             gender,
             birthdate,
             age,
@@ -63,7 +63,7 @@ impl Ord for Membership {
         self.membership_number
             .cmp(&other.membership_number)
             .then(self.name.cmp(&other.name))
-            .then(self.firstname.cmp(&other.firstname))
+            .then(self.first_name.cmp(&other.first_name))
             .then(self.end_date.cmp(&other.end_date))
     }
 }
@@ -79,7 +79,7 @@ pub mod tests {
         pub fn new_test(end_date: NaiveDate) -> Self {
             Membership {
                 name: "".to_string(),
-                firstname: "".to_string(),
+                first_name: "".to_string(),
                 gender: "".to_string(),
                 birthdate: None,
                 age: None,
@@ -98,7 +98,7 @@ pub mod tests {
     const MEMBERSHIP_AS_CSV: &str =
         "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oui;30-09-2025;Non;My club;Z01234";
     pub const MEMBER_NAME: &str = "Doe";
-    pub const MEMBER_FIRSTNAME: &str = "Jon";
+    pub const MEMBER_FIRST_NAME: &str = "Jon";
     pub const MEMBERSHIP_NUMBER: &str = "123456";
     const MALFORMED_MEMBERSHIP_AS_CSV: &str =
         "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oops;30-09-2025;Non;My club;Z01234";
@@ -106,7 +106,7 @@ pub mod tests {
     pub fn get_expected_membership() -> Membership {
         Membership {
             name: "Doe".to_string(),
-            firstname: "Jon".to_string(),
+            first_name: "Jon".to_string(),
             gender: "H".to_string(),
             birthdate: NaiveDate::from_ymd_opt(1980, 2, 1),
             age: Some(45),

@@ -1,19 +1,18 @@
 use crate::Result;
 use crate::alert::{AlertLevel, create_alert, unwrap_or_alert};
+use crate::card_creator::create_card_for_uda_member_to_check;
 use crate::error::Error;
 use crate::json;
 use crate::stepper::next_step;
-use crate::template::get_template;
 use crate::uda::credentials::UdaCredentials;
 use crate::user_interface::set_loading;
 use crate::utils::{
-    add_class, append_child, clear_element, get_element_by_id, get_element_by_id_dyn,
-    get_value_from_element, query_selector_single_element, set_attribute,
+    append_child, clear_element, get_element_by_id, get_element_by_id_dyn, get_value_from_element,
 };
 use crate::web::fetch;
 use dto::uda_member::UdaMember;
 use wasm_bindgen::prelude::wasm_bindgen;
-use web_sys::{Document, Element, HtmlSelectElement};
+use web_sys::{Document, HtmlSelectElement};
 
 #[wasm_bindgen(js_name = "importFromUda")]
 pub async fn import_from_uda_page(document: &Document) {
@@ -32,7 +31,7 @@ pub async fn import_from_uda_page(document: &Document) {
         );
         return;
     }
-    let members = unwrap_or_alert(retrieve_members().await.map_err(|error| {
+    let members = unwrap_or_alert(retrieve_members(document).await.map_err(|error| {
         Error::from_parent(
             "Erreur, veuillez réessyer.".to_owned(),
             Error::new(error.to_string()),
@@ -79,7 +78,7 @@ async fn login(document: &Document) -> Result<bool> {
     }
 }
 
-async fn retrieve_members() -> Result<Vec<UdaMember>> {
+async fn retrieve_members(document: &Document) -> Result<Vec<UdaMember>> {
     let response = fetch("/api/uda/retrieve", "get", None, None).await?;
     let status = response.status();
     if (200..400).contains(&status) {
@@ -87,6 +86,7 @@ async fn retrieve_members() -> Result<Vec<UdaMember>> {
             .body()
             .clone()
             .ok_or_else(|| Error::new("No body".to_owned()))?;
+        get_element_by_id(document, "members-as-json")?.set_text_content(Some(&body));
         let members = json::from_str(&body);
         Ok(members)
     } else if status == 401 {
@@ -104,10 +104,10 @@ async fn retrieve_members() -> Result<Vec<UdaMember>> {
 }
 
 fn display_members(document: &Document, members: &Vec<UdaMember>) -> Result<()> {
-    let container = get_element_by_id(document, "checked-members")?;
+    let container = get_element_by_id(document, "members")?;
     clear_element(&container);
     for member in members {
-        match create_member_card(document, member) {
+        match create_card_for_uda_member_to_check(document, member) {
             Ok(element) => {
                 append_child(&container, &element)?;
             }
@@ -118,36 +118,4 @@ fn display_members(document: &Document, members: &Vec<UdaMember>) -> Result<()> 
     }
 
     Ok(())
-}
-
-fn create_member_card(document: &Document, member: &UdaMember) -> Result<Element> {
-    let element = get_template(document, "member-template")?;
-    query_selector_single_element(&element, ".membership-number")?.set_inner_html(
-        &member
-            .membership_number()
-            .clone()
-            .unwrap_or("Non renseigné".to_string()),
-    );
-    query_selector_single_element(&element, ".name")?.set_inner_html(member.last_name().as_str());
-    query_selector_single_element(&element, ".first-name")?
-        .set_inner_html(member.first_name().as_str());
-    let club_element = query_selector_single_element(&element, ".club")?;
-    if let Some(club) = member.club() {
-        club_element.set_inner_html(club);
-    } else {
-        let club_parent = club_element
-            .parent_element()
-            .ok_or_else(|| Error::new("No club element parent.".to_owned()))?;
-        add_class(&club_parent, "hidden");
-    }
-    let email_address_element = query_selector_single_element(&element, ".email-address")?;
-    let email_address = member.email().as_str();
-    email_address_element.set_inner_html(email_address);
-    set_attribute(
-        &email_address_element,
-        "href",
-        &format!("mailto:{email_address}"),
-    )?;
-
-    Ok(element)
 }

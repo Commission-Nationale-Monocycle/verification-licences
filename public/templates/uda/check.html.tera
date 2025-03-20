@@ -10,8 +10,7 @@
                 "Membership admin".
             </div>
             <div class="input-container">
-                <label for="uda-instance-selector">Sélectionnez une instance UDA (dernière mise à jour : {{ last_update }}
-                    )</label>
+                <label for="uda-instance-selector">Sélectionnez une instance UDA (dernière mise à jour : {{ last_update }})</label>
                 <div class="uda-instance-selector-container">
                     <select id="uda-instance-selector" class="peer">
                         {% for instance in instances | reverse %}
@@ -34,20 +33,21 @@
     </div>
 
     <div class="step">
+        <div id="members" class="flex flex-col md:flex-row flex-wrap">
+        </div>
+        <input id="members-as-json" type="hidden"/>
+        <button type="button" onclick="app.check_members(document)">Vérification</button>
+    </div>
+
+    <div class="step">
         <div id="checked-members" class="flex flex-col md:flex-row flex-wrap">
 
         </div>
     </div>
     <div class="step"></div>
 
-    <template id="member-template">
-        <div class="member-to-check">
-            <div>Membre à vérifier</div>
-            <div>Numéro d'adhésion : <div class="membership-number"></div></div>
-            <div>Nom : <div class="name"></div></div>
-            <div>Prénom : <div class="first-name"></div></div>
-            <div>Club : <div class="club"></div></div>
-            <div>Adresse mail : <div class="email-address-container"><a class="email-address"></a></div></div>
-        </div>
-    </template>
+    {% include "uda/member-to-check" %}
+    {% include "member/membership" %}
+    {% include "member/checked-member" %}
+
 {% endblock %}

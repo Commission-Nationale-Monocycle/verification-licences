@@ -108,7 +108,7 @@ pub async fn check_members_from_uda(
 
 #[get("/uda/check", rank = 2)]
 pub async fn check_members_from_uda_unauthenticated() -> Redirect {
-    Redirect::to(uri!("/fileo/login/?page=/uda/import"))
+    Redirect::to(uri!("/fileo/login/?page=/uda/check"))
 }
 
 #[catch(404)]
