@@ -43,6 +43,7 @@
         <div id="checked-members" class="flex flex-col md:flex-row flex-wrap">
 
         </div>
+        <button type="button" onclick="app.confirm_members()">Confirmer sur UDA les membres vérifiés</button>
     </div>
     <div class="step"></div>
 
