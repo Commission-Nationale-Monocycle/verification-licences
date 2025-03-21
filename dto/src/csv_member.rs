@@ -1,4 +1,5 @@
 use crate::member_identifier::MemberIdentifier;
+use crate::member_to_check::MemberToCheck;
 use csv::Reader;
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
@@ -23,15 +24,7 @@ impl CsvMember {
             first_name,
         }
     }
-}
 
-impl MemberIdentifier for CsvMember {
-    fn membership_num(&self) -> Option<String> {
-        Some(self.membership_num().clone())
-    }
-}
-
-impl CsvMember {
     /// Load members to check from a CSV-formatted String, such as:
     /// `membership_num;name;firstname`
     pub fn load_members_to_check_from_csv_string(
@@ -70,6 +63,38 @@ impl CsvMember {
         });
 
         (members_to_check, wrong_lines)
+    }
+}
+
+impl MemberIdentifier for CsvMember {
+    fn membership_num(&self) -> Option<String> {
+        Some(self.membership_num().clone())
+    }
+}
+
+impl MemberToCheck for CsvMember {
+    fn id(&self) -> Option<u16> {
+        None
+    }
+
+    fn first_name(&self) -> String {
+        self.first_name.clone()
+    }
+
+    fn last_name(&self) -> String {
+        self.name.clone()
+    }
+
+    fn email(&self) -> Option<String> {
+        None
+    }
+
+    fn club(&self) -> Option<String> {
+        None
+    }
+
+    fn confirmed(&self) -> Option<bool> {
+        None
     }
 }
 
@@ -126,5 +151,68 @@ mod tests {
             let expected_result = (BTreeSet::new(), vec![csv]);
             assert_eq!(expected_result, result)
         }
+    }
+
+    use crate::csv_member::CsvMember;
+    use crate::member_identifier::MemberIdentifier;
+    use crate::member_to_check::MemberToCheck;
+
+    fn get_membership_number() -> String {
+        "0123456789".to_owned()
+    }
+    fn get_first_name() -> String {
+        "Jon".to_owned()
+    }
+    fn get_last_name() -> String {
+        "Snow".to_owned()
+    }
+
+    fn get_csv_member() -> CsvMember {
+        CsvMember::new(get_membership_number(), get_last_name(), get_first_name())
+    }
+
+    #[test]
+    fn should_get_id() {
+        let member = get_csv_member();
+        assert_eq!(None, MemberToCheck::id(&member));
+    }
+
+    #[test]
+    fn should_get_membership_number() {
+        let member = get_csv_member();
+        assert_eq!(
+            Some(get_membership_number()),
+            MemberIdentifier::membership_num(&member)
+        );
+    }
+
+    #[test]
+    fn should_get_first_name() {
+        let member = get_csv_member();
+        assert_eq!(get_first_name(), MemberToCheck::first_name(&member));
+    }
+
+    #[test]
+    fn should_get_last_name() {
+        let member = get_csv_member();
+        assert_eq!(get_last_name(), MemberToCheck::last_name(&member));
+    }
+
+    #[test]
+    fn should_get_email() {
+        let member = get_csv_member();
+        assert_eq!(None, MemberToCheck::email(&member));
+    }
+
+    #[test]
+    fn should_get_club() {
+        let member = get_csv_member();
+        assert_eq!(None, MemberToCheck::club(&member));
+    }
+
+    #[test]
+    fn should_get_confirmed() {
+        let member = get_csv_member();
+        assert_eq!(None, MemberToCheck::confirmed(&member));
     }
 }

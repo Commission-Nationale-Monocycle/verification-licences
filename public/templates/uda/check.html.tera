@@ -47,7 +47,7 @@
     </div>
     <div class="step"></div>
 
-    {% include "uda/member-to-check" %}
+    {% include "member/member-to-check" %}
     {% include "member/membership" %}
     {% include "member/checked-member" %}
 

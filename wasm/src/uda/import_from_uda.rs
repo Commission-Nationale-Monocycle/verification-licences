@@ -1,5 +1,5 @@
 use crate::Result;
-use crate::card_creator::create_card_for_uda_member_to_check;
+use crate::card_creator::create_card_for_member_to_check;
 use crate::component::stepper::next_step;
 use crate::error::{DEFAULT_ERROR_MESSAGE, Error};
 use crate::json;
@@ -95,7 +95,7 @@ fn display_members(document: &Document, members: &Vec<UdaMember>) -> Result<()> 
     let container = get_element_by_id(document, "members")?;
     clear_element(&container);
     for member in members {
-        match create_card_for_uda_member_to_check(document, member) {
+        match create_card_for_member_to_check(document, member) {
             Ok(element) => {
                 append_child(&container, &element)?;
             }
