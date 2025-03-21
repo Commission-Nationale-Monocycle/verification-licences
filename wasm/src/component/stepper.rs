@@ -1,5 +1,5 @@
 use crate::Result;
-use crate::alert::{AlertLevel, create_alert};
+use crate::component::alert::{AlertLevel, create_alert};
 use crate::error::{DEFAULT_ERROR_MESSAGE, Error};
 use crate::template::get_template;
 use crate::utils::{add_class, append_child, remove_class, set_attribute};

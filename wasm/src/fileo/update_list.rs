@@ -1,4 +1,4 @@
-use crate::alert::{AlertLevel, create_alert};
+use crate::component::alert::{AlertLevel, create_alert};
 use crate::error::Error;
 use crate::user_interface::with_loading;
 use crate::utils::{get_document, get_element_by_id};

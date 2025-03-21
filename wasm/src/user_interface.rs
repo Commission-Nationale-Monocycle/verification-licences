@@ -1,8 +1,8 @@
 use crate::Result;
-use crate::alert::unwrap_or_alert;
 use crate::card_creator::{
     create_card_for_csv_checked_member, create_card_for_csv_member_to_check,
 };
+use crate::component::alert::unwrap_or_alert;
 use crate::utils::{
     ElementBuilder, add_class, append_child, clear_element, get_body, get_document,
     get_element_by_id, get_element_by_id_dyn, remove_attribute, remove_class, set_attribute,

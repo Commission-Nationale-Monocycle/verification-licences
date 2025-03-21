@@ -1,8 +1,8 @@
 use crate::Result;
 use crate::card_creator::create_card_for_uda_member_to_check;
+use crate::component::stepper::next_step;
 use crate::error::{DEFAULT_ERROR_MESSAGE, Error};
 use crate::json;
-use crate::stepper::next_step;
 use crate::uda::credentials::UdaCredentials;
 use crate::user_interface::with_loading;
 use crate::utils::{

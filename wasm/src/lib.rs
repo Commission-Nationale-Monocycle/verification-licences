@@ -1,19 +1,17 @@
-mod alert;
 mod card_creator;
 mod check_memberships;
+mod component;
 mod error;
 mod fileo;
 mod json;
-mod login_form;
-mod navbar;
-mod stepper;
 mod template;
 mod uda;
 mod user_interface;
 mod utils;
 mod web;
 
-use crate::alert::{unwrap_or_alert, unwrap_without_alert};
+use crate::component::alert::{unwrap_or_alert, unwrap_without_alert};
+use crate::component::navbar;
 use crate::error::Error;
 use crate::fileo::init_fileo_page;
 use crate::uda::init_uda_page;
