@@ -82,7 +82,7 @@ jobs:
         run: |
           cargo install --locked cargo-tarpaulin || true
       - name: Run tests
-        run: cargo tarpaulin -o Stdout -o Html --fail-under 75 -- tests -- --smtp-login=${{ secrets.TEST_SMTP_LOGIN }} --smtp-password=${{ secrets.TEST_SMTP_PASSWORD }}
+        run: cargo tarpaulin -o Stdout -o Html --fail-under 80 --include-files src\* -- tests --
       - name: Archive code coverage result
         uses: actions/upload-artifact@v4
         with:
