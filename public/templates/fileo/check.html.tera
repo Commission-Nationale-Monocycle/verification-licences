@@ -36,7 +36,7 @@
     </div>
 
     <div class="step">
-        <div id="checked-members" class="flex flex-col md:flex-row flex-wrap"></div>
+        <div id="checked-members"></div>
         <button type="button" id="go-to-send-email-step" onclick="app.go_to_notification_step(document)" disabled>Étape suivante</button>
     </div>
 
