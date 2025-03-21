@@ -26,7 +26,6 @@ impl AccordionElement {
 
 /// Create an accordion based on given items.
 /// If sections have to stay opened when another one is opened, set `always_open` to `true`.
-#[allow(dead_code)]
 pub fn create_accordion(
     document: &Document,
     items: &[AccordionElement],
