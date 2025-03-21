@@ -2,7 +2,7 @@ name: Bin
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "*" ]
   pull_request:
     branches: [ "main" ]
 
@@ -82,7 +82,7 @@ jobs:
         run: |
           cargo install --locked cargo-tarpaulin || true
       - name: Run tests
-        run: cargo tarpaulin -o Stdout -o Html --fail-under 75 -- tests -- --smtp-login=${{ secrets.TEST_SMTP_LOGIN }} --smtp-password=${{ secrets.TEST_SMTP_PASSWORD }}
+        run: cargo tarpaulin -o Stdout -o Html --fail-under 75 --include-files src/* -- tests -- --smtp-login=${{ secrets.TEST_SMTP_LOGIN }} --smtp-password=${{ secrets.TEST_SMTP_PASSWORD }}
       - name: Archive code coverage result
         uses: actions/upload-artifact@v4
         with:
