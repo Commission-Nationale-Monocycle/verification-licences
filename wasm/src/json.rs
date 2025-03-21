@@ -1,4 +1,4 @@
-use crate::alert::{AlertLevel, create_alert};
+use crate::component::alert::{AlertLevel, create_alert};
 use crate::error::DEFAULT_ERROR_MESSAGE;
 use serde::{de, ser};
 

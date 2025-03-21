@@ -1,6 +1,6 @@
-use crate::alert::unwrap_or_alert;
-use crate::login_form::init_login_form;
-use crate::stepper::add_step;
+use crate::component::alert::unwrap_or_alert;
+use crate::component::login_form::init_login_form;
+use crate::component::stepper::add_step;
 use web_sys::Document;
 
 mod credentials;

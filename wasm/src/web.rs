@@ -1,5 +1,5 @@
 use crate::Result;
-use crate::alert::unwrap_or_alert;
+use crate::component::alert::unwrap_or_alert;
 use crate::error::Error;
 use crate::utils::get_window;
 use wasm_bindgen::{JsCast, JsValue};

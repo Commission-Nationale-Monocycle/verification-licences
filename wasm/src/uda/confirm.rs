@@ -1,4 +1,4 @@
-use crate::alert::{AlertLevel, create_alert};
+use crate::component::alert::{AlertLevel, create_alert};
 use crate::error::{DEFAULT_ERROR_MESSAGE, Error};
 use crate::json::to_string;
 use crate::user_interface::with_loading;

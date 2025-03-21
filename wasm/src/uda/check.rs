@@ -1,6 +1,6 @@
 use crate::card_creator::create_card_for_uda_checked_member;
+use crate::component::stepper::next_step;
 use crate::error::{DEFAULT_ERROR_MESSAGE, Error};
-use crate::stepper::next_step;
 use crate::user_interface::with_loading;
 use crate::utils::{append_child, clear_element, get_element_by_id};
 use crate::web::fetch;
