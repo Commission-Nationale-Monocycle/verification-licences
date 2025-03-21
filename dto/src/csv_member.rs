@@ -1,4 +1,5 @@
 use crate::member_identifier::MemberIdentifier;
+use crate::member_to_check::MemberToCheck;
 use csv::Reader;
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
@@ -23,15 +24,7 @@ impl CsvMember {
             first_name,
         }
     }
-}
 
-impl MemberIdentifier for CsvMember {
-    fn membership_num(&self) -> Option<String> {
-        Some(self.membership_num().clone())
-    }
-}
-
-impl CsvMember {
     /// Load members to check from a CSV-formatted String, such as:
     /// `membership_num;name;firstname`
     pub fn load_members_to_check_from_csv_string(
@@ -70,6 +63,38 @@ impl CsvMember {
         });
 
         (members_to_check, wrong_lines)
+    }
+}
+
+impl MemberIdentifier for CsvMember {
+    fn membership_num(&self) -> Option<String> {
+        Some(self.membership_num().clone())
+    }
+}
+
+impl MemberToCheck for CsvMember {
+    fn id(&self) -> Option<u16> {
+        None
+    }
+
+    fn first_name(&self) -> String {
+        self.first_name.clone()
+    }
+
+    fn last_name(&self) -> String {
+        self.name.clone()
+    }
+
+    fn email(&self) -> Option<String> {
+        None
+    }
+
+    fn club(&self) -> Option<String> {
+        None
+    }
+
+    fn confirmed(&self) -> Option<bool> {
+        None
     }
 }
 

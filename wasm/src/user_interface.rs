@@ -1,7 +1,5 @@
 use crate::Result;
-use crate::card_creator::{
-    create_card_for_csv_checked_member, create_card_for_csv_member_to_check,
-};
+use crate::card_creator::{create_card_for_checked_member, create_card_for_member_to_check};
 use crate::component::accordion::{AccordionElement, create_accordion};
 use crate::component::alert::unwrap_or_alert;
 use crate::utils::{
@@ -55,7 +53,7 @@ fn create_members_to_check_lines(
 ) -> Result<Vec<Element>> {
     members_to_check
         .iter()
-        .map(|member_to_check| create_card_for_csv_member_to_check(document, member_to_check))
+        .map(|member_to_check| create_card_for_member_to_check(document, *member_to_check))
         .collect()
 }
 
@@ -91,7 +89,7 @@ pub fn handle_checked_members(checked_members: &Vec<CheckedMember<CsvMember>>) -
     let mut unknown_member_cards = vec![];
 
     for checked_member in checked_members {
-        let card = create_card_for_csv_checked_member(&document, checked_member)?;
+        let card = create_card_for_checked_member(&document, checked_member)?;
         match checked_member.compute_member_status() {
             MemberStatus::UpToDate => up_to_date_member_cards.push(card),
             MemberStatus::Expired => expired_member_cards.push(card),

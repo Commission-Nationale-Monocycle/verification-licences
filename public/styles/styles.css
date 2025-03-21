@@ -202,11 +202,6 @@ body.loading #spinner-container {
 .checked-member .membership-unknown {
     @apply justify-center
 }
-
-.checked-member .club:has([content=""]) {
-    @apply hidden
-}
-
 /* endregion */
 
 /* region input */
@@ -299,3 +294,7 @@ button[disabled] {
 }
 
 /* endregion */
+
+:has(> .hide-parent-if-empty:empty) {
+    @apply hidden
+}

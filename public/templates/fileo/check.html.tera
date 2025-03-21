@@ -60,7 +60,7 @@
         </div>
     </div>
 
-    {% include "fileo/member-to-check" %}
+    {% include "member/member-to-check" %}
     {% include "member/membership" %}
     {% include "member/checked-member" %}
 {% endblock %}

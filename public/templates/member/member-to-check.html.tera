@@ -4,9 +4,9 @@
         <div>Numéro d'adhésion : <div class="membership-number"></div></div>
         <div>Nom : <div class="name"></div></div>
         <div>Prénom : <div class="first-name"></div></div>
-        <div>Club : <div class="club"></div></div>
-        <div>Adresse mail : <div class="email-address-container"><a class="email-address"></a></div></div>
-        <div>Confirmé(e) sur UDA : <div class="confirmed"></div></div>
+        <div>Club : <div class="club hide-parent-if-empty"></div></div>
+        <div>Adresse mail : <div class="email-address-container hide-parent-if-empty"></div></div>
+        <div>Confirmé(e) sur UDA : <div class="confirmed hide-parent-if-empty"></div></div>
         <input class="uda-id" type="hidden"/>
     </div>
 </template>

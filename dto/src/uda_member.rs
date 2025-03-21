@@ -1,4 +1,5 @@
 use crate::member_identifier::MemberIdentifier;
+use crate::member_to_check::MemberToCheck;
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -59,5 +60,31 @@ impl Ord for UdaMember {
 impl MemberIdentifier for UdaMember {
     fn membership_num(&self) -> Option<String> {
         self.membership_number.clone()
+    }
+}
+
+impl MemberToCheck for UdaMember {
+    fn id(&self) -> Option<u16> {
+        Some(self.id)
+    }
+
+    fn first_name(&self) -> String {
+        self.first_name.clone()
+    }
+
+    fn last_name(&self) -> String {
+        self.last_name.clone()
+    }
+
+    fn email(&self) -> Option<String> {
+        Some(self.email.clone())
+    }
+
+    fn club(&self) -> Option<String> {
+        self.club.clone()
+    }
+
+    fn confirmed(&self) -> Option<bool> {
+        Some(self.confirmed)
     }
 }

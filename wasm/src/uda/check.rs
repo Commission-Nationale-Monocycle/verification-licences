@@ -1,4 +1,4 @@
-use crate::card_creator::create_card_for_uda_checked_member;
+use crate::card_creator::create_card_for_checked_member;
 use crate::component::accordion::{AccordionElement, create_accordion};
 use crate::component::stepper::next_step;
 use crate::error::{DEFAULT_ERROR_MESSAGE, Error};
@@ -33,7 +33,7 @@ fn handle_checked_members(
     let mut expired_member_cards = vec![];
     let mut unknown_member_cards = vec![];
     for checked_member in checked_members {
-        let card = create_card_for_uda_checked_member(document, checked_member)?;
+        let card = create_card_for_checked_member(document, checked_member)?;
         match checked_member.compute_member_status() {
             MemberStatus::UpToDate => up_to_date_member_cards.push(card),
             MemberStatus::Expired => expired_member_cards.push(card),
