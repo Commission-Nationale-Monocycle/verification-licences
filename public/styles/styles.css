@@ -158,6 +158,10 @@ body.loading #spinner-container {
 /* endregion */
 
 /* region cards */
+.members {
+    @apply flex flex-col md:flex-row flex-wrap
+}
+
 .checked-members {
     @apply flex flex-col md:flex-row flex-wrap
 }
