@@ -109,7 +109,7 @@ body.loading #spinner-container {
 
 /* region stepper */
 .stepper {
-    @apply flex items-center w-6/12 sm:m-auto text-sm font-medium text-center text-gray-500 dark:text-gray-400 sm:text-base
+    @apply flex items-center w-6/12 sm:m-auto text-sm font-medium text-center text-gray-500 dark:text-gray-400 sm:text-base pb-6
 }
 
 .stepper > li {
@@ -158,6 +158,10 @@ body.loading #spinner-container {
 /* endregion */
 
 /* region cards */
+.checked-members {
+    @apply flex flex-col md:flex-row flex-wrap
+}
+
 .checked-member {
     @apply flex flex-col md:flex-row flex-shrink-0 m-2 border-2 rounded-md
 }
@@ -238,8 +242,20 @@ button[disabled] {
 /* endregion */
 
 /* region accordion */
+.accordion {
+    @apply w-full
+}
+
+.accordion .accordion-title-container:first-child {
+    @apply rounded-t-xl
+}
+
 .accordion-title-container {
-    @apply flex items-center justify-between w-full p-5 font-medium rtl:text-right text-gray-500 border border-b-0 border-gray-200 rounded-t-xl focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-800 dark:border-gray-700 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 gap-3
+    @apply flex items-center justify-between w-full p-5 font-medium rtl:text-right text-gray-500 border border-gray-200 focus:ring-4 focus:ring-gray-200 dark:focus:ring-gray-800 dark:border-gray-700 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 gap-3
+}
+
+.accordion .accordion-title-container:not(:nth-last-child(2)) {
+    @apply border-b-0
 }
 
 .accordion-title-container .accordion-title-icon {
@@ -247,7 +263,11 @@ button[disabled] {
 }
 
 .accordion-body-container {
-    @apply p-5 border border-b-0 border-gray-200 dark:border-gray-700 dark:bg-gray-900
+    @apply p-5 border border-gray-200 dark:border-gray-700 dark:bg-gray-900
+}
+
+.accordion-body-container:not(:last-child) {
+    @apply border-b-0
 }
 /* endregion */
 

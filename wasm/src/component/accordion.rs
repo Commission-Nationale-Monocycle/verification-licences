@@ -13,6 +13,17 @@ pub struct AccordionElement {
     active: bool,
 }
 
+impl AccordionElement {
+    pub fn new(id: String, title: Element, body: Element, active: bool) -> Self {
+        Self {
+            id,
+            title,
+            body,
+            active,
+        }
+    }
+}
+
 /// Create an accordion based on given items.
 /// If sections have to stay opened when another one is opened, set `always_open` to `true`.
 #[allow(dead_code)]
