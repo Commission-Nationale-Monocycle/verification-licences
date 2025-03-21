@@ -2,16 +2,16 @@ use crate::Result;
 use crate::card_creator::{
     create_card_for_csv_checked_member, create_card_for_csv_member_to_check,
 };
+use crate::component::accordion::{AccordionElement, create_accordion};
 use crate::component::alert::unwrap_or_alert;
 use crate::utils::{
     ElementBuilder, add_class, append_child, clear_element, get_body, get_document,
     get_element_by_id, get_element_by_id_dyn, remove_attribute, remove_class, set_attribute,
 };
-use dto::checked_member::CheckedMember;
-use dto::checked_member::MemberStatus::Expired;
+use dto::checked_member::{CheckedMember, MemberStatus};
 use dto::csv_member::CsvMember;
 use std::collections::BTreeSet;
-use web_sys::{Document, Element, HtmlInputElement};
+use web_sys::{Document, Element, HtmlElement, HtmlInputElement};
 
 // region Handle "members to check" file
 pub fn render_lines(
@@ -85,20 +85,96 @@ pub fn handle_checked_members(checked_members: &Vec<CheckedMember<CsvMember>>) -
     let document = get_document()?;
     let parent = get_element_by_id(&document, "checked-members")?;
     clear_element(&parent);
+
+    let mut up_to_date_member_cards = vec![];
+    let mut expired_member_cards = vec![];
+    let mut unknown_member_cards = vec![];
+
     for checked_member in checked_members {
         let card = create_card_for_csv_checked_member(&document, checked_member)?;
-        append_child(&parent, &card)?;
+        match checked_member.compute_member_status() {
+            MemberStatus::UpToDate => up_to_date_member_cards.push(card),
+            MemberStatus::Expired => expired_member_cards.push(card),
+            MemberStatus::Unknown => unknown_member_cards.push(card),
+        }
     }
+
+    let accordion = create_accordion_for_checked_members(
+        &document,
+        &up_to_date_member_cards,
+        &expired_member_cards,
+        &unknown_member_cards,
+    )?;
+    append_child(&parent, &accordion)?;
 
     if checked_members
         .iter()
-        .any(|checked_member| checked_member.compute_member_status() == Expired)
+        .any(|checked_member| checked_member.compute_member_status() == MemberStatus::Expired)
     {
         let write_email_container = get_write_email_container(&document)?;
         remove_class(&write_email_container, "hidden");
     }
 
     Ok(())
+}
+
+fn create_accordion_for_checked_members(
+    document: &Document,
+    up_to_date_member_cards: &[Element],
+    expired_member_cards: &[Element],
+    unknown_member_cards: &[Element],
+) -> Result<HtmlElement> {
+    let up_to_date_element = create_accordion_line_for_checked_members(
+        document,
+        "up-to-date",
+        "Membres à jour",
+        up_to_date_member_cards,
+    )?;
+    let expired_element = create_accordion_line_for_checked_members(
+        document,
+        "expired",
+        "Membres expirés",
+        expired_member_cards,
+    )?;
+    let unknown_element = create_accordion_line_for_checked_members(
+        document,
+        "unknown",
+        "Membres inconnus",
+        unknown_member_cards,
+    )?;
+
+    let elements = [up_to_date_element, expired_element, unknown_element]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+    create_accordion(document, &elements, true)
+}
+
+fn create_accordion_line_for_checked_members(
+    document: &Document,
+    id: &str,
+    title: &str,
+    cards: &[Element],
+) -> Result<Option<AccordionElement>> {
+    if !cards.is_empty() {
+        let body_container = document.create_element("div")?;
+        add_class(&body_container, "checked-members");
+        for card in cards {
+            append_child(&body_container, card)?;
+        }
+
+        let title_container = document.create_element("div")?;
+        title_container.set_inner_html(title);
+
+        Ok(Some(AccordionElement::new(
+            id.to_owned(),
+            title_container,
+            body_container,
+            true,
+        )))
+    } else {
+        Ok(None)
+    }
 }
 // endregion
 
