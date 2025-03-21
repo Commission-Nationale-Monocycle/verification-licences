@@ -41,7 +41,7 @@ fn handle_checked_members(
         }
     }
     let accordion = create_accordion_for_checked_members(
-        &document,
+        document,
         &up_to_date_member_cards,
         &expired_member_cards,
         &unknown_member_cards,
