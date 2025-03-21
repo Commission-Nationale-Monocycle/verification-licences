@@ -258,7 +258,7 @@ button[disabled] {
 }
 
 .accordion-body-container {
-    @apply p-5 border border-gray-200 dark:border-gray-700 dark:bg-gray-900
+    @apply md:p-5 border border-gray-200 dark:border-gray-700 dark:bg-gray-900
 }
 
 .accordion-body-container:not(:last-child) {
