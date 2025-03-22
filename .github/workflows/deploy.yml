@@ -75,7 +75,7 @@ jobs:
         uses: actions/download-artifact@master
         with:
           name: bin
-          path: ./verification-licences
+          path: ./
       - name: Download WASM bindings
         uses: actions/download-artifact@master
         with:
