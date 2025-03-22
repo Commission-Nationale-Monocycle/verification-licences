@@ -1,6 +1,6 @@
-<div id="write-email-container" class="flex flex-col">
+<div id="write-email-container">
     <div class="input-container">
-        <textarea id="email-recipients" class="block w-full h-64" disabled></textarea>
+        <textarea id="email-recipients" class="email-recipients" disabled></textarea>
         <label for="email-recipients" class="text-input-label peer">Destinataires</label>
     </div>
     <div class="input-container">
@@ -9,7 +9,7 @@
         <label for="email-subject" class="text-input-label peer">Sujet</label>
     </div>
     <div class="input-container">
-                <textarea id="email-body" class="block w-full h-64"
+                <textarea id="email-body" class="email-body"
                           placeholder=" ">{% include "email/default-email-body" %}</textarea>
         <label for="email-body" class="text-input-label peer">Corps du message</label>
     </div>

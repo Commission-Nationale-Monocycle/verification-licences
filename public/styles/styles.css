@@ -299,6 +299,20 @@ button[disabled] {
 
 /* endregion */
 
+/* region email */
+.write-email-container {
+    @apply flex flex-col
+}
+
+.email-recipients {
+    @apply block w-full h-64
+}
+
+.email-body {
+    @apply block w-full h-64
+}
+/* endregion */
+
 :has(> .hide-parent-if-empty:empty) {
     @apply hidden
 }
