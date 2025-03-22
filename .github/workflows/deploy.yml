@@ -1,0 +1,102 @@
+name: Deploy
+
+on:
+  push:
+
+jobs:
+  build-bin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Build
+        run: cargo release --verbose
+      - name: Upload bin as artifact
+        uses: actions/upload-artifact@master
+        with:
+          name: bin
+          path: ./target/release/verification-licences
+
+  build-wasm:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./wasm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Build
+        run: cargo release --verbose
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Install wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli || true
+      - name: Build
+        run: cargo build --target=wasm32-unknown-unknown --verbose
+      - name: Generate bindings
+        run: wasm-bindgen --target=web --out-dir=pkg target/wasm32-unknown-unknown/debug/wasm.wasm
+      - name: Upload WASM bindings as artifact
+        uses: actions/upload-artifact@master
+        with:
+          name: wasm-bindings
+          path: ./pkg
+
+  build-css:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - name: Install Tailwind
+        run: npm install tailwindcss @tailwindcss/cli flowbite
+      - name: Build CSS
+        run: npx @tailwindcss/cli -i public/styles/styles.css -o styles.css --minify
+      - name: Upload CSS
+        uses: actions/upload-artifact@master
+        with:
+          name: styles.css
+          path: ./styles.css
+
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download bin artifact
+        uses: actions/download-artifact@master
+        with:
+          name: bin
+          path: ./verification-licences
+      - name: Download WASM bindings
+        uses: actions/download-artifact@master
+        with:
+          name: wasm-bindings
+          path: ./pkg
+      - name: Download CSS
+        uses: actions/download-artifact@master
+        with:
+          name: styles.css
+          path: ./public/static/styles.css
+      - name: List files
+        run: ls -al
+      - name: List pkg files
+        run: ls -al ./pkg
+      - name: List static files
+        run: ls -al ./public/static
+      - name: Deploy to Server
+        uses: easingthemes/ssh-deploy@main
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          ARGS: "-rlgoDzvc -i --delete"
+          SOURCE: "Rocket.toml verification-licences public"
+          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+          REMOTE_USER: ${{ secrets.REMOTE_USER }}
+          TARGET: ${{ secrets.REMOTE_TARGET }}
