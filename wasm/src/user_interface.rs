@@ -3,11 +3,12 @@ use crate::card_creator::{create_card_for_checked_member, create_card_for_member
 use crate::component::accordion::{AccordionElement, create_accordion};
 use crate::component::alert::unwrap_or_alert;
 use crate::utils::{
-    ElementBuilder, add_class, append_child, clear_element, get_body, get_document,
-    get_element_by_id, get_element_by_id_dyn, remove_attribute, remove_class, set_attribute,
+    ElementBuilder, add_class, append_child, clear_element, get_body, get_element_by_id,
+    get_element_by_id_dyn, remove_attribute, remove_class, set_attribute,
 };
 use dto::checked_member::{CheckedMember, MemberStatus};
 use dto::csv_member::CsvMember;
+use dto::member_to_check::MemberToCheck;
 use std::collections::BTreeSet;
 use web_sys::{Document, Element, HtmlElement, HtmlInputElement};
 
@@ -79,8 +80,10 @@ fn create_wrong_lines(document: &Document, wrong_lines: &[String]) -> Result<Ele
 // endregion
 
 // region Handle checked members
-pub fn handle_checked_members(checked_members: &Vec<CheckedMember<CsvMember>>) -> Result<()> {
-    let document = get_document()?;
+pub fn handle_checked_members(
+    document: &Document,
+    checked_members: &Vec<CheckedMember<impl MemberToCheck>>,
+) -> Result<()> {
     let parent = get_element_by_id(&document, "checked-members")?;
     clear_element(&parent);
 
@@ -105,18 +108,10 @@ pub fn handle_checked_members(checked_members: &Vec<CheckedMember<CsvMember>>) -
     )?;
     append_child(&parent, &accordion)?;
 
-    if checked_members
-        .iter()
-        .any(|checked_member| checked_member.compute_member_status() == MemberStatus::Expired)
-    {
-        let write_email_container = get_write_email_container(&document)?;
-        remove_class(&write_email_container, "hidden");
-    }
-
     Ok(())
 }
 
-fn create_accordion_for_checked_members(
+pub fn create_accordion_for_checked_members(
     document: &Document,
     up_to_date_member_cards: &[Element],
     expired_member_cards: &[Element],

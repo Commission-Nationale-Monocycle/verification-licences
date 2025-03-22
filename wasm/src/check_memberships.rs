@@ -76,7 +76,7 @@ pub async fn handle_form_submission(document: &Document) {
         if (200..400).contains(&status) {
             let text = response.body().clone().unwrap_or(String::new());
             let checked_members: Vec<CheckedMember<CsvMember>> = json::from_str(&text);
-            user_interface::handle_checked_members(&checked_members)?;
+            user_interface::handle_checked_members(document, &checked_members)?;
             next_step(document);
 
             Ok(())
