@@ -45,11 +45,15 @@ jobs:
         run: cargo build --target=wasm32-unknown-unknown --verbose
       - name: Generate bindings
         run: wasm-bindgen --target=web --out-dir=pkg target/wasm32-unknown-unknown/debug/wasm.wasm
+      - name: List files
+        run: ls -al ..
+      - name: List files in WASM
+        run: ls -al ../wasm
       - name: Upload WASM bindings as artifact
         uses: actions/upload-artifact@master
         with:
           name: wasm-bindings
-          path: ./pkg
+          path: ./wasm/pkg
 
   build-css:
     runs-on: ubuntu-latest
