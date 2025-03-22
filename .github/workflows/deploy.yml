@@ -42,9 +42,9 @@ jobs:
       - name: Install wasm-bindgen-cli
         run: cargo install wasm-bindgen-cli || true
       - name: Build
-        run: cargo build --target=wasm32-unknown-unknown --verbose
+        run: cargo build -r --target=wasm32-unknown-unknown --verbose
       - name: Generate bindings
-        run: wasm-bindgen --target=web --out-dir=pkg target/wasm32-unknown-unknown/debug/wasm.wasm
+        run: wasm-bindgen --target=web --out-dir=pkg target/wasm32-unknown-unknown/release/wasm.wasm
       - name: List files
         run: ls -al ..
       - name: List files in WASM
