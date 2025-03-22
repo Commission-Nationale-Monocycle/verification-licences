@@ -1,5 +1,5 @@
 use crate::Result;
-use crate::card_creator::EXPIRED_CHECKED_MEMBER_CONTAINER_CLASS_NAME;
+use crate::card_creator::EXPIRED_MEMBERSHIP_CONTAINER_CLASS_NAME;
 use crate::component::alert::{AlertLevel, create_alert, unwrap_or_alert, unwrap_without_alert};
 use crate::component::stepper::next_step;
 use crate::error::{DEFAULT_ERROR_MESSAGE, DEFAULT_SERVER_ERROR_MESSAGE, Error};
@@ -76,7 +76,8 @@ pub async fn handle_form_submission(document: &Document) {
         if (200..400).contains(&status) {
             let text = response.body().clone().unwrap_or(String::new());
             let checked_members: Vec<CheckedMember<CsvMember>> = json::from_str(&text);
-            user_interface::handle_checked_members(&checked_members)?;
+            user_interface::handle_checked_members(document, &checked_members)?;
+            toggle_next_step_button();
             next_step(document);
 
             Ok(())
@@ -156,12 +157,12 @@ pub async fn handle_email_sending() {
 
 fn get_email_addresses_to_notify(document: &Document) -> Result<Vec<String>> {
     let checked_members_container = user_interface::get_checked_members_container(document);
-    let expired_members = checked_members_container?
-        .get_elements_by_class_name(EXPIRED_CHECKED_MEMBER_CONTAINER_CLASS_NAME);
+    let expired_memberships = checked_members_container?
+        .get_elements_by_class_name(EXPIRED_MEMBERSHIP_CONTAINER_CLASS_NAME);
     let mut email_addresses_to_notify = vec![];
-    for index in 0..expired_members.length() {
-        let expired_member = expired_members.get_with_index(index).unwrap();
-        let checkboxes = expired_member.get_elements_by_tag_name("input");
+    for index in 0..expired_memberships.length() {
+        let expired_membership = expired_memberships.get_with_index(index).unwrap();
+        let checkboxes = expired_membership.get_elements_by_tag_name("input");
         if checkboxes.length() != 1 {
             Err(Error::new(
                 DEFAULT_ERROR_MESSAGE,
@@ -177,8 +178,10 @@ fn get_email_addresses_to_notify(document: &Document) -> Result<Vec<String>> {
                 .dyn_into::<HtmlInputElement>()?;
             let is_checked = checkbox.checked();
             if is_checked {
-                let address_container =
-                    query_selector_single_element(&expired_member, ".email-address-container a")?;
+                let address_container = query_selector_single_element(
+                    &expired_membership,
+                    ".email-address-container a",
+                )?;
                 match address_container.text_content() {
                     None => set_loading(false)?,
                     Some(email_address) => email_addresses_to_notify.push(email_address),

@@ -33,7 +33,7 @@
     </div>
 
     <div class="step">
-        <div id="members" class="flex flex-col md:flex-row flex-wrap">
+        <div id="members">
         </div>
         <input id="members-as-json" type="hidden"/>
         <button type="button" onclick="app.check_members(document)">Vérification</button>
