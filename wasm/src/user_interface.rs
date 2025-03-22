@@ -192,10 +192,6 @@ pub fn get_checked_members_container(document: &Document) -> Result<Element> {
     get_element_by_id(document, "checked-members")
 }
 
-fn get_write_email_container(document: &Document) -> Result<Element> {
-    get_element_by_id(document, "write-email-container")
-}
-
 pub fn get_email_subject(document: &Document) -> Result<String> {
     get_element_by_id_dyn::<HtmlInputElement>(document, "email-subject")
         .map(|element| element.value())

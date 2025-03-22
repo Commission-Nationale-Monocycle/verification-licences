@@ -41,7 +41,7 @@
     </div>
 
     <div class="step">
-        <div id="write-email-container" class="hidden flex flex-col">
+        <div id="write-email-container" class="flex flex-col">
             <div class="input-container">
                 <textarea id="email-recipients" class="block w-full h-64" disabled></textarea>
                 <label for="email-recipients" class="text-input-label peer">Destinataires</label>
