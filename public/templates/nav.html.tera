@@ -15,6 +15,9 @@
         <div id="navbar-default" class="hidden">
             <ul id="nav-list">
                 <li>
+                    <a href="/memberships/update">Mettre à jour la liste des licences</a>
+                </li>
+                <li>
                     <a href="/memberships">Liste des licences</a>
                 </li>
                 <li>

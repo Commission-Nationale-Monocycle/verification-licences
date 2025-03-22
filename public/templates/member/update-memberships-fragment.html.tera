@@ -1,0 +1,5 @@
+<div>
+    <div>Si vous ne l'avez pas fait depuis longtemps, pensez à mettre à jour la liste des membres. Dernière mise
+        à jour : <span id="last-update">{{ last_update }}</span></div>
+    <button onclick="app.update_fileo_list()">Mettre la liste à jour</button>
+</div>

@@ -9,7 +9,7 @@ use rocket::http::Status;
 use rocket::response::Redirect;
 use rocket::{Request, State};
 use rocket_dyn_templates::{Template, context};
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
 #[get("/fileo/login")]
 pub async fn fileo_login() -> Template {
@@ -21,30 +21,50 @@ pub async fn fileo_login() -> Template {
     )
 }
 
+#[get("/memberships/update")]
+pub async fn update_memberships(
+    memberships_state: &State<Mutex<MembershipsState>>,
+    _credentials: FileoCredentials,
+) -> Result<Template, Status> {
+    let memberships = unwrap_memberships_state(memberships_state)?;
+    let file_details = memberships.file_details();
+    let last_update = match file_details {
+        None => "Jamais".to_owned(),
+        Some(file_details) => file_details.update_date().format("%d/%m/%Y").to_string(),
+    };
+    Ok(Template::render(
+        "member/update-memberships",
+        context! {
+            title: "Mise à jour de la liste des licences",
+            last_update: last_update
+        },
+    ))
+}
+
+#[get("/memberships/update", rank = 2)]
+pub async fn update_memberships_unauthenticated() -> Redirect {
+    Redirect::to(uri!("/fileo/login/?page=/memberships/update"))
+}
+
 #[get("/memberships")]
 pub async fn list_memberships(
     memberships_state: &State<Mutex<MembershipsState>>,
     _credentials: FileoCredentials,
 ) -> Result<Template, Status> {
-    let lock_result = memberships_state.lock();
-    if let Err(error) = lock_result {
-        log_error_and_return(Err(Status::InternalServerError))(error)
-    } else {
-        let memberships = lock_result.unwrap();
-        let memberships: &GroupedMemberships = memberships.memberships();
-        let memberships: Vec<&Membership> = memberships
-            .values()
-            .filter_map(Memberships::find_last_membership)
-            .collect();
+    let memberships = unwrap_memberships_state(memberships_state)?;
+    let memberships: &GroupedMemberships = memberships.memberships();
+    let memberships: Vec<&Membership> = memberships
+        .values()
+        .filter_map(Memberships::find_last_membership)
+        .collect();
 
-        Ok(Template::render(
-            "fileo/memberships",
-            context! {
-                title: "Liste des licences",
-                memberships: memberships
-            },
-        ))
-    }
+    Ok(Template::render(
+        "fileo/memberships",
+        context! {
+            title: "Liste des licences",
+            memberships: memberships
+        },
+    ))
 }
 
 #[get("/memberships", rank = 2)]
@@ -57,24 +77,19 @@ pub async fn check_members_from_csv(
     memberships_state: &State<Mutex<MembershipsState>>,
     _credentials: FileoCredentials,
 ) -> Result<Template, Status> {
-    let lock_result = memberships_state.lock();
-    if let Err(error) = lock_result {
-        log_error_and_return(Err(Status::InternalServerError))(error)
-    } else {
-        let memberships_state = lock_result.unwrap();
-        let file_details = memberships_state.file_details();
-        let last_update = match file_details {
-            None => "Jamais".to_owned(),
-            Some(file_details) => file_details.update_date().format("%d/%m/%Y").to_string(),
-        };
-        Ok(Template::render(
-            "fileo/check",
-            context! {
-                title: "Vérifier les licences depuis un fichier CSV",
-                last_update: last_update
-            },
-        ))
-    }
+    let memberships = unwrap_memberships_state(memberships_state)?;
+    let file_details = memberships.file_details();
+    let last_update = match file_details {
+        None => "Jamais".to_owned(),
+        Some(file_details) => file_details.update_date().format("%d/%m/%Y").to_string(),
+    };
+    Ok(Template::render(
+        "fileo/check",
+        context! {
+            title: "Vérifier les licences depuis un fichier CSV",
+            last_update: last_update
+        },
+    ))
 }
 
 #[get("/csv/check", rank = 2)]
@@ -119,6 +134,18 @@ pub async fn not_found(req: &Request<'_>) -> Template {
             uri: req.uri()
         },
     )
+}
+
+fn unwrap_memberships_state(
+    memberships_state: &State<Mutex<MembershipsState>>,
+) -> Result<MutexGuard<MembershipsState>, Status> {
+    let lock_result = memberships_state.lock();
+    if let Err(error) = lock_result {
+        log_error_and_return(Err(Status::InternalServerError))(error)
+    } else {
+        let memberships_state = lock_result.unwrap();
+        Ok(memberships_state)
+    }
 }
 
 #[cfg(test)]

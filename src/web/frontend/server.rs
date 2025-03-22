@@ -19,6 +19,8 @@ impl Server for FrontendServer {
                 "/",
                 routes![
                     frontend_controller::fileo_login,
+                    frontend_controller::update_memberships,
+                    frontend_controller::update_memberships_unauthenticated,
                     frontend_controller::list_memberships,
                     frontend_controller::list_memberships_unauthenticated,
                     frontend_controller::check_members_from_csv,
