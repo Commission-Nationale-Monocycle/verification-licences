@@ -37,7 +37,7 @@
 
     <div class="step">
         <div id="checked-members"></div>
-        <button type="button" id="go-to-send-email-step" onclick="app.go_to_notification_step(document)" disabled>Étape suivante</button>
+        <button type="button" id="go-to-send-email-step" onclick="app.go_to_notification_step(document)" disabled>Notifier les membres cochés</button>
     </div>
 
     <div class="step">
