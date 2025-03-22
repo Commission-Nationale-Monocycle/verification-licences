@@ -77,7 +77,7 @@ pub async fn handle_form_submission(document: &Document) {
             let text = response.body().clone().unwrap_or(String::new());
             let checked_members: Vec<CheckedMember<CsvMember>> = json::from_str(&text);
             user_interface::handle_checked_members(document, &checked_members)?;
-            toggle_next_step_button();
+            toggle_go_to_email_step_button(document);
             next_step(document);
 
             Ok(())
@@ -89,8 +89,7 @@ pub async fn handle_form_submission(document: &Document) {
 }
 
 #[wasm_bindgen]
-pub fn toggle_next_step_button() {
-    let document = unwrap_without_alert(get_document());
+pub fn toggle_go_to_email_step_button(document: &Document) {
     let email_addresses_to_notify = unwrap_or_alert(get_email_addresses_to_notify(&document));
 
     let button = unwrap_or_alert(get_element_by_id_dyn::<HtmlButtonElement>(
