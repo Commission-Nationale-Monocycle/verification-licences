@@ -84,7 +84,7 @@ pub fn handle_checked_members(
     document: &Document,
     checked_members: &Vec<CheckedMember<impl MemberToCheck>>,
 ) -> Result<()> {
-    let parent = get_element_by_id(&document, "checked-members")?;
+    let parent = get_element_by_id(document, "checked-members")?;
     clear_element(&parent);
 
     let mut up_to_date_member_cards = vec![];
@@ -92,7 +92,7 @@ pub fn handle_checked_members(
     let mut unknown_member_cards = vec![];
 
     for checked_member in checked_members {
-        let card = create_card_for_checked_member(&document, checked_member)?;
+        let card = create_card_for_checked_member(document, checked_member)?;
         match checked_member.compute_member_status() {
             MemberStatus::UpToDate => up_to_date_member_cards.push(card),
             MemberStatus::Expired => expired_member_cards.push(card),
@@ -101,7 +101,7 @@ pub fn handle_checked_members(
     }
 
     let accordion = create_accordion_for_checked_members(
-        &document,
+        document,
         &up_to_date_member_cards,
         &expired_member_cards,
         &unknown_member_cards,
