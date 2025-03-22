@@ -45,10 +45,6 @@ jobs:
         run: cargo build -r --target=wasm32-unknown-unknown --verbose
       - name: Generate bindings
         run: wasm-bindgen --target=web --out-dir=pkg target/wasm32-unknown-unknown/release/wasm.wasm
-      - name: List files
-        run: ls -al ..
-      - name: List files in WASM
-        run: ls -al ../wasm
       - name: Upload WASM bindings as artifact
         uses: actions/upload-artifact@master
         with:
@@ -84,7 +80,7 @@ jobs:
         uses: actions/download-artifact@master
         with:
           name: wasm-bindings
-          path: ./pkg
+          path: ./public/static/pkg
       - name: Download CSS
         uses: actions/download-artifact@master
         with:
@@ -92,10 +88,10 @@ jobs:
           path: ./public/static/styles.css
       - name: List files
         run: ls -al
-      - name: List pkg files
-        run: ls -al ./pkg
       - name: List static files
         run: ls -al ./public/static
+      - name: List pkg files
+        run: ls -al ./public/static/pkg
       - name: Deploy to Server
         uses: easingthemes/ssh-deploy@main
         with:
