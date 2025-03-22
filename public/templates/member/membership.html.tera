@@ -21,7 +21,7 @@
             </div>
         </div>
         <label class="send-email-checkbox">
-            Envoyer un email <input type="checkbox" checked="" onclick="app.toggle_next_step_button()">
+            Envoyer un email <input type="checkbox" checked="" onclick="app.toggle_go_to_email_step_button(document)">
         </label>
     </div>
 </template>

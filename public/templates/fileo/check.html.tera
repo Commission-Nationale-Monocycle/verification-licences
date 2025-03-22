@@ -37,27 +37,11 @@
 
     <div class="step">
         <div id="checked-members"></div>
-        <button type="button" id="go-to-send-email-step" onclick="app.go_to_notification_step(document)" disabled>Étape suivante</button>
+        <button type="button" id="go-to-send-email-step" onclick="app.go_to_notification_step(document)" disabled>Notifier les membres cochés</button>
     </div>
 
     <div class="step">
-        <div id="write-email-container" class="flex flex-col">
-            <div class="input-container">
-                <textarea id="email-recipients" class="block w-full h-64" disabled></textarea>
-                <label for="email-recipients" class="text-input-label peer">Destinataires</label>
-            </div>
-            <div class="input-container">
-                <input type="text" id="email-subject" class="peer" placeholder=" "
-                       value="Votre licence CNM/UNSLL a expiré"/>
-                <label for="email-subject" class="text-input-label peer">Sujet</label>
-            </div>
-            <div class="input-container">
-                <textarea id="email-body" class="block w-full h-64"
-                          placeholder=" ">{% include "default-email-body" %}</textarea>
-                <label for="email-body" class="text-input-label peer">Corps du message</label>
-            </div>
-            <button id="send-email" type="button" onclick="app.handle_email_sending()">Envoyer</button>
-        </div>
+        {% include "email/email-container" %}
     </div>
 
     {% include "member/member-to-check" %}

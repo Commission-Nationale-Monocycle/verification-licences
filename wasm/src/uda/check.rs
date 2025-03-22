@@ -1,3 +1,4 @@
+use crate::check_memberships::toggle_go_to_email_step_button;
 use crate::component::stepper::next_step;
 use crate::error::{DEFAULT_ERROR_MESSAGE, Error};
 use crate::user_interface::{handle_checked_members, with_loading};
@@ -14,6 +15,7 @@ pub async fn check_members(document: &Document) {
     with_loading(async || {
         let checked_members = check(document).await?;
         handle_checked_members(document, &checked_members)?;
+        toggle_go_to_email_step_button(document);
         next_step(document);
         Ok(())
     })
