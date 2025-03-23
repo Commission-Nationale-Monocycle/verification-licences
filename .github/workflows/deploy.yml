@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-bin:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
@@ -21,7 +21,7 @@ jobs:
           path: ./target/release/verification-licences
 
   build-wasm:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     defaults:
       run:
         working-directory: ./wasm
@@ -52,7 +52,7 @@ jobs:
           path: ./wasm/pkg
 
   build-css:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/setup-node@v4
       - uses: actions/checkout@v4
@@ -68,7 +68,7 @@ jobs:
 
   deploy:
     needs: [ build-bin, build-wasm, build-css ]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Download bin artifact
