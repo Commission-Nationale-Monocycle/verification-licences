@@ -99,12 +99,6 @@ jobs:
         with:
           name: styles.css
           path: ./public/static/
-      - name: List files
-        run: ls -al
-      - name: List static files
-        run: ls -al ./public/static
-      - name: List pkg files
-        run: ls -al ./public/static/pkg
       - name: Deploy to Server
         uses: easingthemes/ssh-deploy@main
         with:
