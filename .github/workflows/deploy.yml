@@ -66,8 +66,20 @@ jobs:
           name: styles.css
           path: ./styles.css
 
+  stop:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Run app
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: kill -9 $(pgrep verification-)
+
   deploy:
-    needs: [ build-bin, build-wasm, build-css ]
+    needs: [ build-bin, build-wasm, build-css, stop ]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -101,3 +113,15 @@ jobs:
           REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
           REMOTE_USER: ${{ secrets.REMOTE_USER }}
           TARGET: ${{ secrets.REMOTE_TARGET }}
+
+  run:
+    needs: [ deploy ]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Run app
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: cd ${{ secrets.REMOTE_TARGET }} && chmod +x verification-licences && RUST_LOG=warn ROCKET_ADDRESS=${{ secrets.SERVER_ADDRESS }} ROCKET_SECRET_KEY=${{ secrets.SECRET_KEY}} nohup ./verification-licences &
