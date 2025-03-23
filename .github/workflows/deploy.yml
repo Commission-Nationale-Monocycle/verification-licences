@@ -98,7 +98,7 @@ jobs:
         uses: actions/download-artifact@master
         with:
           name: styles.css
-          path: ./public/static/styles.css
+          path: ./public/static/
       - name: List files
         run: ls -al
       - name: List static files
