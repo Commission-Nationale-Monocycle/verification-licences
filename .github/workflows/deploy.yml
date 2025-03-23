@@ -122,5 +122,5 @@ jobs:
           script: |
             cd ${{ secrets.REMOTE_TARGET }}
             chmod +x verification-licences
-            RUST_LOG=warn ROCKET_ADDRESS=${{ secrets.SERVER_ADDRESS }} ROCKET_SECRET_KEY=${{ secrets.SECRET_KEY}} nohup ./verification-licences > logs.txt 2>&1 </dev/null &
+            RUST_LOG=warn ROCKET_SECRET_KEY=${{ secrets.SECRET_KEY}} nohup ./verification-licences > logs.txt 2>&1 </dev/null &
             exit
