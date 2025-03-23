@@ -68,7 +68,7 @@ jobs:
 
   stop:
     runs-on: ubuntu-22.04
-    needs: [ build-bin, build-wasm, build-bin ]
+    needs: [ build-bin, build-wasm, build-css ]
     steps:
       - name: Run app
         continue-on-error: true
