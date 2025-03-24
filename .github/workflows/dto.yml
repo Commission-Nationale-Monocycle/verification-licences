@@ -19,17 +19,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-#      - name: Set up cargo cache
-#        uses: actions/cache@v4
-#        continue-on-error: false
-#        with:
-#          path: |
-#            ~/.cargo/bin/
-#            ~/.cargo/registry/index/
-#            ~/.cargo/registry/cache/
-#            ~/.cargo/git/db/
-#            target/
-#          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build-dto"
+      - name: Set up cargo cache
+        uses: actions/cache@v4
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build-dto"
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
@@ -45,17 +45,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-#      - name: Set up cargo cache
-#        uses: actions/cache@v4
-#        continue-on-error: false
-#        with:
-#          path: |
-#            ~/.cargo/bin/
-#            ~/.cargo/registry/index/
-#            ~/.cargo/registry/cache/
-#            ~/.cargo/git/db/
-#            target/
-#          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-clippy-dto"
+      - name: Set up cargo cache
+        uses: actions/cache@v4
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-clippy-dto"
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
@@ -72,17 +72,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-#      - name: Set up cargo cache
-#        uses: actions/cache@v4
-#        continue-on-error: false
-#        with:
-#          path: |
-#            ~/.cargo/bin/
-#            ~/.cargo/registry/index/
-#            ~/.cargo/registry/cache/
-#            ~/.cargo/git/db/
-#            target/
-#          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-tests-dto"
+      - name: Set up cargo cache
+        uses: actions/cache@v4
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-tests-dto"
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:

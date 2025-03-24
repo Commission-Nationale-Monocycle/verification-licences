@@ -19,17 +19,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-#      - name: Set up cargo cache
-#        uses: actions/cache@v4
-#        continue-on-error: false
-#        with:
-#          path: |
-#            ~/.cargo/bin/
-#            ~/.cargo/registry/index/
-#            ~/.cargo/registry/cache/
-#            ~/.cargo/git/db/
-#            target/
-#          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build-wasm"
+      - name: Set up cargo cache
+        uses: actions/cache@v4
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build-wasm"
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
@@ -51,17 +51,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-#      - name: Set up cargo cache
-#        uses: actions/cache@v4
-#        continue-on-error: false
-#        with:
-#          path: |
-#            ~/.cargo/bin/
-#            ~/.cargo/registry/index/
-#            ~/.cargo/registry/cache/
-#            ~/.cargo/git/db/
-#            target/
-#          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-clippy-wasm"
+      - name: Set up cargo cache
+        uses: actions/cache@v4
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-clippy-wasm"
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
@@ -78,17 +78,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-#      - name: Set up cargo cache
-#        uses: actions/cache@v4
-#        continue-on-error: false
-#        with:
-#          path: |
-#            ~/.cargo/bin/
-#            ~/.cargo/registry/index/
-#            ~/.cargo/registry/cache/
-#            ~/.cargo/git/db/
-#            target/
-#          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-tests-wasm"
+      - name: Set up cargo cache
+        uses: actions/cache@v4
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-tests-wasm"
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
