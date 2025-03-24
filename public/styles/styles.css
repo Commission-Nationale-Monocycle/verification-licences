@@ -269,7 +269,7 @@ button[disabled] {
 }
 /* endregion */
 
-/* region login form */
+/* region Fileo login form */
 .login-form {
     @apply max-w-sm md:max-w-md mx-auto
 }
@@ -314,4 +314,8 @@ button[disabled] {
 
 :has(> .hide-parent-if-empty:empty) {
     @apply hidden
+}
+
+.index-title {
+    @apply max-w-lg md:max-w-4xl mx-auto text-3xl py-5
 }

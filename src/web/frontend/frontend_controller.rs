@@ -11,6 +11,16 @@ use rocket::{Request, State};
 use rocket_dyn_templates::{Template, context};
 use std::sync::{Mutex, MutexGuard};
 
+#[get("/")]
+pub async fn index() -> Template {
+    Template::render(
+        "index",
+        context! {
+            title: "Index"
+        },
+    )
+}
+
 #[get("/fileo/login")]
 pub async fn fileo_login() -> Template {
     Template::render(
