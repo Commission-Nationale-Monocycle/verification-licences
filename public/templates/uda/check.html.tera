@@ -25,10 +25,10 @@
                 <input type="text" id="login" required/>
             </div>
             <div>
-                <label for="password" class="">Mot de passe</label>
+                <label for="password">Mot de passe</label>
                 <input type="password" id="password" required/>
             </div>
-            <button id="uda-login-button" type="button" onclick="app.importFromUda(document)">Importer</button>
+            <button id="uda-login-button" class="login-button" type="button" onclick="app.importFromUda(document)">Importer</button>
         </div>
     </div>
 

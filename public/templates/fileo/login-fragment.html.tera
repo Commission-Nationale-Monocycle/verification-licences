@@ -10,5 +10,5 @@
         <label for="password" class="">Mot de passe</label>
         <input type="password" id="password" required />
     </div>
-    <button id="fileo-login-button" type="button" onclick="app.logIntoFileo()">Connexion</button>
+    <button id="fileo-login-button" class="login-button" type="button" onclick="app.logIntoFileo()">Connexion</button>
 </div>
