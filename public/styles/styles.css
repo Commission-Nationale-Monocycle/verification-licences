@@ -186,11 +186,6 @@ body.loading #spinner-container {
     @apply font-semibold
 }
 
-/*.membership-number, .identity, .name, .first-name, .club, .confirmed,*/
-/*.membership-name, .membership-first-name, .membership-end-date, .email-address-container {*/
-/*    @apply inline*/
-/*}*/
-
 :is(.member-to-check, .membership) div div {
     @apply inline
 }
