@@ -54,10 +54,9 @@ impl GroupedMemberships {
 
         self.iter()
             .find_map(|(known_membership_num, known_memberships_for_num)| {
-                if *known_membership_num == membership_num_to_check {
-                    known_memberships_for_num.find_last_membership()
-                } else if known_membership_num.parse::<u32>()
-                    == membership_num_to_check.parse::<u32>()
+                if *known_membership_num == membership_num_to_check
+                    || known_membership_num.parse::<u32>() == membership_num_to_check.parse::<u32>()
+                // Accounting for membership numbers starting with a 0 that could have been stripped by LibreOffice Calc or Excel
                 {
                     known_memberships_for_num.find_last_membership()
                 } else {
