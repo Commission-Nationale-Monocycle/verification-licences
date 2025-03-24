@@ -1,0 +1,127 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-bin:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Build
+        run: cargo build -r --verbose
+      - name: Upload bin as artifact
+        uses: actions/upload-artifact@master
+        with:
+          name: bin
+          path: ./target/release/verification-licences
+
+  build-wasm:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: ./wasm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Build
+        run: cargo build -r --verbose
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Install wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli || true
+      - name: Build
+        run: cargo build -r --target=wasm32-unknown-unknown --verbose
+      - name: Generate bindings
+        run: wasm-bindgen --target=web --out-dir=pkg target/wasm32-unknown-unknown/release/wasm.wasm
+      - name: Upload WASM bindings as artifact
+        uses: actions/upload-artifact@master
+        with:
+          name: wasm-bindings
+          path: ./wasm/pkg
+
+  build-css:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - name: Install Tailwind
+        run: npm install tailwindcss @tailwindcss/cli flowbite
+      - name: Build CSS
+        run: npx @tailwindcss/cli -i public/styles/styles.css -o styles.css --minify
+      - name: Upload CSS
+        uses: actions/upload-artifact@master
+        with:
+          name: styles.css
+          path: ./styles.css
+
+  stop:
+    runs-on: ubuntu-22.04
+    needs: [ build-bin, build-wasm, build-css ]
+    steps:
+      - name: Run app
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: kill -9 $(pgrep verification-)
+
+  deploy:
+    needs: [ build-bin, build-wasm, build-css, stop ]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download bin artifact
+        uses: actions/download-artifact@master
+        with:
+          name: bin
+          path: ./
+      - name: Download WASM bindings
+        uses: actions/download-artifact@master
+        with:
+          name: wasm-bindings
+          path: ./public/static/pkg
+      - name: Download CSS
+        uses: actions/download-artifact@master
+        with:
+          name: styles.css
+          path: ./public/static/
+      - name: Deploy to Server
+        uses: easingthemes/ssh-deploy@main
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          ARGS: "-rlgoDzvc -i --delete"
+          SOURCE: "Rocket.toml verification-licences public"
+          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+          REMOTE_USER: ${{ secrets.REMOTE_USER }}
+          TARGET: ${{ secrets.REMOTE_TARGET }}
+
+  run:
+    needs: [ deploy ]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Run app
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ${{ secrets.REMOTE_TARGET }}
+            chmod +x verification-licences
+            RUST_LOG=warn ROCKET_SECRET_KEY=${{ secrets.SECRET_KEY}} nohup ./verification-licences --email-sender-name=${{ secrets.EMAIL_SENDER_NAME }} --email-sender-address=${{ secrets.EMAIL_SENDER_ADDRESS }} --smtp-login=${{ secrets.SMTP_LOGIN }} --smtp-password=${{ secrets.SMTP_PASSWORD }} > logs.txt 2>&1 </dev/null &
+            exit
