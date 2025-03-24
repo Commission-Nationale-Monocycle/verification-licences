@@ -54,7 +54,10 @@ impl GroupedMemberships {
 
         self.iter()
             .find_map(|(known_membership_num, known_memberships_for_num)| {
-                if *known_membership_num == membership_num_to_check {
+                if *known_membership_num == membership_num_to_check
+                    || known_membership_num.parse::<u32>() == membership_num_to_check.parse::<u32>()
+                // Accounting for membership numbers starting with a 0 that could have been stripped by LibreOffice Calc or Excel
+                {
                     known_memberships_for_num.find_last_membership()
                 } else {
                     None
@@ -76,7 +79,7 @@ mod tests {
         use std::collections::HashMap;
 
         #[test]
-        fn members_should_be_checked() {
+        fn success() {
             let membership = get_expected_membership();
             let members = GroupedMemberships::from(HashMap::from([(
                 MEMBERSHIP_NUMBER.to_string(),
@@ -99,7 +102,7 @@ mod tests {
         }
 
         #[test]
-        fn members_should_not_be_checked() {
+        fn fail() {
             let membership = get_expected_membership();
             let members = GroupedMemberships::from(HashMap::from([(
                 MEMBERSHIP_NUMBER.to_string(),
@@ -130,7 +133,7 @@ mod tests {
         use std::collections::HashMap;
 
         #[test]
-        fn member_should_be_checked() {
+        fn success() {
             let membership = get_expected_membership();
             let members = GroupedMemberships::from(HashMap::from([(
                 MEMBERSHIP_NUMBER.to_string(),
@@ -147,7 +150,24 @@ mod tests {
         }
 
         #[test]
-        fn member_should_not_be_checked() {
+        fn success_when_membership_number_prepended_with_0() {
+            let membership = get_expected_membership();
+            let members = GroupedMemberships::from(HashMap::from([(
+                MEMBERSHIP_NUMBER.to_string(),
+                Memberships::from([membership.clone()]),
+            )]));
+            let member_to_check = CsvMember::new(
+                format!("0{MEMBERSHIP_NUMBER}"), // Prepending with a 0 should not change anything
+                None,
+                Some(MEMBER_NAME.to_owned()),
+                Some(MEMBER_FIRST_NAME.to_owned()),
+            );
+
+            assert_eq!(Some(&membership), members.check_member(&member_to_check));
+        }
+
+        #[test]
+        fn fail() {
             let membership = get_expected_membership();
             let members = GroupedMemberships::from(HashMap::from([(
                 MEMBERSHIP_NUMBER.to_string(),

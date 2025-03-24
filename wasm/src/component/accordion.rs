@@ -99,7 +99,6 @@ fn create_accordion_item(
 }
 
 #[wasm_bindgen]
-#[allow(dead_code)]
 pub struct AccordionItem {
     id: String,
     trigger_element: HtmlElement,

@@ -176,7 +176,6 @@ pub fn get_url_without_query() -> Result<String> {
 }
 // endregion
 
-#[allow(dead_code)]
 #[cfg(test)]
 mod tests {
     use super::*;
