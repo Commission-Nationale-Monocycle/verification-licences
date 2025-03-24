@@ -68,12 +68,16 @@ impl MemberToCheck for UdaMember {
         Some(self.id)
     }
 
-    fn first_name(&self) -> String {
-        self.first_name.clone()
+    fn identity(&self) -> Option<String> {
+        Some(format!("{} {}", self.first_name, self.last_name))
     }
 
-    fn last_name(&self) -> String {
-        self.last_name.clone()
+    fn first_name(&self) -> Option<String> {
+        Some(self.first_name.clone())
+    }
+
+    fn last_name(&self) -> Option<String> {
+        Some(self.last_name.clone())
     }
 
     fn email(&self) -> Option<String> {
@@ -147,13 +151,13 @@ mod tests {
     #[test]
     fn should_get_first_name() {
         let member = get_uda_member();
-        assert_eq!(get_first_name(), MemberToCheck::first_name(&member));
+        assert_eq!(Some(get_first_name()), MemberToCheck::first_name(&member));
     }
 
     #[test]
     fn should_get_last_name() {
         let member = get_uda_member();
-        assert_eq!(get_last_name(), MemberToCheck::last_name(&member));
+        assert_eq!(Some(get_last_name()), MemberToCheck::last_name(&member));
     }
 
     #[test]

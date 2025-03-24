@@ -23,10 +23,18 @@ pub fn create_card_for_member_to_check(
             .clone()
             .unwrap_or("Non renseigné".to_string()),
     );
-    query_selector_single_element(&element, ".name")?
-        .set_inner_html(member_to_check.last_name().as_str());
-    query_selector_single_element(&element, ".first-name")?
-        .set_inner_html(member_to_check.first_name().as_str());
+
+    let last_name = member_to_check.last_name();
+    let first_name = member_to_check.first_name();
+    if let Some(last_name) = last_name {
+        if let Some(first_name) = first_name {
+            query_selector_single_element(&element, ".name")?.set_inner_html(last_name.as_str());
+            query_selector_single_element(&element, ".first-name")?
+                .set_inner_html(first_name.as_str());
+        }
+    } else if let Some(identity) = member_to_check.identity() {
+        query_selector_single_element(&element, ".identity")?.set_inner_html(identity.as_str());
+    }
     if let Some(club) = member_to_check.club() {
         let club_element = query_selector_single_element(&element, ".club")?;
         club_element.set_inner_html(&club);
