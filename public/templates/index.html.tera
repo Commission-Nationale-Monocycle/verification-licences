@@ -1,0 +1,7 @@
+{% extends "base" %}
+
+{% block content %}
+    <div>
+        Bienvenue sur le logiciel de vérification des licences de la CNM. Pour accéder à ce logiciel, il est nécessaire de vous connecter <a href="/fileo/login?page=/csv/check">en cliquant ici</a>.
+    </div>
+{% endblock %}

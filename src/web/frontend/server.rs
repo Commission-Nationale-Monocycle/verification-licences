@@ -18,6 +18,7 @@ impl Server for FrontendServer {
             .mount(
                 "/",
                 routes![
+                    frontend_controller::index,
                     frontend_controller::fileo_login,
                     frontend_controller::update_memberships,
                     frontend_controller::update_memberships_unauthenticated,
