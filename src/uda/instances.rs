@@ -9,7 +9,6 @@ use reqwest::Client;
 use scraper::{ElementRef, Html, Selector};
 
 /// Retrieve a list of all UDA instances.
-#[allow(dead_code)]
 pub async fn retrieve_uda_instances(
     client: &Client,
     configuration: &Configuration,
