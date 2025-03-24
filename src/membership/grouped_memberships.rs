@@ -84,8 +84,9 @@ mod tests {
             )]));
             let member_to_check = CsvMember::new(
                 MEMBERSHIP_NUMBER.to_owned(),
-                MEMBER_NAME.to_owned(),
-                MEMBER_FIRST_NAME.to_owned(),
+                None,
+                Some(MEMBER_NAME.to_owned()),
+                Some(MEMBER_FIRST_NAME.to_owned()),
             );
 
             assert_eq!(
@@ -107,8 +108,9 @@ mod tests {
             let invalid_membership_number = format!("{MEMBERSHIP_NUMBER} oops");
             let member_to_check = CsvMember::new(
                 invalid_membership_number,
-                MEMBER_NAME.to_owned(),
-                MEMBER_FIRST_NAME.to_owned(),
+                None,
+                Some(MEMBER_NAME.to_owned()),
+                Some(MEMBER_FIRST_NAME.to_owned()),
             );
 
             assert_eq!(
@@ -136,8 +138,9 @@ mod tests {
             )]));
             let member_to_check = CsvMember::new(
                 MEMBERSHIP_NUMBER.to_owned(),
-                MEMBER_NAME.to_owned(),
-                MEMBER_FIRST_NAME.to_owned(),
+                None,
+                Some(MEMBER_NAME.to_owned()),
+                Some(MEMBER_FIRST_NAME.to_owned()),
             );
 
             assert_eq!(Some(&membership), members.check_member(&member_to_check));
@@ -153,8 +156,9 @@ mod tests {
             let invalid_membership_number = format!("{MEMBERSHIP_NUMBER} oops");
             let member_to_check = CsvMember::new(
                 invalid_membership_number,
-                MEMBER_NAME.to_owned(),
-                MEMBER_FIRST_NAME.to_owned(),
+                None,
+                Some(MEMBER_NAME.to_owned()),
+                Some(MEMBER_FIRST_NAME.to_owned()),
             );
 
             assert_eq!(None, members.check_member(&member_to_check));

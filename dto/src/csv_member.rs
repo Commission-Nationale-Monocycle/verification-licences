@@ -167,7 +167,7 @@ mod tests {
         use std::collections::BTreeSet;
 
         #[test]
-        fn success() {
+        fn success_with_name_and_firstname() {
             let membership_num = "123".to_owned();
             let name = "Doe".to_owned();
             let first_name = "John".to_owned();
@@ -188,10 +188,29 @@ mod tests {
         }
 
         #[test]
+        fn success_with_identity() {
+            let membership_num = "123".to_owned();
+            let identity = "Doe John".to_owned();
+            let csv = format!("{membership_num};{identity}");
+            let result = CsvMember::load_members_to_check_from_csv_string(&csv);
+            assert_eq!(
+                (
+                    BTreeSet::from_iter(vec![CsvMember {
+                        membership_num,
+                        identity: Some(identity),
+                        name: None,
+                        first_name: None,
+                    }]),
+                    vec![]
+                ),
+                result
+            )
+        }
+
+        #[test]
         fn fail_when_wrong_row() {
             let membership_num = "123".to_owned();
-            let name = "Doe".to_owned();
-            let csv = format!("{membership_num};{name}");
+            let csv = format!("{membership_num}");
             let result = CsvMember::load_members_to_check_from_csv_string(&csv);
             let expected_result = (BTreeSet::new(), vec![csv]);
             assert_eq!(expected_result, result)
@@ -205,6 +224,9 @@ mod tests {
     fn get_membership_number() -> String {
         "0123456789".to_owned()
     }
+    fn get_identity() -> String {
+        "Snow Jon".to_owned()
+    }
     fn get_first_name() -> String {
         "Jon".to_owned()
     }
@@ -215,7 +237,7 @@ mod tests {
     fn get_csv_member() -> CsvMember {
         CsvMember::new(
             get_membership_number(),
-            None,
+            Some(get_identity()),
             Some(get_last_name()),
             Some(get_first_name()),
         )
@@ -234,6 +256,12 @@ mod tests {
             Some(get_membership_number()),
             MemberIdentifier::membership_num(&member)
         );
+    }
+
+    #[test]
+    fn should_get_identity() {
+        let member = get_csv_member();
+        assert_eq!(Some(get_identity()), MemberToCheck::identity(&member));
     }
 
     #[test]
