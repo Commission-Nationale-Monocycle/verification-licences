@@ -12,7 +12,7 @@
 
         <div class="input-container">
             <label class="file-input-label" for="members-to-check-picker">Sélectionnez le fichier CSV contenant les
-                licences à vérifier</label>
+                licences à vérifier. Celui-ci doit être dans l'un des deux formats suivants :<br/><code>Numéro d'adhésion;Identité</code><br/>ou<br/><code>Numéro d'adhésion;Nom;Prénom</code></label>
             <input id="members-to-check-picker" type="file" accept=".text/csv,.csv"
                    oninput="app.handle_members_to_check_file(this)">
         </div>

@@ -830,6 +830,7 @@ dependencies = [
  "chrono",
  "csv",
  "derive-getters",
+ "log",
  "parameterized",
  "serde",
 ]
