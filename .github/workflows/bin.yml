@@ -26,7 +26,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build-bin"
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-build-bin-22.04"
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
@@ -49,7 +49,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-clippy-bin"
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-clippy-bin-22.04"
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
@@ -73,7 +73,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-tests-bin"
+          key: "${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-tests-bin-22.04"
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
