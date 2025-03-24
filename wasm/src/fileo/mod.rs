@@ -16,5 +16,5 @@ pub fn init_fileo_page(document: &Document) {
         unwrap_or_alert(add_step(document, &stepper, "Vérification"));
         unwrap_or_alert(add_step(document, &stepper, "Notification"));
     }
-    init_login_form(document, "login-form-uda");
+    init_login_form(document, "login-form-fileo");
 }
