@@ -90,3 +90,12 @@ cargo run -- \
   --smtp-login=<smtp-login> \
   --smtp-password=<smtp-password>
 ```
+
+## Env vars
+In addition to args previously defined, you'll have to add a few env vars for Rocket to be able to start up and serve the app. Those are the following:
+
+| Name              | Description                                                                                                                                                                                  | Type   |
+|-------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------|
+| ROCKET_SECRET_KEY | A key used to encrypt cookies. The value of the parameter may either be a 256-bit base64 or hex string or a slice of 32 bytes. It can be generated with the command openssl rand -base64 32. | String |
+| ROCKET_TLS_KEY    | The path to the TLS key file.                                                                                                                                                                | String |
+| ROCKET_TLS_CERTS  | The path to the TLS certs file.                                                                                                                                                              | String |
