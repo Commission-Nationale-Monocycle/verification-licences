@@ -1,4 +1,5 @@
 use crate::fileo::credentials::FileoCredentials;
+use crate::membership::check::check_members;
 use crate::tools::email::send_email;
 use crate::tools::log_message_and_return;
 use crate::uda::credentials::UdaCredentials;
@@ -64,7 +65,7 @@ fn check<T: MemberIdentifier>(
     ))?;
 
     let memberships = memberships_state.memberships();
-    let checked_members = memberships.check_members(members_to_check);
+    let checked_members = check_members(memberships, members_to_check);
 
     Ok(checked_members)
 }
