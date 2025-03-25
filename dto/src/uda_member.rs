@@ -1,4 +1,3 @@
-use crate::member_identifier::MemberIdentifier;
 use crate::member_to_check::MemberToCheck;
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
@@ -57,15 +56,13 @@ impl Ord for UdaMember {
     }
 }
 
-impl MemberIdentifier for UdaMember {
-    fn membership_num(&self) -> Option<String> {
-        self.membership_number.clone()
-    }
-}
-
 impl MemberToCheck for UdaMember {
     fn id(&self) -> Option<u16> {
         Some(self.id)
+    }
+
+    fn membership_num(&self) -> Option<String> {
+        self.membership_number.clone()
     }
 
     fn identity(&self) -> Option<String> {
@@ -95,7 +92,6 @@ impl MemberToCheck for UdaMember {
 
 #[cfg(test)]
 mod tests {
-    use crate::member_identifier::MemberIdentifier;
     use crate::member_to_check::MemberToCheck;
     use crate::uda_member::UdaMember;
 
@@ -144,7 +140,7 @@ mod tests {
         let member = get_uda_member();
         assert_eq!(
             get_membership_number(),
-            MemberIdentifier::membership_num(&member)
+            MemberToCheck::membership_num(&member)
         );
     }
 
