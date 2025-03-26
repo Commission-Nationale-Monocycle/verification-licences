@@ -54,7 +54,7 @@ pub async fn download_memberships(
     memberships_provider_config: &State<MembershipsProviderConfig>,
     memberships_state: &State<Mutex<MembershipsState>>,
     credentials: FileoCredentials,
-) -> Result<String, Status> {
+) -> Result<Status, Status> {
     let file_details = download_memberships_list(memberships_provider_config, &credentials)
         .await
         .map_err(log_message_and_return(
@@ -77,7 +77,8 @@ pub async fn download_memberships(
         .ok();
     memberships_state.set_file_details(file_details);
     memberships_state.set_memberships(memberships);
-    Ok(json!(memberships_state.memberships()).to_string())
+
+    Ok(Status::NoContent)
 }
 
 #[cfg(test)]
@@ -85,12 +86,10 @@ mod tests {
     use super::*;
 
     use crate::membership::config::MembershipsProviderConfig;
-    use crate::membership::grouped_memberships::GroupedMemberships;
+    use crate::membership::indexed_memberships::IndexedMemberships;
     use crate::tools::test::tests::temp_dir;
     use crate::web::api::memberships_state::MembershipsState;
-    use dto::membership::tests::{
-        MEMBERSHIP_NUMBER, get_expected_membership, get_membership_as_csv,
-    };
+    use dto::membership::tests::{get_expected_membership, get_membership_as_csv};
     use encoding::all::ISO_8859_1;
     use encoding::{EncoderTrap, Encoding};
     use regex::Regex;
@@ -98,7 +97,6 @@ mod tests {
     use rocket::State;
     use rocket::http::{ContentType, Header};
     use rocket::local::asynchronous::Client;
-    use rocket::serde::json;
     use std::fs;
     use std::path::PathBuf;
     use std::sync::Mutex;
@@ -252,26 +250,32 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let config_state = State::from(&config);
         let memberships_state_mutex =
-            Mutex::new(MembershipsState::new(None, GroupedMemberships::default()));
-        let memberships_state = State::from(&memberships_state_mutex);
+            Mutex::new(MembershipsState::new(None, IndexedMemberships::default()));
         let credentials =
             FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
+        let mut credentials_storage = CredentialsStorage::default();
+        let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
+        credentials_storage.store(uuid.clone(), credentials);
+        let credentials_storage_mutex = Mutex::new(credentials_storage);
 
-        let result = download_memberships(config_state, memberships_state, credentials)
-            .await
-            .unwrap();
-        let members: GroupedMemberships = json::from_str(&result).unwrap();
-        assert_eq!(
-            &get_expected_membership(),
-            members
-                .get(MEMBERSHIP_NUMBER)
-                .unwrap()
-                .iter()
-                .find(|_| true)
-                .unwrap()
-        );
+        let rocket = rocket::build()
+            .manage(config)
+            .manage(memberships_state_mutex)
+            .manage(credentials_storage_mutex)
+            .mount("/", routes![download_memberships]);
+        let client = Client::tracked(rocket).await.unwrap();
+
+        let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
+        let request = client.get("/fileo/memberships").cookie(cookie);
+        let response = request.dispatch().await;
+
+        assert_eq!(Status::NoContent, response.status());
+
+        let membership_state = client.rocket().state::<Mutex<MembershipsState>>().unwrap();
+        let membership_state = membership_state.lock().unwrap();
+        let members = membership_state.memberships();
+        assert_eq!(&get_expected_membership(), members.first().unwrap());
         assert!(
             !fs::exists(&old_file_path).ok().unwrap(),
             "Old file should have been cleaned."
@@ -286,7 +290,7 @@ mod tests {
 
         let config_state = State::from(&config);
         let memberships_state_mutex =
-            Mutex::new(MembershipsState::new(None, GroupedMemberships::default()));
+            Mutex::new(MembershipsState::new(None, IndexedMemberships::default()));
         let memberships_state = State::from(&memberships_state_mutex);
         let credentials =
             FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());

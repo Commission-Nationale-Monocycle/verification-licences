@@ -3,6 +3,7 @@ pub mod env_args;
 pub mod test;
 pub mod web;
 
+use diacritics::remove_diacritics;
 use std::fmt::Debug;
 
 pub fn log_error<E: Debug>(error: E) {
@@ -30,6 +31,14 @@ pub fn log_message_and_return<E: Debug, T>(
         error!("{message}\n{e:#?}");
         value_to_return
     }
+}
+
+pub fn normalize(string: &str) -> String {
+    remove_diacritics(&string.split([' ', '-']).collect::<String>().to_lowercase())
+}
+
+pub fn normalize_opt(string: Option<String>) -> String {
+    normalize(string.expect("Expecting a value").as_str())
 }
 
 #[cfg(test)]

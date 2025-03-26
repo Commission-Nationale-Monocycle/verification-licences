@@ -33,6 +33,22 @@ impl<const N: usize> From<[Membership; N]> for Memberships {
     }
 }
 
+impl From<Vec<Membership>> for Memberships {
+    fn from(value: Vec<Membership>) -> Self {
+        Self {
+            memberships: value.into_iter().collect(),
+        }
+    }
+}
+
+impl Extend<Membership> for Memberships {
+    fn extend<T: IntoIterator<Item = Membership>>(&mut self, iter: T) {
+        for membership in iter {
+            self.memberships.insert(membership);
+        }
+    }
+}
+
 impl Memberships {
     pub fn find_last_membership(&self) -> Option<&Membership> {
         self.memberships.iter().max()

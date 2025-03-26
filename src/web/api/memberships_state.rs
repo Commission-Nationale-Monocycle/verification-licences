@@ -3,8 +3,8 @@ use std::ffi::OsStr;
 use crate::error::ApplicationError;
 use crate::membership::error::MembershipError;
 use crate::membership::file_details::FileDetails;
-use crate::membership::grouped_memberships::GroupedMemberships;
 use crate::membership::import_from_file::{find_file, import_from_file};
+use crate::membership::indexed_memberships::IndexedMemberships;
 use crate::tools::log_message;
 use derive_getters::Getters;
 
@@ -13,11 +13,11 @@ type Result<T, E = ApplicationError> = std::result::Result<T, E>;
 #[derive(Debug, Getters, Default, Eq, PartialEq)]
 pub struct MembershipsState {
     file_details: Option<FileDetails>,
-    memberships: GroupedMemberships,
+    memberships: IndexedMemberships,
 }
 
 impl MembershipsState {
-    pub fn new(file_details: Option<FileDetails>, memberships: GroupedMemberships) -> Self {
+    pub fn new(file_details: Option<FileDetails>, memberships: IndexedMemberships) -> Self {
         Self {
             file_details,
             memberships,
@@ -28,7 +28,7 @@ impl MembershipsState {
         self.file_details = Some(file_details);
     }
 
-    pub fn set_memberships(&mut self, memberships: GroupedMemberships) {
+    pub fn set_memberships(&mut self, memberships: IndexedMemberships) {
         self.memberships = memberships;
     }
 
@@ -117,20 +117,16 @@ mod tests {
     }
 
     mod load_memberships {
-        use std::collections::HashMap;
         use std::fs;
 
         use crate::error::ApplicationError::Membership;
         use crate::membership::error::MembershipError::CantBrowseThroughFiles;
         use crate::membership::file_details::FileDetails;
-        use crate::membership::grouped_memberships::GroupedMemberships;
-        use crate::membership::memberships::Memberships;
+        use crate::membership::indexed_memberships::IndexedMemberships;
         use crate::tools::test::tests::temp_dir;
         use crate::web::api::memberships_state::MembershipsState;
         use chrono::NaiveDate;
-        use dto::membership::tests::{
-            MEMBERSHIP_NUMBER, get_expected_membership, get_membership_as_csv,
-        };
+        use dto::membership::tests::{get_expected_membership, get_membership_as_csv};
 
         #[test]
         fn should_load_members() {
@@ -149,10 +145,7 @@ mod tests {
                         NaiveDate::from_ymd_opt(year, month, day).unwrap(),
                         memberships_file.into_os_string()
                     )),
-                    GroupedMemberships::from(HashMap::from([(
-                        MEMBERSHIP_NUMBER.to_owned(),
-                        Memberships::from([get_expected_membership()])
-                    )]))
+                    IndexedMemberships::from(vec![get_expected_membership()])
                 ),
                 state
             );

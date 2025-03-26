@@ -1,5 +1,5 @@
-use crate::membership::grouped_memberships::GroupedMemberships;
-use diacritics::remove_diacritics;
+use crate::membership::indexed_memberships::IndexedMemberships;
+use crate::tools::{normalize, normalize_opt};
 use dto::checked_member::CheckResult::{Match, NoMatch, PartialMatch};
 use dto::checked_member::{CheckResult, CheckedMember};
 use dto::member_to_check::MemberToCheck;
@@ -11,7 +11,7 @@ use std::collections::BTreeSet;
 /// The greatness of a match is defined by its preciseness
 /// (corresponding membership number, name, identity) and the matching membership's end date.
 pub fn check_members<T: MemberToCheck>(
-    grouped_memberships: &GroupedMemberships,
+    grouped_memberships: &IndexedMemberships,
     members_to_check: Vec<T>,
 ) -> Vec<CheckedMember<T>> {
     members_to_check
@@ -26,17 +26,15 @@ pub fn check_members<T: MemberToCheck>(
 }
 
 fn check_member<T: MemberToCheck>(
-    grouped_memberships: &GroupedMemberships,
+    grouped_memberships: &IndexedMemberships,
     member_to_check: &T,
 ) -> CheckResult {
     // FIXME: optimize
     let mut matches = BTreeSet::new();
-    for (_, memberships) in grouped_memberships.iter() {
-        for membership in memberships.iter() {
-            let result = check_member_against_membership(member_to_check, membership);
-            if matches!(result, Match(_) | PartialMatch(_)) {
-                matches.insert(result);
-            }
+    for membership in grouped_memberships.iter() {
+        let result = check_member_against_membership(member_to_check, membership);
+        if matches!(result, Match(_) | PartialMatch(_)) {
+            matches.insert(result);
         }
     }
 
@@ -136,35 +134,22 @@ fn check_member_against_membership<T: MemberToCheck>(
     NoMatch
 }
 
-fn normalize(string: &str) -> String {
-    remove_diacritics(&string.split([' ', '-']).collect::<String>().to_lowercase())
-}
-
-fn normalize_opt(string: Option<String>) -> String {
-    normalize(string.expect("Expecting a value").as_str())
-}
-
 #[cfg(test)]
 mod tests {
     mod check_members {
         use crate::membership::check::check_members;
-        use crate::membership::grouped_memberships::GroupedMemberships;
-        use crate::membership::memberships::Memberships;
+        use crate::membership::indexed_memberships::IndexedMemberships;
         use dto::checked_member::CheckResult::{Match, NoMatch};
         use dto::checked_member::CheckedMember;
         use dto::csv_member::CsvMember;
         use dto::membership::tests::{
             MEMBER_FIRST_NAME, MEMBER_NAME, MEMBERSHIP_NUMBER, get_expected_membership,
         };
-        use std::collections::HashMap;
 
         #[test]
         fn success() {
             let membership = get_expected_membership();
-            let members = GroupedMemberships::from(HashMap::from([(
-                MEMBERSHIP_NUMBER.to_string(),
-                Memberships::from([membership.clone()]),
-            )]));
+            let members = IndexedMemberships::from(vec![membership.clone()]);
             let member_to_check = CsvMember::new(
                 MEMBERSHIP_NUMBER.to_owned(),
                 None,
@@ -184,10 +169,7 @@ mod tests {
         #[test]
         fn fail() {
             let membership = get_expected_membership();
-            let members = GroupedMemberships::from(HashMap::from([(
-                MEMBERSHIP_NUMBER.to_string(),
-                Memberships::from([membership]),
-            )]));
+            let members = IndexedMemberships::from(vec![membership]);
             let invalid_membership_number = format!("{MEMBERSHIP_NUMBER} oops");
             let member_to_check = CsvMember::new(
                 invalid_membership_number,
@@ -205,8 +187,7 @@ mod tests {
 
     mod check_member {
         use crate::membership::check::check_member;
-        use crate::membership::grouped_memberships::GroupedMemberships;
-        use crate::membership::memberships::Memberships;
+        use crate::membership::indexed_memberships::IndexedMemberships;
         use chrono::Months;
         use dto::checked_member::CheckResult::{Match, NoMatch};
         use dto::csv_member::CsvMember;
@@ -214,15 +195,11 @@ mod tests {
         use dto::membership::tests::{
             MEMBER_FIRST_NAME, MEMBER_NAME, MEMBERSHIP_NUMBER, get_expected_membership,
         };
-        use std::collections::HashMap;
 
         #[test]
         fn success() {
             let membership = get_expected_membership();
-            let members = GroupedMemberships::from(HashMap::from([(
-                MEMBERSHIP_NUMBER.to_string(),
-                Memberships::from([membership.clone()]),
-            )]));
+            let members = IndexedMemberships::from(vec![membership.clone()]);
             let member_to_check = CsvMember::new(
                 MEMBERSHIP_NUMBER.to_owned(),
                 None,
@@ -236,10 +213,7 @@ mod tests {
         #[test]
         fn success_when_membership_number_prepended_with_0() {
             let membership = get_expected_membership();
-            let members = GroupedMemberships::from(HashMap::from([(
-                MEMBERSHIP_NUMBER.to_string(),
-                Memberships::from([membership.clone()]),
-            )]));
+            let members = IndexedMemberships::from(vec![membership.clone()]);
             let member_to_check = CsvMember::new(
                 format!("0{MEMBERSHIP_NUMBER}"), // Prepending with a 0 should not change anything
                 None,
@@ -253,10 +227,7 @@ mod tests {
         #[test]
         fn fail() {
             let membership = get_expected_membership();
-            let members = GroupedMemberships::from(HashMap::from([(
-                MEMBERSHIP_NUMBER.to_string(),
-                Memberships::from([membership]),
-            )]));
+            let members = IndexedMemberships::from(vec![membership]);
             let invalid_membership_number = format!("{MEMBERSHIP_NUMBER} oops");
             let member_to_check = CsvMember::new(
                 invalid_membership_number,
@@ -299,14 +270,11 @@ mod tests {
                 matching_membership.club().to_owned(),
                 matching_membership.structure_code().to_owned(),
             );
-            let members = GroupedMemberships::from(HashMap::from([(
-                MEMBERSHIP_NUMBER.to_string(),
-                Memberships::from([
-                    matching_membership.clone(),
-                    partial_matching_membership,
-                    not_matching_membership,
-                ]),
-            )]));
+            let members = IndexedMemberships::from(vec![
+                matching_membership.clone(),
+                partial_matching_membership,
+                not_matching_membership,
+            ]);
             let member_to_check = CsvMember::new(
                 MEMBERSHIP_NUMBER.to_owned(),
                 None,
@@ -341,10 +309,8 @@ mod tests {
                 newest_membership.club().to_owned(),
                 newest_membership.structure_code().to_owned(),
             );
-            let members = GroupedMemberships::from(HashMap::from([(
-                MEMBERSHIP_NUMBER.to_string(),
-                Memberships::from([newest_membership.clone(), oldest_membership]),
-            )]));
+            let members =
+                IndexedMemberships::from(vec![newest_membership.clone(), oldest_membership]);
             let member_to_check = CsvMember::new(
                 MEMBERSHIP_NUMBER.to_owned(),
                 None,

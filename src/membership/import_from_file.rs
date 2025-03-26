@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
@@ -11,8 +10,7 @@ use crate::membership::error::MembershipError::{
     CantOpenMembersFileFolder, InvalidDate, NoFileFound, WrongRegex,
 };
 use crate::membership::file_details::FileDetails;
-use crate::membership::grouped_memberships::GroupedMemberships;
-use crate::membership::memberships::Memberships;
+use crate::membership::indexed_memberships::IndexedMemberships;
 use crate::tools::{log_message, log_message_and_return};
 use chrono::NaiveDate;
 use csv::Reader;
@@ -21,7 +19,7 @@ use regex::bytes::{Captures, Regex};
 
 /// Load a list of [Member]s from a file containing [Membership]s.
 /// Members are memberships grouped by membership num.
-pub fn import_from_file(filepath: &OsStr) -> Result<GroupedMemberships> {
+pub fn import_from_file(filepath: &OsStr) -> Result<IndexedMemberships> {
     let error_message = format!("Can't open members file `{:?}`.", filepath.to_str());
     let file = File::open(filepath).map_err(log_message_and_return(
         &error_message,
@@ -29,7 +27,7 @@ pub fn import_from_file(filepath: &OsStr) -> Result<GroupedMemberships> {
     ))?;
     let mut reader = csv::ReaderBuilder::new().delimiter(b';').from_reader(file);
     let members = load_memberships(&mut reader);
-    Ok(group_members_by_membership(members))
+    Ok(members.into())
 }
 
 fn load_memberships<T>(reader: &mut Reader<T>) -> Vec<Membership>
@@ -46,21 +44,6 @@ where
             }
         })
         .collect::<Vec<_>>()
-}
-
-fn group_members_by_membership(memberships: Vec<Membership>) -> GroupedMemberships {
-    let mut map = HashMap::new();
-
-    memberships.into_iter().for_each(|membership| {
-        let membership_number = membership.membership_number().to_string();
-        map.entry(membership_number)
-            .and_modify(|memberships: &mut Memberships| {
-                memberships.insert(membership.clone());
-            })
-            .or_insert(Memberships::from([membership.clone(); 1]));
-    });
-
-    GroupedMemberships::from(map)
 }
 
 pub fn find_file(members_file_folder: &OsStr) -> Result<FileDetails> {
@@ -141,7 +124,6 @@ fn build_members_file_regex() -> Result<Regex> {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use std::ffi::OsString;
     use std::fs;
     use std::fs::File;
@@ -151,15 +133,13 @@ mod tests {
     use crate::membership::error::MembershipError::{
         CantConvertDateFieldToString, CantOpenMembersFile, InvalidDate, NoFileFound,
     };
-    use crate::membership::grouped_memberships::GroupedMemberships;
     use crate::membership::import_from_file::{
         build_members_file_regex, check_folder, convert_captures_to_date, convert_match_to_integer,
-        find_file, group_members_by_membership, import_from_file, load_memberships,
+        find_file, import_from_file, load_memberships,
     };
     use crate::membership::memberships::Memberships;
     use crate::tools::test::tests::temp_dir;
     use chrono::NaiveDate;
-    use dto::membership::Membership;
     use dto::membership::tests::{
         get_expected_membership, get_malformed_membership_as_csv, get_membership_as_csv,
     };
@@ -175,10 +155,7 @@ mod tests {
         fs::write(&file_path, get_membership_as_csv()).unwrap();
 
         let result = import_from_file(file_path.as_ref()).unwrap();
-        assert_eq!(
-            &Memberships::from([get_expected_membership()]),
-            result.get("123456").unwrap()
-        )
+        assert_eq!(Memberships::from([get_expected_membership()]), *result)
     }
 
     #[test]
@@ -220,66 +197,6 @@ mod tests {
     }
 
     // endregion
-    #[test]
-    fn should_group_members_by_membership() {
-        let jean = Membership::new(
-            "1".to_string(),
-            "Jean".to_string(),
-            "".to_string(),
-            None,
-            None,
-            "1".to_string(),
-            "".to_string(),
-            false,
-            Default::default(),
-            false,
-            "".to_string(),
-            "".to_string(),
-        );
-
-        let michel = Membership::new(
-            "1".to_string(),
-            "Michel".to_string(),
-            "".to_string(),
-            None,
-            None,
-            "1".to_string(),
-            "".to_string(),
-            false,
-            Default::default(),
-            false,
-            "".to_string(),
-            "".to_string(),
-        );
-        let pierre = Membership::new(
-            "2".to_string(),
-            "Pierre".to_string(),
-            "".to_string(),
-            None,
-            None,
-            "2".to_string(),
-            "".to_string(),
-            false,
-            Default::default(),
-            false,
-            "".to_string(),
-            "".to_string(),
-        );
-
-        let expected_map: GroupedMemberships = GroupedMemberships::from(
-            [
-                (
-                    "1".to_owned(),
-                    Memberships::from([jean.clone(), michel.clone()]),
-                ),
-                ("2".to_owned(), Memberships::from([pierre.clone()])),
-            ]
-            .into_iter()
-            .collect::<HashMap<String, Memberships>>(),
-        );
-        let result = group_members_by_membership(vec![jean, pierre, michel]);
-        assert_eq!(expected_map, result);
-    }
 
     // region find_file
     #[test]

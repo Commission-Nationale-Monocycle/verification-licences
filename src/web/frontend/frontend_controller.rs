@@ -1,5 +1,5 @@
 use crate::fileo::credentials::FileoCredentials;
-use crate::membership::grouped_memberships::GroupedMemberships;
+use crate::membership::indexed_memberships::IndexedMemberships;
 use crate::membership::memberships::Memberships;
 use crate::tools::log_error_and_return;
 use crate::web::api::memberships_state::MembershipsState;
@@ -62,8 +62,9 @@ pub async fn list_memberships(
     _credentials: FileoCredentials,
 ) -> Result<Template, Status> {
     let memberships = unwrap_memberships_state(memberships_state)?;
-    let memberships: &GroupedMemberships = memberships.memberships();
+    let memberships: &IndexedMemberships = memberships.memberships();
     let memberships: Vec<&Membership> = memberships
+        .memberships_by_num()
         .values()
         .filter_map(Memberships::find_last_membership)
         .collect();
@@ -183,7 +184,7 @@ mod tests {
     mod list_memberships {
         use crate::fileo::authentication::AUTHENTICATION_COOKIE;
         use crate::fileo::credentials::FileoCredentials;
-        use crate::membership::grouped_memberships::GroupedMemberships;
+        use crate::membership::indexed_memberships::IndexedMemberships;
         use crate::web::api::memberships_state::MembershipsState;
         use crate::web::credentials_storage::CredentialsStorage;
         use crate::web::frontend::frontend_controller::{
@@ -204,7 +205,7 @@ mod tests {
             let credentials_storage_mutex = Mutex::new(credentials_storage);
 
             let members_sate_mutex =
-                Mutex::new(MembershipsState::new(None, GroupedMemberships::default()));
+                Mutex::new(MembershipsState::new(None, IndexedMemberships::default()));
 
             let rocket = rocket::build()
                 .mount(
@@ -227,7 +228,7 @@ mod tests {
         #[async_test]
         async fn should_not_render_membership_list_when_unauthenticated() {
             let members_sate_mutex =
-                Mutex::new(MembershipsState::new(None, GroupedMemberships::default()));
+                Mutex::new(MembershipsState::new(None, IndexedMemberships::default()));
 
             let rocket = rocket::build()
                 .mount(
@@ -253,7 +254,7 @@ mod tests {
         use crate::fileo::authentication::AUTHENTICATION_COOKIE;
         use crate::fileo::credentials::FileoCredentials;
         use crate::membership::file_details::FileDetails;
-        use crate::membership::grouped_memberships::GroupedMemberships;
+        use crate::membership::indexed_memberships::IndexedMemberships;
         use crate::web::api::memberships_state::MembershipsState;
         use crate::web::credentials_storage::CredentialsStorage;
         use crate::web::frontend::frontend_controller::{
@@ -280,7 +281,7 @@ mod tests {
                     Utc::now().date_naive(),
                     OsString::from(""),
                 )),
-                GroupedMemberships::default(),
+                IndexedMemberships::default(),
             ));
 
             let rocket = rocket::build()
@@ -316,7 +317,7 @@ mod tests {
             let credentials_storage_mutex = Mutex::new(credentials_storage);
 
             let memberships_sate_mutex =
-                Mutex::new(MembershipsState::new(None, GroupedMemberships::default()));
+                Mutex::new(MembershipsState::new(None, IndexedMemberships::default()));
 
             let rocket = rocket::build()
                 .mount(
@@ -344,7 +345,7 @@ mod tests {
         #[async_test]
         async fn fail_when_unauthenticated() {
             let members_sate_mutex =
-                Mutex::new(MembershipsState::new(None, GroupedMemberships::default()));
+                Mutex::new(MembershipsState::new(None, IndexedMemberships::default()));
 
             let rocket = rocket::build()
                 .mount(
