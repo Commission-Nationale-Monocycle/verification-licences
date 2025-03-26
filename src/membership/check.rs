@@ -544,28 +544,4 @@ mod tests {
             assert_eq!(CheckResult::PartialMatch(membership), result);
         }
     }
-
-    // mod check_member_against_membership {
-    //     use crate::membership::check::check_member_against_membership;
-    //     use chrono::NaiveDate;
-    //     use dto::checked_member::CheckResult;
-    //     use dto::csv_member::CsvMember;
-    //     use dto::membership::tests::{get_expected_membership, MEMBERSHIP_NUMBER};
-    //     use dto::membership::Membership;
-    //     use dto::uda_member::UdaMember;
-    //
-    //     #[test]
-    //     fn num_prefix_0_name_match() {
-    //         let membership = get_expected_membership();
-    //         let member_to_check = CsvMember::new(
-    //             format!("0{}", membership.membership_number().to_owned()),
-    //             None,
-    //             Some(membership.name().to_owned()),
-    //             Some(membership.first_name().to_owned()),
-    //         );
-    //
-    //         let result = check_member_against_membership(&member_to_check, &membership);
-    //         assert_eq!(CheckResult::Match(membership), result);
-    //     }
-    // }
 }
