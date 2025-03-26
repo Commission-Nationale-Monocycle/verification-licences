@@ -139,9 +139,11 @@ fn check_member_name_or_identity<T: MemberToCheck>(
         {
             return Match(membership.clone());
         }
+
+        return PartialMatch(membership.clone());
     }
 
-    NoMatch
+    PartialMatch(membership.clone())
 }
 
 fn check_member_membership_num<T: MemberToCheck>(
@@ -517,9 +519,20 @@ mod tests {
             );
 
             let result = check_member_name_or_identity(&member_to_check, &membership);
-            assert_eq!(CheckResult::NoMatch, result);
+            assert_eq!(CheckResult::PartialMatch(membership), result);
+        }
+
+        #[test]
+        fn no_name_no_identity() {
+            let membership = get_expected_membership();
+            let member_to_check =
+                CsvMember::new(membership.membership_number().to_owned(), None, None, None);
+
+            let result = check_member_name_or_identity(&member_to_check, &membership);
+            assert_eq!(CheckResult::PartialMatch(membership), result);
         }
     }
+
     mod check_member_membership_num {
         use crate::membership::check::check_member_membership_num;
         use dto::checked_member::CheckResult;
