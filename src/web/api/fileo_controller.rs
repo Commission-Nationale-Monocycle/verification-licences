@@ -9,7 +9,7 @@ use crate::web::api::memberships_state::MembershipsState;
 use crate::web::credentials_storage::CredentialsStorage;
 use rocket::State;
 use rocket::http::{Cookie, CookieJar, Status};
-use rocket::serde::json::{Json, json};
+use rocket::serde::json::Json;
 use rocket::time::Duration;
 use std::sync::Mutex;
 use uuid::Uuid;
@@ -97,6 +97,7 @@ mod tests {
     use rocket::State;
     use rocket::http::{ContentType, Header};
     use rocket::local::asynchronous::Client;
+    use rocket::serde::json::json;
     use std::fs;
     use std::path::PathBuf;
     use std::sync::Mutex;

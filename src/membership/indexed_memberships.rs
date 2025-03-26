@@ -2,12 +2,11 @@ use crate::membership::memberships::Memberships;
 use crate::tools::normalize;
 use derive_getters::Getters;
 use dto::membership::Membership;
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 
 /// [Memberships] indexed by different keys:
 /// - Membership number
@@ -37,16 +36,42 @@ impl From<Vec<Membership>> for IndexedMemberships {
     fn from(value: Vec<Membership>) -> Self {
         let memberships = value.clone().into();
 
-        let memberships_by_num = group_by(&value, |membership| {
+        let mut memberships_by_num = group_by(&value, |membership| {
             normalize(membership.membership_number())
         });
+        memberships_by_num.extend(group_by(
+            &value
+                .iter()
+                .flat_map(|membership| {
+                    if membership.membership_number().parse::<u32>().is_ok() {
+                        Some(membership.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>(),
+            |membership| {
+                membership
+                    .membership_number()
+                    .parse::<u32>()
+                    .expect("Should be a u32")
+                    .to_string()
+            },
+        ));
 
-        let memberships_by_name = group_by(&value, |membership| {
+        let mut memberships_by_name = group_by(&value, |membership| {
             (
                 normalize(membership.name()),
                 normalize(membership.first_name()),
             )
         });
+        // People may invert their first and last name... So we try both.
+        memberships_by_name.extend(group_by(&value, |membership| {
+            (
+                normalize(membership.first_name()),
+                normalize(membership.name()),
+            )
+        }));
 
         let mut memberships_by_identity = group_by(&value, |membership| {
             format!(
@@ -143,11 +168,26 @@ mod tests {
                         other_jon_doe.clone(),
                     ]),
                 );
+                map.insert(
+                    (normalize(jon_doe.first_name()), normalize(jon_doe.name())),
+                    Memberships::from(vec![
+                        jon_doe.clone(),
+                        jon_doe_previous_membership.clone(),
+                        other_jon_doe.clone(),
+                    ]),
+                );
 
                 map.insert(
                     (
                         normalize(jonette_snow.name()),
                         normalize(jonette_snow.first_name()),
+                    ),
+                    Memberships::from(vec![jonette_snow.clone()]),
+                );
+                map.insert(
+                    (
+                        normalize(jonette_snow.first_name()),
+                        normalize(jonette_snow.name()),
                     ),
                     Memberships::from(vec![jonette_snow.clone()]),
                 );
