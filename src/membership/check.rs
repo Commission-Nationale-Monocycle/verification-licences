@@ -257,6 +257,20 @@ mod tests {
         }
 
         #[test]
+        fn match_when_num_and_identity() {
+            let membership = get_expected_membership();
+            let members = IndexedMemberships::from(vec![membership.clone()]);
+            let member_to_check = CsvMember::new(
+                MEMBERSHIP_NUMBER.to_owned(), // Prepending with a 0 should not change anything
+                Some(format!("{} {}", MEMBER_NAME, MEMBER_FIRST_NAME)),
+                None,
+                None,
+            );
+
+            assert_eq!(Match(membership), check_member(&members, &member_to_check));
+        }
+
+        #[test]
         fn fail() {
             let membership = get_expected_membership();
             let members = IndexedMemberships::from(vec![membership]);
