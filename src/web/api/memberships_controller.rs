@@ -95,8 +95,7 @@ pub async fn notify_members(
 mod tests {
     mod check_members {
         use crate::fileo::credentials::FileoCredentials;
-        use crate::membership::grouped_memberships::GroupedMemberships;
-        use crate::membership::memberships::Memberships;
+        use crate::membership::indexed_memberships::IndexedMemberships;
         use crate::uda::credentials::UdaCredentials;
         use crate::web::api::memberships_controller::check_uda_members;
         use crate::web::api::memberships_state::MembershipsState;
@@ -108,7 +107,6 @@ mod tests {
         use rocket::http::{ContentType, Header, Status};
         use rocket::local::asynchronous::Client;
         use rocket::serde::json::json;
-        use std::collections::HashMap;
         use std::sync::Mutex;
 
         #[async_test]
@@ -151,13 +149,10 @@ mod tests {
             let fileo_credentials_storage_mutex = Mutex::new(fileo_storage);
             let uda_credentials_storage_mutex = Mutex::new(uda_storage);
 
-            let mut memberships = HashMap::new();
-            memberships.insert(
-                "123456".to_owned(),
-                Memberships::from([get_expected_membership()]),
+            let memberships_state = MembershipsState::new(
+                None,
+                IndexedMemberships::from(vec![get_expected_membership()]),
             );
-            let memberships_state =
-                MembershipsState::new(None, GroupedMemberships::from(memberships));
             let memberships_state = Mutex::new(memberships_state);
 
             let rocket = rocket::build()

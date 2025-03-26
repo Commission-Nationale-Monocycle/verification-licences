@@ -1,17 +1,19 @@
-use crate::membership::grouped_memberships::GroupedMemberships;
-use diacritics::remove_diacritics;
+use crate::membership::indexed_memberships::IndexedMemberships;
+use crate::membership::memberships::Memberships;
+use crate::tools::{normalize, normalize_opt};
 use dto::checked_member::CheckResult::{Match, NoMatch, PartialMatch};
 use dto::checked_member::{CheckResult, CheckedMember};
 use dto::member_to_check::MemberToCheck;
 use dto::membership::Membership;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
+use std::hash::Hash;
 
 /// For each member, loops through each membership to check whether there is a match.
 /// In case of multiple matches, the greater match is returned.
 /// The greatness of a match is defined by its preciseness
 /// (corresponding membership number, name, identity) and the matching membership's end date.
 pub fn check_members<T: MemberToCheck>(
-    grouped_memberships: &GroupedMemberships,
+    grouped_memberships: &IndexedMemberships,
     members_to_check: Vec<T>,
 ) -> Vec<CheckedMember<T>> {
     members_to_check
@@ -26,19 +28,41 @@ pub fn check_members<T: MemberToCheck>(
 }
 
 fn check_member<T: MemberToCheck>(
-    grouped_memberships: &GroupedMemberships,
+    indexed_memberships: &IndexedMemberships,
     member_to_check: &T,
 ) -> CheckResult {
-    // FIXME: optimize
     let mut matches = BTreeSet::new();
-    for (_, memberships) in grouped_memberships.iter() {
-        for membership in memberships.iter() {
-            let result = check_member_against_membership(member_to_check, membership);
-            if matches!(result, Match(_) | PartialMatch(_)) {
-                matches.insert(result);
+
+    let memberships_by_num = indexed_memberships.memberships_by_num();
+    let memberships_by_name = indexed_memberships.memberships_by_name();
+    let memberships_by_identity = indexed_memberships.memberships_by_identity();
+    matches.extend(check_member_by_property(
+        memberships_by_num,
+        member_to_check,
+        MemberToCheck::membership_num,
+        check_member_name_or_identity,
+    ));
+    matches.extend(check_member_by_property(
+        memberships_by_name,
+        member_to_check,
+        |member_to_check| {
+            if member_to_check.last_name().is_some() && member_to_check.first_name().is_some() {
+                Some((
+                    normalize_opt(member_to_check.last_name()),
+                    normalize_opt(member_to_check.first_name()),
+                ))
+            } else {
+                None
             }
-        }
-    }
+        },
+        check_member_membership_num,
+    ));
+    matches.extend(check_member_by_property(
+        memberships_by_identity,
+        member_to_check,
+        MemberToCheck::identity,
+        check_member_name_or_identity,
+    ));
 
     if let Some(check_result) = matches.last() {
         return check_result.clone();
@@ -47,22 +71,87 @@ fn check_member<T: MemberToCheck>(
     NoMatch
 }
 
-fn check_member_against_membership<T: MemberToCheck>(
+/// If member given property is some, then apply the check function onto it for each membership.
+/// Return every match and partial match.
+fn check_member_by_property<K, T, F1, F2>(
+    indexed_memberships: &HashMap<K, Memberships>,
+    member_to_check: &T,
+    property: F1,
+    check: F2,
+) -> BTreeSet<CheckResult>
+where
+    T: MemberToCheck,
+    K: Hash + Eq,
+    F1: Fn(&T) -> Option<K>,
+    F2: Fn(&T, &Membership) -> CheckResult,
+{
+    let mut matches = BTreeSet::new();
+    if let Some(key) = property(member_to_check) {
+        if let Some(memberships) = indexed_memberships.get(&key) {
+            for membership in memberships.iter() {
+                let result = check(member_to_check, membership);
+                if matches!(result, Match(_) | PartialMatch(_)) {
+                    matches.insert(result);
+                }
+            }
+        }
+    }
+
+    matches
+}
+
+fn check_member_name_or_identity<T: MemberToCheck>(
     member_to_check: &T,
     membership: &Membership,
 ) -> CheckResult {
-    let membership_num_to_check = member_to_check.membership_num();
     let last_name_to_check = member_to_check.last_name();
     let first_name_to_check = member_to_check.first_name();
     let identity_to_check = member_to_check.identity();
 
-    let membership_num = normalize(membership.membership_number());
     let last_name = normalize(membership.name());
     let first_name = normalize(membership.first_name());
 
+    if last_name_to_check.is_some() && first_name_to_check.is_some() {
+        let last_name_to_check = normalize_opt(last_name_to_check);
+        let first_name_to_check = normalize_opt(first_name_to_check);
+
+        // All matches => that's a match!
+        if last_name_to_check == last_name && first_name_to_check == first_name {
+            return Match(membership.clone());
+        }
+
+        // Membership num matches, but name doesn't match => partial match /!\
+        return PartialMatch(membership.clone());
+    }
+
+    if identity_to_check.is_some() {
+        // In order for identity and names to match, we strip spaces.
+        // This may lead to some strange behaviors ("Jon Doe" would be the same as "Jo Ndoe"),
+        // but let's assume it's not an issue there.
+        let identity_to_check = normalize_opt(identity_to_check);
+
+        let last_name = last_name.split(" ").collect::<String>();
+        let first_name = first_name.split(" ").collect::<String>();
+
+        // If membership and identity match => that's a match!
+        if identity_to_check == format!("{last_name}{first_name}")
+            || identity_to_check == format!("{first_name}{last_name}")
+        {
+            return Match(membership.clone());
+        }
+    }
+
+    NoMatch
+}
+
+fn check_member_membership_num<T: MemberToCheck>(
+    member_to_check: &T,
+    membership: &Membership,
+) -> CheckResult {
+    let membership_num_to_check = member_to_check.membership_num();
+    let membership_num = normalize(membership.membership_number());
     if membership_num_to_check.is_some() {
         let membership_num_to_check = normalize_opt(membership_num_to_check);
-
         // Membership num is the primary identifier.
         // If it is provided but doesn't match, then there's no match.
         if membership_num_to_check != membership_num
@@ -71,100 +160,28 @@ fn check_member_against_membership<T: MemberToCheck>(
             return NoMatch;
         }
 
-        if last_name_to_check.is_some() && first_name_to_check.is_some() {
-            let last_name_to_check = normalize_opt(last_name_to_check);
-            let first_name_to_check = normalize_opt(first_name_to_check);
-
-            // All matches => that's a match!
-            if last_name_to_check == last_name && first_name_to_check == first_name {
-                return Match(membership.clone());
-            }
-
-            // Membership num matches, but name doesn't match => partial match /!\
-            return PartialMatch(membership.clone());
-        }
-
-        if identity_to_check.is_some() {
-            // In order for identity and names to match, we strip spaces.
-            // This may lead to some strange behaviors ("Jon Doe" would be the same as "Jo Ndoe"),
-            // but let's assume it's not an issue there.
-            let identity_to_check = normalize_opt(identity_to_check);
-
-            let last_name = last_name.split(" ").collect::<String>();
-            let first_name = first_name.split(" ").collect::<String>();
-
-            // If membership and identity match => that's a match!
-            if identity_to_check == format!("{last_name}{first_name}")
-                || identity_to_check == format!("{first_name}{last_name}")
-            {
-                return Match(membership.clone());
-            }
-
-            return NoMatch;
-        }
-    } else {
-        // No membership num has been provided for this member to check.
-        // There won't be any match, but there may be a partial match.
-        if last_name_to_check.is_some() && first_name_to_check.is_some() {
-            let last_name_to_check = normalize_opt(last_name_to_check);
-            let first_name_to_check = normalize_opt(first_name_to_check);
-
-            // Name matches, but no membership num has been provided => partial match /!\
-            if last_name_to_check == last_name && first_name_to_check == first_name {
-                return PartialMatch(membership.clone());
-            }
-
-            return NoMatch;
-        }
-
-        if let Some(identity_to_check) = identity_to_check {
-            // This should currently not be reachable,
-            // because there's no provider that yields a member with identity but no membership num.
-            let identity_to_check = normalize(&identity_to_check);
-
-            // If identity matches with name but no membership num has been provided => partial match /!\
-            if identity_to_check == format!("{last_name}{first_name}")
-                || identity_to_check == format!("{first_name}{last_name}")
-            {
-                return PartialMatch(membership.clone());
-            }
-
-            return NoMatch;
-        }
+        return Match(membership.clone());
     }
 
-    NoMatch
-}
-
-fn normalize(string: &str) -> String {
-    remove_diacritics(&string.split([' ', '-']).collect::<String>().to_lowercase())
-}
-
-fn normalize_opt(string: Option<String>) -> String {
-    normalize(string.expect("Expecting a value").as_str())
+    PartialMatch(membership.clone())
 }
 
 #[cfg(test)]
 mod tests {
     mod check_members {
         use crate::membership::check::check_members;
-        use crate::membership::grouped_memberships::GroupedMemberships;
-        use crate::membership::memberships::Memberships;
+        use crate::membership::indexed_memberships::IndexedMemberships;
         use dto::checked_member::CheckResult::{Match, NoMatch};
         use dto::checked_member::CheckedMember;
         use dto::csv_member::CsvMember;
         use dto::membership::tests::{
             MEMBER_FIRST_NAME, MEMBER_NAME, MEMBERSHIP_NUMBER, get_expected_membership,
         };
-        use std::collections::HashMap;
 
         #[test]
         fn success() {
             let membership = get_expected_membership();
-            let members = GroupedMemberships::from(HashMap::from([(
-                MEMBERSHIP_NUMBER.to_string(),
-                Memberships::from([membership.clone()]),
-            )]));
+            let members = IndexedMemberships::from(vec![membership.clone()]);
             let member_to_check = CsvMember::new(
                 MEMBERSHIP_NUMBER.to_owned(),
                 None,
@@ -184,10 +201,7 @@ mod tests {
         #[test]
         fn fail() {
             let membership = get_expected_membership();
-            let members = GroupedMemberships::from(HashMap::from([(
-                MEMBERSHIP_NUMBER.to_string(),
-                Memberships::from([membership]),
-            )]));
+            let members = IndexedMemberships::from(vec![membership]);
             let invalid_membership_number = format!("{MEMBERSHIP_NUMBER} oops");
             let member_to_check = CsvMember::new(
                 invalid_membership_number,
@@ -205,8 +219,7 @@ mod tests {
 
     mod check_member {
         use crate::membership::check::check_member;
-        use crate::membership::grouped_memberships::GroupedMemberships;
-        use crate::membership::memberships::Memberships;
+        use crate::membership::indexed_memberships::IndexedMemberships;
         use chrono::Months;
         use dto::checked_member::CheckResult::{Match, NoMatch};
         use dto::csv_member::CsvMember;
@@ -214,15 +227,11 @@ mod tests {
         use dto::membership::tests::{
             MEMBER_FIRST_NAME, MEMBER_NAME, MEMBERSHIP_NUMBER, get_expected_membership,
         };
-        use std::collections::HashMap;
 
         #[test]
         fn success() {
             let membership = get_expected_membership();
-            let members = GroupedMemberships::from(HashMap::from([(
-                MEMBERSHIP_NUMBER.to_string(),
-                Memberships::from([membership.clone()]),
-            )]));
+            let members = IndexedMemberships::from(vec![membership.clone()]);
             let member_to_check = CsvMember::new(
                 MEMBERSHIP_NUMBER.to_owned(),
                 None,
@@ -236,10 +245,7 @@ mod tests {
         #[test]
         fn success_when_membership_number_prepended_with_0() {
             let membership = get_expected_membership();
-            let members = GroupedMemberships::from(HashMap::from([(
-                MEMBERSHIP_NUMBER.to_string(),
-                Memberships::from([membership.clone()]),
-            )]));
+            let members = IndexedMemberships::from(vec![membership.clone()]);
             let member_to_check = CsvMember::new(
                 format!("0{MEMBERSHIP_NUMBER}"), // Prepending with a 0 should not change anything
                 None,
@@ -251,12 +257,23 @@ mod tests {
         }
 
         #[test]
+        fn match_when_num_and_identity() {
+            let membership = get_expected_membership();
+            let members = IndexedMemberships::from(vec![membership.clone()]);
+            let member_to_check = CsvMember::new(
+                MEMBERSHIP_NUMBER.to_owned(), // Prepending with a 0 should not change anything
+                Some(format!("{} {}", MEMBER_NAME, MEMBER_FIRST_NAME)),
+                None,
+                None,
+            );
+
+            assert_eq!(Match(membership), check_member(&members, &member_to_check));
+        }
+
+        #[test]
         fn fail() {
             let membership = get_expected_membership();
-            let members = GroupedMemberships::from(HashMap::from([(
-                MEMBERSHIP_NUMBER.to_string(),
-                Memberships::from([membership]),
-            )]));
+            let members = IndexedMemberships::from(vec![membership]);
             let invalid_membership_number = format!("{MEMBERSHIP_NUMBER} oops");
             let member_to_check = CsvMember::new(
                 invalid_membership_number,
@@ -299,14 +316,11 @@ mod tests {
                 matching_membership.club().to_owned(),
                 matching_membership.structure_code().to_owned(),
             );
-            let members = GroupedMemberships::from(HashMap::from([(
-                MEMBERSHIP_NUMBER.to_string(),
-                Memberships::from([
-                    matching_membership.clone(),
-                    partial_matching_membership,
-                    not_matching_membership,
-                ]),
-            )]));
+            let members = IndexedMemberships::from(vec![
+                matching_membership.clone(),
+                partial_matching_membership,
+                not_matching_membership,
+            ]);
             let member_to_check = CsvMember::new(
                 MEMBERSHIP_NUMBER.to_owned(),
                 None,
@@ -341,10 +355,8 @@ mod tests {
                 newest_membership.club().to_owned(),
                 newest_membership.structure_code().to_owned(),
             );
-            let members = GroupedMemberships::from(HashMap::from([(
-                MEMBERSHIP_NUMBER.to_string(),
-                Memberships::from([newest_membership.clone(), oldest_membership]),
-            )]));
+            let members =
+                IndexedMemberships::from(vec![newest_membership.clone(), oldest_membership]);
             let member_to_check = CsvMember::new(
                 MEMBERSHIP_NUMBER.to_owned(),
                 None,
@@ -359,17 +371,16 @@ mod tests {
         }
     }
 
-    mod check_member_against_membership {
-        use crate::membership::check::check_member_against_membership;
+    mod check_member_name_or_identity {
+        use crate::membership::check::check_member_name_or_identity;
         use chrono::NaiveDate;
         use dto::checked_member::CheckResult;
         use dto::csv_member::CsvMember;
         use dto::membership::Membership;
         use dto::membership::tests::{MEMBERSHIP_NUMBER, get_expected_membership};
-        use dto::uda_member::UdaMember;
 
         #[test]
-        fn num_name_match() {
+        fn name_match() {
             let membership = get_expected_membership();
             let member_to_check = CsvMember::new(
                 membership.membership_number().to_owned(),
@@ -378,12 +389,12 @@ mod tests {
                 Some(membership.first_name().to_owned()),
             );
 
-            let result = check_member_against_membership(&member_to_check, &membership);
+            let result = check_member_name_or_identity(&member_to_check, &membership);
             assert_eq!(CheckResult::Match(membership), result);
         }
 
         #[test]
-        fn num_normalized_name_match() {
+        fn normalized_name_match() {
             let membership = Membership::new(
                 "Doe".to_string(),
                 "Jon".to_string(),
@@ -405,40 +416,12 @@ mod tests {
                 Some(membership.first_name().to_owned()),
             );
 
-            let result = check_member_against_membership(&member_to_check, &membership);
+            let result = check_member_name_or_identity(&member_to_check, &membership);
             assert_eq!(CheckResult::Match(membership), result);
         }
 
         #[test]
-        fn num_prefix_0_name_match() {
-            let membership = get_expected_membership();
-            let member_to_check = CsvMember::new(
-                format!("0{}", membership.membership_number().to_owned()),
-                None,
-                Some(membership.name().to_owned()),
-                Some(membership.first_name().to_owned()),
-            );
-
-            let result = check_member_against_membership(&member_to_check, &membership);
-            assert_eq!(CheckResult::Match(membership), result);
-        }
-
-        #[test]
-        fn num_doesnt_match() {
-            let membership = get_expected_membership();
-            let member_to_check = CsvMember::new(
-                format!("{} oops", membership.membership_number().to_owned()),
-                None,
-                Some(membership.name().to_owned()),
-                Some(membership.first_name().to_owned()),
-            );
-
-            let result = check_member_against_membership(&member_to_check, &membership);
-            assert_eq!(CheckResult::NoMatch, result);
-        }
-
-        #[test]
-        fn num_match_but_last_name_doesnt_match() {
+        fn last_name_doesnt_match() {
             let membership = get_expected_membership();
             let member_to_check = CsvMember::new(
                 membership.membership_number().to_owned(),
@@ -450,12 +433,12 @@ mod tests {
                 Some(membership.first_name().to_owned()),
             );
 
-            let result = check_member_against_membership(&member_to_check, &membership);
+            let result = check_member_name_or_identity(&member_to_check, &membership);
             assert_eq!(CheckResult::PartialMatch(membership), result);
         }
 
         #[test]
-        fn num_match_but_first_name_doesnt_match() {
+        fn first_name_doesnt_match() {
             let membership = get_expected_membership();
             let member_to_check = CsvMember::new(
                 membership.membership_number().to_owned(),
@@ -467,12 +450,12 @@ mod tests {
                 )),
             );
 
-            let result = check_member_against_membership(&member_to_check, &membership);
+            let result = check_member_name_or_identity(&member_to_check, &membership);
             assert_eq!(CheckResult::PartialMatch(membership), result);
         }
 
         #[test]
-        fn num_match_but_last_name_and_first_name_doesnt_match() {
+        fn last_name_and_first_name_dont_match() {
             let membership = get_expected_membership();
             let member_to_check = CsvMember::new(
                 membership.membership_number().to_owned(),
@@ -487,12 +470,12 @@ mod tests {
                 )),
             );
 
-            let result = check_member_against_membership(&member_to_check, &membership);
+            let result = check_member_name_or_identity(&member_to_check, &membership);
             assert_eq!(CheckResult::PartialMatch(membership), result);
         }
 
         #[test]
-        fn num_identity_in_order_first_last_name_match() {
+        fn identity_in_order_first_last_name_match() {
             let membership = get_expected_membership();
             let member_to_check = CsvMember::new(
                 membership.membership_number().to_owned(),
@@ -501,12 +484,12 @@ mod tests {
                 None,
             );
 
-            let result = check_member_against_membership(&member_to_check, &membership);
+            let result = check_member_name_or_identity(&member_to_check, &membership);
             assert_eq!(CheckResult::Match(membership), result);
         }
 
         #[test]
-        fn num_identity_in_order_last_first_name_match() {
+        fn identity_in_order_last_first_name_match() {
             let membership = get_expected_membership();
             let member_to_check = CsvMember::new(
                 membership.membership_number().to_owned(),
@@ -515,12 +498,12 @@ mod tests {
                 None,
             );
 
-            let result = check_member_against_membership(&member_to_check, &membership);
+            let result = check_member_name_or_identity(&member_to_check, &membership);
             assert_eq!(CheckResult::Match(membership), result);
         }
 
         #[test]
-        fn num_matches_identity_doesnt_match() {
+        fn identity_doesnt_match() {
             let membership = get_expected_membership();
             let member_to_check = CsvMember::new(
                 membership.membership_number().to_owned(),
@@ -533,12 +516,33 @@ mod tests {
                 None,
             );
 
-            let result = check_member_against_membership(&member_to_check, &membership);
+            let result = check_member_name_or_identity(&member_to_check, &membership);
+            assert_eq!(CheckResult::NoMatch, result);
+        }
+    }
+    mod check_member_membership_num {
+        use crate::membership::check::check_member_membership_num;
+        use dto::checked_member::CheckResult;
+        use dto::csv_member::CsvMember;
+        use dto::membership::tests::get_expected_membership;
+        use dto::uda_member::UdaMember;
+
+        #[test]
+        fn num_doesnt_match() {
+            let membership = get_expected_membership();
+            let member_to_check = CsvMember::new(
+                format!("{} oops", membership.membership_number().to_owned()),
+                None,
+                Some(membership.name().to_owned()),
+                Some(membership.first_name().to_owned()),
+            );
+
+            let result = check_member_membership_num(&member_to_check, &membership);
             assert_eq!(CheckResult::NoMatch, result);
         }
 
         #[test]
-        fn no_num_but_name_matches() {
+        fn no_num() {
             let membership = get_expected_membership();
             let member_to_check = UdaMember::new(
                 1,
@@ -550,59 +554,8 @@ mod tests {
                 false,
             );
 
-            let result = check_member_against_membership(&member_to_check, &membership);
+            let result = check_member_membership_num(&member_to_check, &membership);
             assert_eq!(CheckResult::PartialMatch(membership), result);
-        }
-
-        #[test]
-        fn no_num_and_last_name_doesnt_match() {
-            let membership = get_expected_membership();
-            let member_to_check = UdaMember::new(
-                1,
-                None,
-                membership.first_name().to_owned(),
-                format!("{} OOps", membership.name()),
-                "address@email.org".to_owned(),
-                None,
-                false,
-            );
-
-            let result = check_member_against_membership(&member_to_check, &membership);
-            assert_eq!(CheckResult::NoMatch, result);
-        }
-
-        #[test]
-        fn no_num_and_first_name_doesnt_match() {
-            let membership = get_expected_membership();
-            let member_to_check = UdaMember::new(
-                1,
-                None,
-                format!("{} OOps", membership.first_name()),
-                membership.name().to_owned(),
-                "address@email.org".to_owned(),
-                None,
-                false,
-            );
-
-            let result = check_member_against_membership(&member_to_check, &membership);
-            assert_eq!(CheckResult::NoMatch, result);
-        }
-
-        #[test]
-        fn no_num_and_first_last_name_dont_match() {
-            let membership = get_expected_membership();
-            let member_to_check = UdaMember::new(
-                1,
-                None,
-                format!("{} OOps", membership.first_name()),
-                format!("{} OOps", membership.name()),
-                "address@email.org".to_owned(),
-                None,
-                false,
-            );
-
-            let result = check_member_against_membership(&member_to_check, &membership);
-            assert_eq!(CheckResult::NoMatch, result);
         }
     }
 }
