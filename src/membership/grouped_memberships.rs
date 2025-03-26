@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::Deref;
 
+// FIXME: delete this struct; it isn't useful anymore.
 /// A map of [Memberships], grouped by membership number.
 #[derive(Debug, Serialize, Deserialize, Default, Eq, PartialEq)]
 pub struct GroupedMemberships {

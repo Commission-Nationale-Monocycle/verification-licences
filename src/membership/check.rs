@@ -29,6 +29,7 @@ fn check_member<T: MemberToCheck>(
     grouped_memberships: &GroupedMemberships,
     member_to_check: &T,
 ) -> CheckResult {
+    // FIXME: optimize
     let mut matches = BTreeSet::new();
     for (_, memberships) in grouped_memberships.iter() {
         for membership in memberships.iter() {
