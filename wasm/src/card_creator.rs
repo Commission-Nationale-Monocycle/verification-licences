@@ -4,9 +4,8 @@ use crate::template::get_template;
 use crate::utils::{
     add_class, append_child, create_element, query_selector_single_element, set_attribute,
 };
-use dto::checked_member::{CheckedMember, MemberStatus};
+use dto::checked_member::{CheckResult, CheckedMember, MemberStatus};
 use dto::member_to_check::MemberToCheck;
-use dto::membership::Membership;
 use wasm_bindgen::JsCast;
 use web_sys::{Document, Element, HtmlAnchorElement, HtmlInputElement};
 
@@ -89,23 +88,29 @@ pub fn create_card_for_checked_member(
 
 fn create_membership_card(
     document: &Document,
-    membership: &Option<Membership>,
+    check_result: &CheckResult,
     status: &MemberStatus,
 ) -> Result<Element> {
     let card = get_membership_template(document, status)?;
-    if *status == MemberStatus::UpToDate || *status == MemberStatus::Expired {
-        let membership = membership.clone().ok_or_else(Error::default)?;
 
-        query_selector_single_element(&card, ".membership-name")?.set_inner_html(membership.name());
-        query_selector_single_element(&card, ".membership-first-name")?
-            .set_inner_html(membership.first_name());
-        query_selector_single_element(&card, ".membership-end-date")?
-            .set_inner_html(&membership.end_date().format("%d/%m/%Y").to_string());
-        let email_address_container =
-            query_selector_single_element(&card, "a.membership-email-address")?
-                .dyn_into::<HtmlAnchorElement>()?;
-        email_address_container.set_inner_html(membership.email_address());
-        email_address_container.set_href(&format!("mailto:{}", &membership.email_address()));
+    match check_result {
+        CheckResult::Match(membership) | CheckResult::PartialMatch(membership) => {
+            if *status == MemberStatus::UpToDate || *status == MemberStatus::Expired {
+                query_selector_single_element(&card, ".membership-name")?
+                    .set_inner_html(membership.name());
+                query_selector_single_element(&card, ".membership-first-name")?
+                    .set_inner_html(membership.first_name());
+                query_selector_single_element(&card, ".membership-end-date")?
+                    .set_inner_html(&membership.end_date().format("%d/%m/%Y").to_string());
+                let email_address_container =
+                    query_selector_single_element(&card, "a.membership-email-address")?
+                        .dyn_into::<HtmlAnchorElement>()?;
+                email_address_container.set_inner_html(membership.email_address());
+                email_address_container
+                    .set_href(&format!("mailto:{}", &membership.email_address()));
+            }
+        }
+        CheckResult::NoMatch => {}
     }
     Ok(card)
 }

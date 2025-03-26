@@ -1,4 +1,5 @@
 use crate::fileo::credentials::FileoCredentials;
+use crate::membership::check::check_members;
 use crate::tools::email::send_email;
 use crate::tools::log_message_and_return;
 use crate::uda::credentials::UdaCredentials;
@@ -6,7 +7,7 @@ use crate::web::api::memberships_state::MembershipsState;
 use dto::checked_member::CheckedMember;
 use dto::csv_member::CsvMember;
 use dto::email::Email;
-use dto::member_identifier::MemberIdentifier;
+use dto::member_to_check::MemberToCheck;
 use dto::uda_member::UdaMember;
 use rocket::State;
 use rocket::form::Form;
@@ -54,7 +55,7 @@ pub async fn check_uda_members(
     Ok(json!(result).to_string())
 }
 
-fn check<T: MemberIdentifier>(
+fn check<T: MemberToCheck>(
     memberships_state: &Mutex<MembershipsState>,
     members_to_check: Vec<T>,
 ) -> Result<Vec<CheckedMember<T>>, String> {
@@ -64,7 +65,7 @@ fn check<T: MemberIdentifier>(
     ))?;
 
     let memberships = memberships_state.memberships();
-    let checked_members = memberships.check_members(members_to_check);
+    let checked_members = check_members(memberships, members_to_check);
 
     Ok(checked_members)
 }
@@ -100,7 +101,7 @@ mod tests {
         use crate::web::api::memberships_controller::check_uda_members;
         use crate::web::api::memberships_state::MembershipsState;
         use crate::web::credentials_storage::CredentialsStorage;
-        use dto::checked_member::CheckedMember;
+        use dto::checked_member::{CheckResult, CheckedMember};
         use dto::membership::tests::get_expected_membership;
         use dto::uda_member::UdaMember;
         use rocket::http::hyper::header::CONTENT_TYPE;
@@ -186,8 +187,8 @@ mod tests {
                 response.into_json().await.unwrap();
             assert_eq!(
                 vec![
-                    CheckedMember::new(member_1, Some(get_expected_membership())),
-                    CheckedMember::new(member_2, None),
+                    CheckedMember::new(member_1, CheckResult::Match(get_expected_membership())),
+                    CheckedMember::new(member_2, CheckResult::NoMatch),
                 ],
                 checked_members
             )

@@ -1,4 +1,3 @@
-use crate::member_identifier::MemberIdentifier;
 use crate::member_to_check::MemberToCheck;
 use csv::{Reader, StringRecord};
 use derive_getters::Getters;
@@ -106,15 +105,13 @@ impl CsvMember {
     }
 }
 
-impl MemberIdentifier for CsvMember {
-    fn membership_num(&self) -> Option<String> {
-        Some(self.membership_num().clone())
-    }
-}
-
 impl MemberToCheck for CsvMember {
     fn id(&self) -> Option<u16> {
         None
+    }
+
+    fn membership_num(&self) -> Option<String> {
+        Some(self.membership_num().clone())
     }
 
     fn identity(&self) -> Option<String> {
@@ -218,7 +215,6 @@ mod tests {
     }
 
     use crate::csv_member::CsvMember;
-    use crate::member_identifier::MemberIdentifier;
     use crate::member_to_check::MemberToCheck;
 
     fn get_membership_number() -> String {
@@ -254,7 +250,7 @@ mod tests {
         let member = get_csv_member();
         assert_eq!(
             Some(get_membership_number()),
-            MemberIdentifier::membership_num(&member)
+            MemberToCheck::membership_num(&member)
         );
     }
 
