@@ -93,7 +93,7 @@ fn create_membership_card(
 ) -> Result<Element> {
     let card = get_membership_template(document, status)?;
 
-    match check_result {
+    match &check_result {
         CheckResult::Match(membership) | CheckResult::PartialMatch(membership) => {
             if *status == MemberStatus::UpToDate || *status == MemberStatus::Expired {
                 query_selector_single_element(&card, ".membership-name")?
@@ -108,6 +108,10 @@ fn create_membership_card(
                 email_address_container.set_inner_html(membership.email_address());
                 email_address_container
                     .set_href(&format!("mailto:{}", &membership.email_address()));
+            }
+
+            if matches!(check_result, CheckResult::PartialMatch(_)) {
+                add_class(&card, "membership-partial-match");
             }
         }
         CheckResult::NoMatch => {}
