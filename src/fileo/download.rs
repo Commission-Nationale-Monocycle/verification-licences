@@ -13,7 +13,7 @@ use crate::membership::file_details::FileDetails;
 use crate::tools::web::build_client;
 use crate::tools::{log_error_and_return, log_message_and_return};
 use crate::web::error::WebError::{
-    CantReadPageContent, ConnectionFailed, NotFound, WrongCredentials,
+    CantReadPageContent, ConnectionFailed, LackOfPermissions, NotFound, WrongCredentials,
 };
 use chrono::Local;
 use encoding::all::ISO_8859_1;
@@ -67,9 +67,13 @@ pub async fn login_to_fileo(
 
     if text.contains("L'identifiant et le mot de passe ne correspondent pas")
         || text.contains("Le champ 'Identifiant' est obligatoire")
-        || text.contains(" Le champ 'Mot de passe' est obligatoire")
+        || text.contains("Le champ 'Mot de passe' est obligatoire")
     {
         Err(ApplicationError::from(WrongCredentials))
+    } else if !text
+        .contains("Profil Commission thématique - UNSLL - Commission Nationale Monocycle")
+    {
+        Err(ApplicationError::from(LackOfPermissions))
     } else {
         Ok(())
     }
@@ -267,6 +271,7 @@ mod tests {
     use crate::membership::config::MembershipsProviderConfig;
     use crate::membership::get_memberships_file_folder;
     use crate::tools::test::tests::temp_dir;
+    use crate::web::error::WebError;
 
     #[async_test]
     async fn should_download_members_list() {
@@ -287,7 +292,9 @@ mod tests {
         Mock::given(method("POST"))
             .and(path("/page.php"))
             .and(body_string_contains("Action=connect_user"))
-            .respond_with(ResponseTemplate::new(200))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                "Profil Commission thématique - UNSLL - Commission Nationale Monocycle",
+            ))
             .mount(&mock_server)
             .await;
         Mock::given(method("POST"))
@@ -354,7 +361,9 @@ mod tests {
         Mock::given(method("POST"))
             .and(path("/page.php"))
             .and(body_string_contains("Action=connect_user"))
-            .respond_with(ResponseTemplate::new(200))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                "Profil Commission thématique - UNSLL - Commission Nationale Monocycle",
+            ))
             .mount(&mock_server)
             .await;
 
@@ -381,6 +390,90 @@ mod tests {
 
         let result = login_to_fileo(&client, &mock_server.uri(), &credentials).await;
         assert!(result.is_err_and(|e| matches!(e, Web(ConnectionFailed))));
+    }
+
+    #[async_test]
+    async fn should_not_connect_when_credentials_dont_match() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/page.php"))
+            .and(body_string_contains("Action=connect_user"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string("L'identifiant et le mot de passe ne correspondent pas"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client = build_client().unwrap();
+        let credentials = FileoCredentials::new(String::new(), String::new());
+
+        let result = login_to_fileo(&client, &mock_server.uri(), &credentials).await;
+        assert!(result.is_err_and(|e| matches!(e, Web(WrongCredentials))));
+    }
+
+    #[async_test]
+    async fn should_not_connect_when_missing_id() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/page.php"))
+            .and(body_string_contains("Action=connect_user"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string("Le champ 'Identifiant' est obligatoire"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client = build_client().unwrap();
+        let credentials = FileoCredentials::new(String::new(), String::new());
+
+        let result = login_to_fileo(&client, &mock_server.uri(), &credentials).await;
+        assert!(result.is_err_and(|e| matches!(e, Web(WrongCredentials))));
+    }
+
+    #[async_test]
+    async fn should_not_connect_when_missing_password() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/page.php"))
+            .and(body_string_contains("Action=connect_user"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string("Le champ 'Mot de passe' est obligatoire"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client = build_client().unwrap();
+        let credentials = FileoCredentials::new(String::new(), String::new());
+
+        let result = login_to_fileo(&client, &mock_server.uri(), &credentials).await;
+        assert!(result.is_err_and(|e| matches!(e, Web(WrongCredentials))));
+    }
+
+    #[async_test]
+    async fn should_not_connect_when_lack_of_permissions() {
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/page.php"))
+            .and(body_string_contains("Action=connect_user"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string("Profil Club - The Best Unicycle Club Ever"),
+            )
+            .mount(&mock_server)
+            .await;
+
+        let client = build_client().unwrap();
+        let credentials = FileoCredentials::new(String::new(), String::new());
+
+        let result = login_to_fileo(&client, &mock_server.uri(), &credentials).await;
+        assert!(result.is_err_and(|e| matches!(e, Web(WebError::LackOfPermissions))));
     }
 
     #[async_test]
