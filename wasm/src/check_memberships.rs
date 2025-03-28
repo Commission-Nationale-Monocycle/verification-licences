@@ -156,36 +156,24 @@ pub async fn handle_email_sending() {
 
 fn get_email_addresses_to_notify(document: &Document) -> Result<Vec<String>> {
     let checked_members_container = user_interface::get_checked_members_container(document);
-    let expired_memberships = checked_members_container?
-        .get_elements_by_class_name(EXPIRED_MEMBERSHIP_CONTAINER_CLASS_NAME);
+    let memberships = checked_members_container?.get_elements_by_class_name("membership");
     let mut email_addresses_to_notify = vec![];
-    for index in 0..expired_memberships.length() {
-        let expired_membership = expired_memberships.get_with_index(index).unwrap();
-        let checkboxes = expired_membership.get_elements_by_tag_name("input");
-        if checkboxes.length() != 1 {
-            Err(Error::new(
-                DEFAULT_ERROR_MESSAGE,
-                &format!(
-                    "There should be a single checkbox [count: {}]",
-                    checkboxes.length()
-                ),
-            ))?
-        } else {
-            let checkbox = checkboxes
-                .get_with_index(0)
-                .unwrap()
-                .dyn_into::<HtmlInputElement>()?;
-            let is_checked = checkbox.checked();
-            if is_checked {
-                let address_container = query_selector_single_element(
-                    &expired_membership,
-                    ".email-address-container a",
-                )?;
-                match address_container.text_content() {
-                    None => set_loading(false)?,
-                    Some(email_address) => email_addresses_to_notify.push(email_address),
-                };
-            }
+    for index in 0..memberships.length() {
+        let membership = memberships.get_with_index(index).unwrap();
+        if membership.class_name().contains("membership-unknown") {
+            continue;
+        }
+
+        let checkbox = query_selector_single_element(&membership, "input[type=\"checkbox\"]")?
+            .dyn_into::<HtmlInputElement>()?;
+        let is_checked = checkbox.checked();
+        if is_checked {
+            let address_container =
+                query_selector_single_element(&membership, ".email-address-container a")?;
+            match address_container.text_content() {
+                None => set_loading(false)?,
+                Some(email_address) => email_addresses_to_notify.push(email_address),
+            };
         }
     }
     Ok(email_addresses_to_notify)
