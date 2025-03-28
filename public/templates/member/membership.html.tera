@@ -7,6 +7,9 @@
         <div>Adresse mail :
             <div class="email-address-container"><a class="membership-email-address"></a></div>
         </div>
+        <label class="send-email-checkbox">
+            Envoyer un email <input type="checkbox" onclick="app.toggle_go_to_email_step_button(document)">
+        </label>
     </div>
 </template>
 

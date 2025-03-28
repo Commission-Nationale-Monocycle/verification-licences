@@ -9,8 +9,6 @@ use dto::member_to_check::MemberToCheck;
 use wasm_bindgen::JsCast;
 use web_sys::{Document, Element, HtmlAnchorElement, HtmlInputElement};
 
-pub const EXPIRED_MEMBERSHIP_CONTAINER_CLASS_NAME: &str = "membership-expired";
-
 pub fn create_card_for_member_to_check(
     document: &Document,
     member_to_check: &impl MemberToCheck,
