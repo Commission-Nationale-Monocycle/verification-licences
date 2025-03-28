@@ -54,6 +54,11 @@ pub async fn login() {
                         "Vos identifiants sont incorrects. Veuillez réessayer.",
                         "Wrong credentials, can't login",
                     ))
+                } else if status == 403 {
+                    Err(Error::new(
+                        "Vous n'avez pas les droits nécessaires à la gestion des licences de la CNM.",
+                        "Lack permissions, can't login.",
+                    ))
                 } else {
                     Err(Error::new(
                         "Impossible de se connecter. Veuillez réessayer.",
