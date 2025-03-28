@@ -1,8 +1,7 @@
 use crate::Result;
-use crate::card_creator::EXPIRED_MEMBERSHIP_CONTAINER_CLASS_NAME;
 use crate::component::alert::{AlertLevel, create_alert, unwrap_or_alert};
 use crate::component::stepper::next_step;
-use crate::error::{DEFAULT_ERROR_MESSAGE, DEFAULT_SERVER_ERROR_MESSAGE, Error};
+use crate::error::{DEFAULT_SERVER_ERROR_MESSAGE, Error};
 use crate::user_interface::{
     get_email_body, get_email_subject, get_members_to_check_hidden_input, set_loading, with_loading,
 };
