@@ -70,7 +70,12 @@ fn retrieve_imported_members_from_xls<T: AsRef<[u8]>>(
 
     let members = deserializer
         .flat_map(|result| match result {
-            Ok(member) => Some(member),
+            Ok(member) => {
+                match member.id() {
+                    0..2000 => Some(member),
+                    _ => None, // IDs over 2000 relate to non-competitors: they don't require a membership.
+                }
+            }
             Err(error) => {
                 warn!("Can't deserialize UDA member. Ignoring. {:?}", error);
                 None
@@ -110,6 +115,15 @@ pub mod tests {
                 "jonette.snow@email.com".to_owned(),
                 None,
                 false,
+            ),
+            UdaMember::new(
+                1999,
+                Some("456789".to_owned()),
+                "Kris".to_owned(),
+                "Holm".to_owned(),
+                "kris.holm@email.com".to_owned(),
+                Some("KH Team".to_owned()),
+                true,
             ),
         ]
     }
@@ -223,6 +237,23 @@ pub mod tests {
                     "jonette.snow@email.com".to_owned(),
                     None,
                     false,
+                ),
+                ImportedUdaMember::new(
+                    1999,
+                    Some("456789".to_owned()),
+                    None,
+                    "Kris".to_owned(),
+                    "Holm".to_owned(),
+                    "10.08.1975".to_owned(),
+                    "57, The Mountain".to_owned(),
+                    "Everest".to_owned(),
+                    Some("Canada".to_owned()),
+                    "78945".to_owned(),
+                    "CA".to_owned(),
+                    None,
+                    "kris.holm@email.com".to_owned(),
+                    Some("KH Team".to_owned()),
+                    true,
                 ),
             ]
         }
