@@ -3,7 +3,9 @@ use crate::component::login_form::init_login_form;
 use crate::component::stepper::add_step;
 use web_sys::Document;
 
+mod check;
 mod credentials;
+pub mod load_members_from_csv;
 pub mod login;
 mod update_list;
 

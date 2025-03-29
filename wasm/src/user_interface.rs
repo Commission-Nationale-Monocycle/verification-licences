@@ -15,11 +15,9 @@ use web_sys::{Document, Element, HtmlElement, HtmlInputElement};
 // region Handle "members to check" file
 pub fn render_lines(
     document: &Document,
-    csv_content: &str,
     members_to_check: &BTreeSet<CsvMember>,
     wrong_lines: &[String],
 ) -> Result<()> {
-    let members_to_check_hidden_input = get_members_to_check_hidden_input(document)?;
     let members_to_check_table = get_members_to_check_table(document)?;
     let wrong_lines_paragraph = get_wrong_line_paragraph(document)?;
     let submit_button = get_submit_button(document)?;
@@ -39,7 +37,6 @@ pub fn render_lines(
         for line in lines {
             append_child(&members_to_check_table, &line)?;
         }
-        set_attribute(&members_to_check_hidden_input, "value", csv_content)?;
         remove_attribute(&submit_button, "disabled")?;
     } else {
         set_attribute(&submit_button, "disabled", "true")?;
@@ -172,9 +169,6 @@ fn create_accordion_line_for_checked_members(
 // endregion
 
 // region Get parts of the document
-pub fn get_members_to_check_hidden_input(document: &Document) -> Result<HtmlInputElement> {
-    get_element_by_id_dyn(document, "members-to-check-input")
-}
 
 fn get_members_to_check_table(document: &Document) -> Result<Element> {
     get_element_by_id(document, "members-to-check-table")

@@ -18,10 +18,6 @@
         </div>
 
         <div id="check-members-form">
-            <input id="members-to-check-input"
-                   name="members_to_check"
-                   type="hidden"
-                   required>
             <div id="members-to-check-table" class="flex flex-col md:flex-row flex-wrap">
 
             </div>
@@ -29,15 +25,17 @@
 
             </div>
             <p></p>
-            <button id="submit-members" type="button" onclick="app.handle_form_submission(document)" disabled>Vérifier
-                les licences
+            <button id="submit-members" type="button" onclick="app.handle_form_submission(document)" disabled>
+                Vérifier les licences
             </button>
         </div>
     </div>
 
     <div class="step">
         <div id="checked-members"></div>
-        <button type="button" id="go-to-send-email-step" onclick="app.go_to_notification_step(document)" disabled>Notifier les membres cochés</button>
+        <button type="button" id="go-to-send-email-step" onclick="app.go_to_notification_step(document)" disabled>
+            Notifier les membres cochés
+        </button>
     </div>
 
     <div class="step">
