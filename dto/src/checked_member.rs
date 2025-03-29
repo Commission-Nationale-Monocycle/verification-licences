@@ -103,7 +103,7 @@ mod tests {
     // region utils
     fn get_member_to_check_2() -> CsvMember {
         CsvMember::new(
-            "2".to_owned(),
+            Some("2".to_owned()),
             None,
             Some("".to_owned()),
             Some("".to_owned()),
@@ -112,7 +112,7 @@ mod tests {
 
     fn get_member_to_check_1() -> CsvMember {
         CsvMember::new(
-            "1".to_owned(),
+            Some("1".to_owned()),
             None,
             Some("".to_owned()),
             Some("".to_owned()),
