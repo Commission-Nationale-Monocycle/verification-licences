@@ -269,7 +269,7 @@ mod tests {
             let member_to_check = CsvMember::new(
                 Some(format!("  {MEMBERSHIP_NUMBER} ")),
                 None,
-                Some(format!(" {MEMBER_NAME}  \t")),
+                Some(format!(" {MEMBER_NAME}  ")),
                 Some(format!("{MEMBER_FIRST_NAME}  ")),
             );
 
