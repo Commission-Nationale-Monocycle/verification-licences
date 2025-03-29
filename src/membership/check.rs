@@ -39,7 +39,7 @@ fn check_member<T: MemberToCheck>(
     matches.extend(check_member_by_property(
         memberships_by_num,
         member_to_check,
-        MemberToCheck::membership_num,
+        |member_to_check| member_to_check.membership_num().map(|num| normalize(&num)),
         check_member_name_or_identity,
     ));
     matches.extend(check_member_by_property(
@@ -60,8 +60,12 @@ fn check_member<T: MemberToCheck>(
     matches.extend(check_member_by_property(
         memberships_by_identity,
         member_to_check,
-        MemberToCheck::identity,
-        check_member_name_or_identity,
+        |member_to_check| {
+            member_to_check
+                .identity()
+                .map(|identity| normalize(&identity))
+        },
+        check_member_membership_num,
     ));
 
     if let Some(check_result) = matches.last() {
@@ -223,7 +227,7 @@ mod tests {
         use crate::membership::check::check_member;
         use crate::membership::indexed_memberships::IndexedMemberships;
         use chrono::Months;
-        use dto::checked_member::CheckResult::{Match, NoMatch};
+        use dto::checked_member::CheckResult::{Match, NoMatch, PartialMatch};
         use dto::csv_member::CsvMember;
         use dto::membership::Membership;
         use dto::membership::tests::{
@@ -259,6 +263,20 @@ mod tests {
         }
 
         #[test]
+        fn match_when_membership_num_last_name_first_name_not_trimmed() {
+            let membership = get_expected_membership();
+            let members = IndexedMemberships::from(vec![membership.clone()]);
+            let member_to_check = CsvMember::new(
+                Some(format!("  {MEMBERSHIP_NUMBER} ")),
+                None,
+                Some(format!(" {MEMBER_NAME}  \t")),
+                Some(format!("{MEMBER_FIRST_NAME}  ")),
+            );
+
+            assert_eq!(Match(membership), check_member(&members, &member_to_check));
+        }
+
+        #[test]
         fn match_when_num_and_identity() {
             let membership = get_expected_membership();
             let members = IndexedMemberships::from(vec![membership.clone()]);
@@ -270,6 +288,23 @@ mod tests {
             );
 
             assert_eq!(Match(membership), check_member(&members, &member_to_check));
+        }
+
+        #[test]
+        fn partial_match_when_identity() {
+            let membership = get_expected_membership();
+            let members = IndexedMemberships::from(vec![membership.clone()]);
+            let member_to_check = CsvMember::new(
+                None,
+                Some(format!("{MEMBER_NAME} {MEMBER_FIRST_NAME}")),
+                None,
+                None,
+            );
+
+            assert_eq!(
+                PartialMatch(membership),
+                check_member(&members, &member_to_check)
+            );
         }
 
         #[test]
