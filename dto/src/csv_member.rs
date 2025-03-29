@@ -8,7 +8,7 @@ use std::cmp::Ordering;
 /// for event organizer to check whether participants have a valid membership or not.
 #[derive(Debug, Getters, Serialize, Deserialize, Eq, PartialEq, Clone)]
 pub struct CsvMember {
-    membership_num: String,
+    membership_num: Option<String>,
     identity: Option<String>,
     name: Option<String>,
     first_name: Option<String>,
@@ -16,7 +16,7 @@ pub struct CsvMember {
 
 impl CsvMember {
     pub fn new(
-        membership_num: String,
+        membership_num: Option<String>,
         identity: Option<String>,
         name: Option<String>,
         first_name: Option<String>,
@@ -36,7 +36,7 @@ impl MemberToCheck for CsvMember {
     }
 
     fn membership_num(&self) -> Option<String> {
-        Some(self.membership_num().clone())
+        self.membership_num().clone()
     }
 
     fn identity(&self) -> Option<String> {
@@ -102,7 +102,7 @@ mod tests {
 
     fn get_csv_member() -> CsvMember {
         CsvMember::new(
-            get_membership_number(),
+            Some(get_membership_number()),
             Some(get_identity()),
             Some(get_last_name()),
             Some(get_first_name()),

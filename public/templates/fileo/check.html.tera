@@ -11,10 +11,25 @@
         </div>
 
         <div class="input-container">
+            <label class="file-format-input" for="members-to-check-format-selector">
+                Sélectionnez le format du fichier CSV
+            </label>
+            <div class="selector-container">
+                <select id="members-to-check-format-selector" class="peer">
+                    <option value="MembershipNumberLastNameFirstName" selected>Numéro d'adhésion;Nom;Prénom</option>
+                    <option value="MembershipNumberIdentity">Numéro d'adhésion;Identité</option>
+                    <option value="MembershipNumber">Numéro d'adhésion</option>
+                    <option value="LastNameFirstName">Nom;Prénom</option>
+                    <option value="Identity">Identité</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="input-container">
             <label class="file-input-label" for="members-to-check-picker">Sélectionnez le fichier CSV contenant les
-                licences à vérifier. Celui-ci doit être dans l'un des deux formats suivants :<br/><code>Numéro d'adhésion;Identité</code><br/>ou<br/><code>Numéro d'adhésion;Nom;Prénom</code></label>
+                licences à vérifier.</label>
             <input id="members-to-check-picker" type="file" accept=".text/csv,.csv"
-                   oninput="app.handle_members_to_check_file(this)">
+                   oninput="app.handle_members_to_check_file()">
         </div>
 
         <div id="check-members-form">
@@ -25,7 +40,7 @@
 
             </div>
             <p></p>
-            <button id="submit-members" type="button" onclick="app.handle_form_submission(document)" disabled>
+            <button id="submit-members" type="button" onclick="app.handle_form_submission()" disabled>
                 Vérifier les licences
             </button>
         </div>

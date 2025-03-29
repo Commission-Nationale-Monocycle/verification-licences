@@ -185,7 +185,7 @@ mod tests {
             let membership = get_expected_membership();
             let members = IndexedMemberships::from(vec![membership.clone()]);
             let member_to_check = CsvMember::new(
-                MEMBERSHIP_NUMBER.to_owned(),
+                Some(MEMBERSHIP_NUMBER.to_owned()),
                 None,
                 Some(MEMBER_NAME.to_owned()),
                 Some(MEMBER_FIRST_NAME.to_owned()),
@@ -206,7 +206,7 @@ mod tests {
             let members = IndexedMemberships::from(vec![membership]);
             let invalid_membership_number = format!("{MEMBERSHIP_NUMBER} oops");
             let member_to_check = CsvMember::new(
-                invalid_membership_number,
+                Some(invalid_membership_number),
                 None,
                 Some(MEMBER_NAME.to_owned()),
                 Some(MEMBER_FIRST_NAME.to_owned()),
@@ -235,7 +235,7 @@ mod tests {
             let membership = get_expected_membership();
             let members = IndexedMemberships::from(vec![membership.clone()]);
             let member_to_check = CsvMember::new(
-                MEMBERSHIP_NUMBER.to_owned(),
+                Some(MEMBERSHIP_NUMBER.to_owned()),
                 None,
                 Some(MEMBER_NAME.to_owned()),
                 Some(MEMBER_FIRST_NAME.to_owned()),
@@ -249,7 +249,7 @@ mod tests {
             let membership = get_expected_membership();
             let members = IndexedMemberships::from(vec![membership.clone()]);
             let member_to_check = CsvMember::new(
-                format!("0{MEMBERSHIP_NUMBER}"), // Prepending with a 0 should not change anything
+                Some(format!("0{MEMBERSHIP_NUMBER}")), // Prepending with a 0 should not change anything
                 None,
                 Some(MEMBER_NAME.to_owned()),
                 Some(MEMBER_FIRST_NAME.to_owned()),
@@ -263,7 +263,7 @@ mod tests {
             let membership = get_expected_membership();
             let members = IndexedMemberships::from(vec![membership.clone()]);
             let member_to_check = CsvMember::new(
-                MEMBERSHIP_NUMBER.to_owned(), // Prepending with a 0 should not change anything
+                Some(MEMBERSHIP_NUMBER.to_owned()), // Prepending with a 0 should not change anything
                 Some(format!("{} {}", MEMBER_NAME, MEMBER_FIRST_NAME)),
                 None,
                 None,
@@ -278,7 +278,7 @@ mod tests {
             let members = IndexedMemberships::from(vec![membership]);
             let invalid_membership_number = format!("{MEMBERSHIP_NUMBER} oops");
             let member_to_check = CsvMember::new(
-                invalid_membership_number,
+                Some(invalid_membership_number),
                 None,
                 Some(MEMBER_NAME.to_owned()),
                 Some(MEMBER_FIRST_NAME.to_owned()),
@@ -324,7 +324,7 @@ mod tests {
                 not_matching_membership,
             ]);
             let member_to_check = CsvMember::new(
-                MEMBERSHIP_NUMBER.to_owned(),
+                Some(MEMBERSHIP_NUMBER.to_owned()),
                 None,
                 Some(MEMBER_NAME.to_owned()),
                 Some(MEMBER_FIRST_NAME.to_owned()),
@@ -360,7 +360,7 @@ mod tests {
             let members =
                 IndexedMemberships::from(vec![newest_membership.clone(), oldest_membership]);
             let member_to_check = CsvMember::new(
-                MEMBERSHIP_NUMBER.to_owned(),
+                Some(MEMBERSHIP_NUMBER.to_owned()),
                 None,
                 Some(MEMBER_NAME.to_owned()),
                 Some(MEMBER_FIRST_NAME.to_owned()),
@@ -385,7 +385,7 @@ mod tests {
         fn name_match() {
             let membership = get_expected_membership();
             let member_to_check = CsvMember::new(
-                membership.membership_number().to_owned(),
+                Some(membership.membership_number().to_owned()),
                 None,
                 Some(membership.name().to_owned()),
                 Some(membership.first_name().to_owned()),
@@ -412,7 +412,7 @@ mod tests {
                 "Z01234".to_string(),
             );
             let member_to_check = CsvMember::new(
-                membership.membership_number().to_owned(),
+                Some(membership.membership_number().to_owned()),
                 None,
                 Some("Do-é".to_owned()),
                 Some(membership.first_name().to_owned()),
@@ -426,7 +426,7 @@ mod tests {
         fn last_name_doesnt_match() {
             let membership = get_expected_membership();
             let member_to_check = CsvMember::new(
-                membership.membership_number().to_owned(),
+                Some(membership.membership_number().to_owned()),
                 None,
                 Some(format!(
                     "A whole other name: {}",
@@ -443,7 +443,7 @@ mod tests {
         fn first_name_doesnt_match() {
             let membership = get_expected_membership();
             let member_to_check = CsvMember::new(
-                membership.membership_number().to_owned(),
+                Some(membership.membership_number().to_owned()),
                 None,
                 Some(membership.name().to_owned()),
                 Some(format!(
@@ -460,7 +460,7 @@ mod tests {
         fn last_name_and_first_name_dont_match() {
             let membership = get_expected_membership();
             let member_to_check = CsvMember::new(
-                membership.membership_number().to_owned(),
+                Some(membership.membership_number().to_owned()),
                 None,
                 Some(format!(
                     "A whole other name: {}",
@@ -480,7 +480,7 @@ mod tests {
         fn identity_in_order_first_last_name_match() {
             let membership = get_expected_membership();
             let member_to_check = CsvMember::new(
-                membership.membership_number().to_owned(),
+                Some(membership.membership_number().to_owned()),
                 Some(format!("{} {}", membership.first_name(), membership.name())),
                 None,
                 None,
@@ -494,7 +494,7 @@ mod tests {
         fn identity_in_order_last_first_name_match() {
             let membership = get_expected_membership();
             let member_to_check = CsvMember::new(
-                membership.membership_number().to_owned(),
+                Some(membership.membership_number().to_owned()),
                 Some(format!("{} {}", membership.name(), membership.first_name())),
                 None,
                 None,
@@ -508,7 +508,7 @@ mod tests {
         fn identity_doesnt_match() {
             let membership = get_expected_membership();
             let member_to_check = CsvMember::new(
-                membership.membership_number().to_owned(),
+                Some(membership.membership_number().to_owned()),
                 Some(format!(
                     "{} {} Oops",
                     membership.name(),
@@ -525,8 +525,12 @@ mod tests {
         #[test]
         fn no_name_no_identity() {
             let membership = get_expected_membership();
-            let member_to_check =
-                CsvMember::new(membership.membership_number().to_owned(), None, None, None);
+            let member_to_check = CsvMember::new(
+                Some(membership.membership_number().to_owned()),
+                None,
+                None,
+                None,
+            );
 
             let result = check_member_name_or_identity(&member_to_check, &membership);
             assert_eq!(CheckResult::PartialMatch(membership), result);
@@ -544,7 +548,10 @@ mod tests {
         fn num_doesnt_match() {
             let membership = get_expected_membership();
             let member_to_check = CsvMember::new(
-                format!("{} oops", membership.membership_number().to_owned()),
+                Some(format!(
+                    "{} oops",
+                    membership.membership_number().to_owned()
+                )),
                 None,
                 Some(membership.name().to_owned()),
                 Some(membership.first_name().to_owned()),
