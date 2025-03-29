@@ -2,91 +2,16 @@ use crate::Result;
 use crate::component::alert::{AlertLevel, create_alert, unwrap_or_alert};
 use crate::component::stepper::next_step;
 use crate::error::{DEFAULT_SERVER_ERROR_MESSAGE, Error};
-use crate::user_interface::{
-    get_email_body, get_email_subject, get_members_to_check_hidden_input, set_loading, with_loading,
-};
-use crate::utils::{
-    get_document, get_element_by_id_dyn, get_value_from_element, query_selector_single_element,
-};
+use crate::user_interface::{get_email_body, get_email_subject, set_loading, with_loading};
+use crate::utils::{get_document, get_element_by_id_dyn, query_selector_single_element};
 use crate::web::fetch;
 use crate::{json, user_interface};
-use dto::checked_member::CheckedMember;
-use dto::csv_member::CsvMember;
 use dto::email::Email;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::{Document, HtmlButtonElement, HtmlInputElement, HtmlTextAreaElement};
 
-// region Handle "members to check" file
-#[wasm_bindgen]
-pub async fn handle_members_to_check_file(input: HtmlInputElement) {
-    with_loading(async || {
-        let document = get_document()?;
-
-        let csv_file = input
-            .files()
-            .expect("no files")
-            .get(0)
-            .expect("file should be accessible");
-
-        let promise = csv_file.text();
-        let text_jsvalue = wasm_bindgen_futures::JsFuture::from(promise).await?;
-        let csv_content = text_jsvalue.as_string().ok_or_else(|| Error::new("Le fichier CSV contient des caractères incorrects. Vérifiez l'encodage UTF-8 du fichier.", "csv file should contain only valid UTF-8 characters"))?;
-
-        let (members_to_check, wrong_lines) =
-            CsvMember::load_members_to_check_from_csv_string(&csv_content);
-
-        user_interface::render_lines(
-            &document,
-            &csv_content,
-            &members_to_check,
-            &wrong_lines,
-        )
-    }).await;
-}
-
-// endregion
-
-// region Handle form submission
-#[wasm_bindgen]
-pub async fn handle_form_submission(document: &Document) {
-    with_loading(async || {
-        let members_to_check_input = get_members_to_check_hidden_input(document)?;
-        let members_to_check = get_value_from_element(&members_to_check_input);
-        if members_to_check.trim().is_empty() {
-            return Err(Error::new(
-                "Impossible de valider un fichier vide. Veuillez réessayer.",
-                "Can't check an empty file.",
-            ));
-        }
-
-        let url = "/api/members/csv/check";
-        let body = format!("members_to_check={members_to_check}");
-        let response = fetch(
-            url,
-            "post",
-            Some("application/x-www-form-urlencoded"),
-            Some(&body),
-        )
-        .await
-        .map_err(|error| Error::from_parent(DEFAULT_SERVER_ERROR_MESSAGE, error))?;
-
-        let status = response.status();
-        if (200..400).contains(&status) {
-            let text = response.body().clone().unwrap_or(String::new());
-            let checked_members: Vec<CheckedMember<CsvMember>> = json::from_str(&text);
-            user_interface::handle_checked_members(document, &checked_members)?;
-            toggle_go_to_email_step_button(document);
-            next_step(document);
-
-            Ok(())
-        } else {
-            Err(Error::from_server_status_error(status))
-        }
-    })
-    .await;
-}
-
+// region Handle steps
 #[wasm_bindgen]
 pub fn toggle_go_to_email_step_button(document: &Document) {
     let email_addresses_to_notify = unwrap_or_alert(get_email_addresses_to_notify(document));

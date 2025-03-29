@@ -10,40 +10,33 @@ use dto::email::Email;
 use dto::member_to_check::MemberToCheck;
 use dto::uda_member::UdaMember;
 use rocket::State;
-use rocket::form::Form;
 use rocket::serde::json::{Json, json};
 use std::sync::Mutex;
 
-/// Check members as a CSV whose columns are:
-/// ```
-/// membership_number;lastname;firstname
-/// ```
+/// Check members coming from a CSV file.
 /// Return the result as JSON-encoded string,
 /// within which each member having a valid membership has its last occurrence associated,
 /// while each member having no valid membership has no element associated.
-#[post("/members/csv/check", data = "<members_to_check>")]
+#[post(
+    "/members/csv/check",
+    format = "application/json",
+    data = "<members_to_check>"
+)]
 pub async fn check_csv_members(
     memberships_state: &State<Mutex<MembershipsState>>,
-    members_to_check: Form<String>,
+    members_to_check: Json<Vec<CsvMember>>,
     _credentials: FileoCredentials,
 ) -> Result<String, String> {
-    let members_to_check = match CsvMember::load_members_to_check_from_csv_string(&members_to_check)
-    {
-        (members_to_check, wrong_lines) if wrong_lines.is_empty() => members_to_check,
-        (members_to_check, wrong_lines) => {
-            wrong_lines.iter().for_each(|wrong_line| {
-                error!("Line couldn't be read: {wrong_line}");
-            });
-            members_to_check
-        }
-    };
-
-    let result = check(memberships_state, members_to_check.into_iter().collect())?;
+    let result = check(memberships_state, members_to_check.into_inner())?;
 
     Ok(json!(result).to_string())
 }
 
-#[post("/members/uda/check", data = "<members_to_check>")]
+#[post(
+    "/members/uda/check",
+    format = "application/json",
+    data = "<members_to_check>"
+)]
 pub async fn check_uda_members(
     memberships_state: &State<Mutex<MembershipsState>>,
     members_to_check: Json<Vec<UdaMember>>,
