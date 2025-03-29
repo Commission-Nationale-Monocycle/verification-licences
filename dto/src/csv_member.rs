@@ -9,23 +9,23 @@ use std::cmp::Ordering;
 #[derive(Debug, Getters, Serialize, Deserialize, Eq, PartialEq, Clone)]
 pub struct CsvMember {
     membership_num: String,
+    identity: Option<String>,
     name: Option<String>,
     first_name: Option<String>,
-    identity: Option<String>,
 }
 
 impl CsvMember {
     pub fn new(
         membership_num: String,
+        identity: Option<String>,
         name: Option<String>,
         first_name: Option<String>,
-        identity: Option<String>,
     ) -> Self {
         Self {
             membership_num,
+            identity,
             name,
             first_name,
-            identity,
         }
     }
 }
