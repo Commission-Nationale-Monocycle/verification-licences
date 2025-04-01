@@ -21,6 +21,9 @@
                     <a href="/memberships">Liste des licences</a>
                 </li>
                 <li>
+                    <a href="/memberships/lookup">Rechercher</a>
+                </li>
+                <li>
                     <a href="/csv/check">Importer depuis un fichier CSV</a>
                 </li>
                 <li>
