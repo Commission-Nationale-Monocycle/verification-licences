@@ -6,6 +6,7 @@ pub(crate) mod error;
 pub(crate) mod file_details;
 pub(crate) mod import_from_file;
 pub(crate) mod indexed_memberships;
+pub(crate) mod look_up;
 pub(crate) mod memberships;
 
 #[cfg(not(feature = "demo"))]
