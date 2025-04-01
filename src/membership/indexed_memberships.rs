@@ -11,6 +11,8 @@ use std::ops::Deref;
 /// [Memberships] indexed by different keys:
 /// - Membership number
 /// - (Last name, first name)
+/// - Last name
+/// - First name
 /// - Identity.
 ///
 /// Can be dereferenced into [Memberships].
@@ -21,6 +23,8 @@ pub struct IndexedMemberships {
     memberships: Memberships,
     memberships_by_num: HashMap<String, Memberships>,
     memberships_by_name: HashMap<(String, String), Memberships>, // Indexed by (last name, first name)
+    memberships_by_last_name: HashMap<String, Memberships>,
+    memberships_by_first_name: HashMap<String, Memberships>,
     memberships_by_identity: HashMap<String, Memberships>,
 }
 
@@ -73,6 +77,11 @@ impl From<Vec<Membership>> for IndexedMemberships {
             )
         }));
 
+        let memberships_by_last_name = group_by(&value, |membership| normalize(membership.name()));
+
+        let memberships_by_first_name =
+            group_by(&value, |membership| normalize(membership.first_name()));
+
         let mut memberships_by_identity = group_by(&value, |membership| {
             format!(
                 "{}{}",
@@ -93,6 +102,8 @@ impl From<Vec<Membership>> for IndexedMemberships {
             memberships,
             memberships_by_num,
             memberships_by_name,
+            memberships_by_last_name,
+            memberships_by_first_name,
             memberships_by_identity,
         }
     }
@@ -194,6 +205,44 @@ mod tests {
 
                 map
             };
+            let expected_grouped_by_last_name = {
+                let mut map = HashMap::new();
+
+                map.insert(
+                    normalize(jon_doe.name()),
+                    Memberships::from(vec![
+                        jon_doe.clone(),
+                        jon_doe_previous_membership.clone(),
+                        other_jon_doe.clone(),
+                    ]),
+                );
+
+                map.insert(
+                    normalize(jonette_snow.name()),
+                    Memberships::from(vec![jonette_snow.clone()]),
+                );
+
+                map
+            };
+            let expected_grouped_by_first_name = {
+                let mut map = HashMap::new();
+
+                map.insert(
+                    normalize(jon_doe.first_name()),
+                    Memberships::from(vec![
+                        jon_doe.clone(),
+                        jon_doe_previous_membership.clone(),
+                        other_jon_doe.clone(),
+                    ]),
+                );
+
+                map.insert(
+                    normalize(jonette_snow.first_name()),
+                    Memberships::from(vec![jonette_snow.clone()]),
+                );
+
+                map
+            };
 
             let expected_grouped_by_identity = {
                 let mut map = HashMap::new();
@@ -249,10 +298,17 @@ mod tests {
                 expected_grouped_by_num,
                 indexed_memberships.memberships_by_num
             );
-            dbg!(&indexed_memberships.memberships_by_name);
             assert_eq!(
                 expected_grouped_by_name,
                 indexed_memberships.memberships_by_name
+            );
+            assert_eq!(
+                expected_grouped_by_last_name,
+                indexed_memberships.memberships_by_last_name
+            );
+            assert_eq!(
+                expected_grouped_by_first_name,
+                indexed_memberships.memberships_by_first_name
             );
             assert_eq!(
                 expected_grouped_by_identity,
