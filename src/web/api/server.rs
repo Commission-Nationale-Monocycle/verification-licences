@@ -44,6 +44,7 @@ impl Server for ApiServer {
                     memberships_controller::check_csv_members,
                     memberships_controller::check_uda_members,
                     memberships_controller::notify_members,
+                    memberships_controller::look_member_up,
                     fileo_controller::login,
                     fileo_controller::download_memberships,
                     uda_controller::login,
