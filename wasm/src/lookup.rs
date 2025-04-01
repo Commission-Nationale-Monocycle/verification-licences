@@ -41,17 +41,17 @@ pub async fn lookup(document: &Document) {
         let first_name = get_value_from_element(&first_name_input);
 
         let member_to_look_up = MemberToLookUp::new(
-            if membership_num == "" {
+            if membership_num.is_empty() {
                 None
             } else {
                 Some(membership_num)
             },
-            if last_name == "" {
+            if last_name.is_empty() {
                 None
             } else {
                 Some(last_name)
             },
-            if first_name == "" {
+            if first_name.is_empty() {
                 None
             } else {
                 Some(first_name)
