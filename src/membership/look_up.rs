@@ -10,7 +10,7 @@ pub fn look_member_up<'a>(
     look_member_up_by_membership_num(indexed_memberships, member_to_look_up)
         .or_else(|| look_member_up_by_last_name(indexed_memberships, member_to_look_up))
         .or_else(|| look_member_up_by_first_name(indexed_memberships, member_to_look_up))
-        .unwrap_or(Vec::new())
+        .unwrap_or_default()
 }
 
 fn look_member_up_by_membership_num<'a>(
@@ -89,7 +89,7 @@ fn look_member_up_by_first_name<'a>(
             .get(&normalize(first_name));
         let result = memberships
             .map(|memberships| memberships.iter().collect())
-            .unwrap_or(Vec::new());
+            .unwrap_or_default();
         Some(result)
     } else {
         None
