@@ -83,6 +83,21 @@ pub async fn list_memberships_unauthenticated() -> Redirect {
     Redirect::to(uri!("/fileo/login/?page=/memberships"))
 }
 
+#[get("/memberships/lookup")]
+pub async fn look_membership_up(_credentials: FileoCredentials) -> Template {
+    Template::render(
+        "member/lookup-member",
+        context! {
+            title: "Recherche d'adhésion",
+        },
+    )
+}
+
+#[get("/memberships/lookup", rank = 2)]
+pub async fn look_membership_up_unauthenticated() -> Redirect {
+    Redirect::to(uri!("/fileo/login/?page=/memberships/lookup"))
+}
+
 #[get("/csv/check")]
 pub async fn check_members_from_csv(
     memberships_state: &State<Mutex<MembershipsState>>,

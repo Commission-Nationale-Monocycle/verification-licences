@@ -1,0 +1,37 @@
+{% extends "base" %}
+
+{% block content %}
+    {% include "stepper" %}
+
+    <div id="lookup-container">
+        <div class="step current-step">
+            <div class="lookup-form">
+                <div>
+                    <label for="membership-num-input">Numéro d'adhésion</label>
+                    <input type="text" id="membership-num-input"/>
+                </div>
+                <div>
+                    <label for="last-name-input">Nom de famille</label>
+                    <input type="text" id="last-name-input"/>
+                </div>
+                <div>
+                    <label for="first-name-input">Prénom</label>
+                    <input type="text" id="first-name-input"/>
+                </div>
+                <button class="submit-button" type="button" onclick="app.lookup(document)">Rechercher</button>
+            </div>
+        </div>
+
+        <div class="step">
+            <div id="memberships" class="memberships">
+            </div>
+            <button type="button" id="go-to-send-email-step" onclick="app.go_to_notification_step(document)" disabled>Notifier les membres cochés</button>
+        </div>
+    </div>
+
+    <div class="step">
+        {% include "email/email-container" %}
+    </div>
+
+    {% include "member/membership" %}
+{% endblock %}

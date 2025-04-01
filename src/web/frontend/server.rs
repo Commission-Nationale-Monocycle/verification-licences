@@ -24,6 +24,8 @@ impl Server for FrontendServer {
                     frontend_controller::update_memberships_unauthenticated,
                     frontend_controller::list_memberships,
                     frontend_controller::list_memberships_unauthenticated,
+                    frontend_controller::look_membership_up,
+                    frontend_controller::look_membership_up_unauthenticated,
                     frontend_controller::check_members_from_csv,
                     frontend_controller::check_members_from_csv_unauthenticated,
                     frontend_controller::check_members_from_uda,

@@ -4,6 +4,7 @@
         <div>Nom : <div class="membership-name"></div></div>
         <div>Prénom : <div class="membership-first-name"></div></div>
         <div>Fin de l'adhésion : <div class="membership-end-date"></div></div>
+        <div>Club : <div class="membership-club"></div></div>
         <div>Adresse mail :
             <div class="email-address-container"><a class="membership-email-address"></a></div>
         </div>
@@ -19,6 +20,7 @@
         <div>Nom : <div class="membership-name"></div></div>
         <div>Prénom : <div class="membership-first-name"></div></div>
         <div>Fin de l'adhésion : <div class="membership-end-date"></div></div>
+        <div>Club : <div class="membership-club"></div></div>
         <div>Adresse mail :
             <div class="email-address-container"><a class="membership-email-address"></a>
             </div>

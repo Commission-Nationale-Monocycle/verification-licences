@@ -5,7 +5,7 @@ mod import_from_uda;
 mod update_instances_list;
 
 use crate::component::alert::unwrap_or_alert;
-use crate::component::login_form::init_login_form;
+use crate::component::login_form::add_enter_listener_on_form;
 use crate::component::stepper::add_step;
 use web_sys::Document;
 
@@ -20,5 +20,5 @@ pub fn init_uda_page(document: &Document) {
         unwrap_or_alert(add_step(document, &stepper, "Notification"));
     }
 
-    init_login_form(document, "login-form-uda");
+    add_enter_listener_on_form(document, "login-form-uda");
 }

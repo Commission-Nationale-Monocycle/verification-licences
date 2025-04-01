@@ -4,5 +4,6 @@ pub mod email;
 pub mod member_to_check;
 pub mod member_to_look_up;
 pub mod membership;
+pub mod membership_status;
 pub mod uda_instance;
 pub mod uda_member;
