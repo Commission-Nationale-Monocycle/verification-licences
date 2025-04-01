@@ -28,7 +28,7 @@
                 <label for="password">Mot de passe</label>
                 <input type="password" id="password" required/>
             </div>
-            <button id="uda-login-button" class="login-button" type="button" onclick="app.importFromUda(document)">Importer</button>
+            <button id="uda-submit-button" class="submit-button" type="button" onclick="app.importFromUda(document)">Importer</button>
         </div>
     </div>
 

@@ -1,7 +1,7 @@
-use crate::checked_member::MemberStatus::{Expired, Unknown, UpToDate};
 use crate::member_to_check::MemberToCheck;
 use crate::membership::Membership;
-use chrono::Utc;
+use crate::membership_status::MemberStatus::Unknown;
+use crate::membership_status::{MemberStatus, compute_member_status};
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -47,13 +47,6 @@ impl Ord for CheckResult {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum MemberStatus {
-    UpToDate,
-    Expired,
-    Unknown,
-}
-
 /// A [CheckedMember] is a member whose membership has been checked.
 /// It may have a membership up-to-date, an expired membership or no membership at all.
 #[derive(Debug, Getters, Serialize, Deserialize, PartialEq)]
@@ -74,11 +67,7 @@ impl<T: MemberToCheck> CheckedMember<T> {
         match &self.membership {
             CheckResult::NoMatch => Unknown,
             CheckResult::Match(membership) | CheckResult::PartialMatch(membership) => {
-                if Utc::now().date_naive() <= *membership.end_date() {
-                    UpToDate
-                } else {
-                    Expired
-                }
+                compute_member_status(Some(membership))
             }
         }
     }
@@ -248,10 +237,10 @@ mod tests {
     }
 
     mod compute_member_status {
-        use crate::checked_member::MemberStatus::{Expired, Unknown, UpToDate};
         use crate::checked_member::tests::get_member_to_check_1;
         use crate::checked_member::{CheckResult, CheckedMember};
         use crate::membership::Membership;
+        use crate::membership_status::MemberStatus::{Expired, Unknown, UpToDate};
         use chrono::{Days, Utc};
 
         #[test]

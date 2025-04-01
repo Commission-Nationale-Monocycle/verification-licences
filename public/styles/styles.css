@@ -191,8 +191,16 @@ body.loading #spinner-container {
     @apply p-2 border-2 rounded-md
 }
 
+.memberships {
+    @apply flex flex-col md:flex-row flex-wrap
+}
+
 .membership {
     @apply flex flex-col flex-shrink-0 m-2
+}
+
+.memberships .membership {
+    @apply m-2 border-2 rounded-md
 }
 
 .send-email-checkbox {

@@ -6,9 +6,10 @@ use crate::utils::{
     ElementBuilder, add_class, append_child, clear_element, get_body, get_element_by_id,
     get_element_by_id_dyn, remove_attribute, remove_class, set_attribute,
 };
-use dto::checked_member::{CheckedMember, MemberStatus};
+use dto::checked_member::CheckedMember;
 use dto::csv_member::CsvMember;
 use dto::member_to_check::MemberToCheck;
+use dto::membership_status::MemberStatus;
 use std::collections::BTreeSet;
 use web_sys::{Document, Element, HtmlElement, HtmlInputElement};
 

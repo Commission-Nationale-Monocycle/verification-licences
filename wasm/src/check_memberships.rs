@@ -2,10 +2,10 @@ use crate::Result;
 use crate::component::alert::{AlertLevel, create_alert, unwrap_or_alert};
 use crate::component::stepper::next_step;
 use crate::error::{DEFAULT_SERVER_ERROR_MESSAGE, Error};
+use crate::json;
 use crate::user_interface::{get_email_body, get_email_subject, set_loading, with_loading};
 use crate::utils::{get_document, get_element_by_id_dyn, query_selector_single_element};
 use crate::web::fetch;
-use crate::{json, user_interface};
 use dto::email::Email;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -68,7 +68,6 @@ pub async fn handle_email_sending() {
                 ),
                 AlertLevel::Info,
             );
-            log::info!("Email sent to {:?}!", email_addresses_to_notify);
 
             Ok(())
         } else {
@@ -79,8 +78,8 @@ pub async fn handle_email_sending() {
 }
 
 fn get_email_addresses_to_notify(document: &Document) -> Result<Vec<String>> {
-    let checked_members_container = user_interface::get_checked_members_container(document);
-    let memberships = checked_members_container?.get_elements_by_class_name("membership");
+    // let checked_members_container = user_interface::get_checked_members_container(document);
+    let memberships = document.get_elements_by_class_name("membership");
     let mut email_addresses_to_notify = vec![];
     for index in 0..memberships.length() {
         let membership = memberships.get_with_index(index).unwrap();

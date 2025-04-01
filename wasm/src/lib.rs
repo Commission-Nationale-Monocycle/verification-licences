@@ -4,6 +4,7 @@ mod component;
 mod error;
 mod fileo;
 mod json;
+mod lookup;
 mod template;
 mod uda;
 mod user_interface;
@@ -14,6 +15,7 @@ use crate::component::alert::{unwrap_or_alert, unwrap_without_alert};
 use crate::component::navbar;
 use crate::error::Error;
 use crate::fileo::init_fileo_page;
+use crate::lookup::init_lookup_page;
 use crate::uda::init_uda_page;
 use crate::utils::{get_document, get_element_by_id};
 use wasm_bindgen::prelude::*;
@@ -30,6 +32,8 @@ fn run() {
         init_fileo_page(document);
     } else if get_element_by_id(document, "uda-container").is_ok() {
         init_uda_page(document);
+    } else if get_element_by_id(document, "lookup-container").is_ok() {
+        init_lookup_page(document);
     }
 }
 

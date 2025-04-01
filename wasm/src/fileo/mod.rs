@@ -1,5 +1,5 @@
 use crate::component::alert::unwrap_or_alert;
-use crate::component::login_form::init_login_form;
+use crate::component::login_form::add_enter_listener_on_form;
 use crate::component::stepper::add_step;
 use web_sys::Document;
 
@@ -18,5 +18,5 @@ pub fn init_fileo_page(document: &Document) {
         unwrap_or_alert(add_step(document, &stepper, "Vérification"));
         unwrap_or_alert(add_step(document, &stepper, "Notification"));
     }
-    init_login_form(document, "login-form-fileo");
+    add_enter_listener_on_form(document, "login-form-fileo");
 }

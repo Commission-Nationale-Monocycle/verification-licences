@@ -4,8 +4,10 @@ use crate::template::get_template;
 use crate::utils::{
     add_class, append_child, create_element, query_selector_single_element, set_attribute,
 };
-use dto::checked_member::{CheckResult, CheckedMember, MemberStatus};
+use dto::checked_member::{CheckResult, CheckedMember};
 use dto::member_to_check::MemberToCheck;
+use dto::membership::Membership;
+use dto::membership_status::{MemberStatus, compute_member_status};
 use wasm_bindgen::JsCast;
 use web_sys::{Document, Element, HtmlAnchorElement, HtmlInputElement};
 
@@ -114,6 +116,29 @@ fn create_membership_card(
         }
         CheckResult::NoMatch => {}
     }
+    Ok(card)
+}
+
+pub fn create_known_membership_card(
+    document: &Document,
+    membership: &Membership,
+) -> Result<Element> {
+    let status = compute_member_status(Some(membership));
+
+    let card = get_membership_template(document, &status)?;
+
+    query_selector_single_element(&card, ".membership-name")?.set_inner_html(membership.name());
+    query_selector_single_element(&card, ".membership-first-name")?
+        .set_inner_html(membership.first_name());
+    query_selector_single_element(&card, ".membership-end-date")?
+        .set_inner_html(&membership.end_date().format("%d/%m/%Y").to_string());
+    query_selector_single_element(&card, ".membership-club")?.set_inner_html(membership.club());
+    let email_address_container =
+        query_selector_single_element(&card, "a.membership-email-address")?
+            .dyn_into::<HtmlAnchorElement>()?;
+    email_address_container.set_inner_html(membership.email_address());
+    email_address_container.set_href(&format!("mailto:{}", &membership.email_address()));
+
     Ok(card)
 }
 
