@@ -13,7 +13,7 @@ use std::hash::Hash;
 /// The greatness of a match is defined by its preciseness
 /// (corresponding membership number, name, identity) and the matching membership's end date.
 pub fn check_members<T: MemberToCheck>(
-    grouped_memberships: &IndexedMemberships,
+    indexed_memberships: &IndexedMemberships,
     members_to_check: Vec<T>,
 ) -> Vec<CheckedMember<T>> {
     members_to_check
@@ -21,7 +21,7 @@ pub fn check_members<T: MemberToCheck>(
         .map(|member_to_check| {
             CheckedMember::new(
                 member_to_check.clone(),
-                check_member(grouped_memberships, &member_to_check),
+                check_member(indexed_memberships, &member_to_check),
             )
         })
         .collect()
