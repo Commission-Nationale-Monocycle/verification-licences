@@ -1,4 +1,4 @@
-use crate::database::error::DatabaseError::UnderlyingDatabaseError;
+use crate::database::error::DatabaseError::UnderlyingDatabase;
 use std::error::Error;
 use thiserror::Error;
 
@@ -9,11 +9,11 @@ pub enum DatabaseError {
     #[error("The connection to the database failed.")]
     ConnectionFailed,
     #[error("An error occurred within the database.")]
-    UnderlyingDatabaseError(String),
+    UnderlyingDatabase(String),
 }
 
 impl From<Box<dyn Error + Send + Sync + 'static>> for DatabaseError {
     fn from(value: Box<dyn Error + Send + Sync + 'static>) -> Self {
-        UnderlyingDatabaseError(value.to_string())
+        UnderlyingDatabase(value.to_string())
     }
 }
