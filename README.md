@@ -25,9 +25,11 @@ The following tools are required:
 
 Once everything's installed, you can try and compile the app:
 
-1. On Windows, run `.\build-wasm.bat` to build the WASM lib. It should create a new `./public/static/pkg` folder. If you use another OS, please adapt the script - it should
+1. On Windows, run `.\build-wasm.bat` to build the WASM lib. It should create a new `./public/static/pkg` folder. If you
+   use another OS, please adapt the script - it should
    not be too hard.
-2. On windows, run `.\build-css.bat` to build the CSS file. It should appear in the `./public/static/` folder. If you use another OS, please adapt the script - it should
+2. On windows, run `.\build-css.bat` to build the CSS file. It should appear in the `./public/static/` folder. If you
+   use another OS, please adapt the script - it should
    not be too hard.
 3. Build and run the app in demo mode with `cargo run --features demo`.
 4. If that's the first time you run the app, you'll have to populate the memberships. You can do so with cURL or any
@@ -77,6 +79,7 @@ To run the app in production, you'll need to pass the following args while start
 | --smtp-port            | The SMTP port the SMTP is listening on                                                                                                  | u16    | No       | 587                            |
 | --smtp-login           | The login used to access the SMTP server                                                                                                | String | Yes      | None                           |
 | --smtp-password        | The password used to access the SMTP server                                                                                             | String | Yes      | None                           |
+| --database-url         | The location of the database                                                                                                            | String | Yes      | None                           |
 
 E.g.:
 
@@ -88,11 +91,14 @@ cargo run -- \
   --smtp-server=<smtp-server> \
   --smtp-port=<smtp-port> \
   --smtp-login=<smtp-login> \
-  --smtp-password=<smtp-password>
+  --smtp-password=<smtp-password> \
+  --database-url=<database-url>
 ```
 
 ## Env vars
-In addition to args previously defined, you'll have to add a few env vars for Rocket to be able to start up and serve the app. Those are the following:
+
+In addition to args previously defined, you'll have to add a few env vars for Rocket to be able to start up and serve
+the app. Those are the following:
 
 | Name              | Description                                                                                                                                                                                  | Type   |
 |-------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------|
