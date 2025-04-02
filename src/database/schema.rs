@@ -2,8 +2,8 @@
 
 diesel::table! {
     last_update (element) {
-        element -> Nullable<Text>,
-        data -> Text,
+        element -> Text,
+        date -> Text,
     }
 }
 

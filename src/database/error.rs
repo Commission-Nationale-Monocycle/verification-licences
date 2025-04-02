@@ -15,6 +15,8 @@ pub enum DatabaseError {
     DieselError(#[from] diesel::result::Error),
     #[error("Can't convert from database value")]
     ConversionError(String),
+    #[error("Can't update last updated field")]
+    CantUpdateLastUpdated(String),
 }
 
 impl From<Box<dyn Error + Send + Sync + 'static>> for DatabaseError {
