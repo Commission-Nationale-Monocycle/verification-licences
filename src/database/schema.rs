@@ -1,6 +1,13 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    last_update (element) {
+        element -> Nullable<Text>,
+        data -> Text,
+    }
+}
+
+diesel::table! {
     membership (id) {
         id -> Integer,
         last_name -> Text,
@@ -17,3 +24,5 @@ diesel::table! {
         structure_code -> Text,
     }
 }
+
+diesel::allow_tables_to_appear_in_same_query!(last_update, membership,);
