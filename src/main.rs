@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate rocket;
+mod database;
 #[cfg(feature = "demo")]
 mod demo_mock_server;
 mod error;
