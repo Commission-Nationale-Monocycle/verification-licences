@@ -1,9 +1,8 @@
-use crate::database::error::DatabaseError;
+use super::Result;
+use crate::database::dao::last_update::UpdatableElement;
 use crate::database::model::membership::Membership;
 use diesel::prelude::*;
 use diesel::{QueryDsl, RunQueryDsl, SelectableHelper};
-
-type Result<T, E = DatabaseError> = std::result::Result<T, E>;
 
 #[allow(dead_code)]
 pub fn retrieve_memberships(
@@ -60,6 +59,8 @@ fn insert_all(
     let count = diesel::insert_into(crate::database::schema::membership::table)
         .values(&memberships)
         .execute(connection)?;
+
+    super::last_update::update(connection, &UpdatableElement::Memberships)?;
 
     Ok(count)
 }
@@ -153,6 +154,7 @@ mod tests {
     }
 
     mod insert_all {
+        use crate::database::dao::last_update::{UpdatableElement, get_last_update};
         use crate::database::dao::membership::insert_all;
         use crate::database::model::membership::Membership;
         use crate::database::tests::establish_connection;
@@ -182,10 +184,14 @@ mod tests {
             };
 
             assert_eq!(expected_memberships, memberships);
+            get_last_update(&mut connection, &UpdatableElement::Memberships)
+                .unwrap()
+                .unwrap(); // The last_update table should have been updated
         }
     }
 
     mod replace_memberships {
+        use crate::database::dao::last_update::{UpdatableElement, get_last_update};
         use crate::database::dao::membership::replace_memberships;
         use crate::database::dao::membership::tests::populate_db;
         use crate::database::model::membership::Membership;
@@ -222,6 +228,9 @@ mod tests {
             };
 
             assert_eq!(expected_memberships, memberships);
+            get_last_update(&mut connection, &UpdatableElement::Memberships)
+                .unwrap()
+                .unwrap(); // The last_update table should have been updated
         }
     }
 }
