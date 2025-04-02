@@ -6,6 +6,7 @@
 **/node_modules/
 **/pkg/
 **/target/
+**/database.db
 data/
 demo_data/
 Dockerfile
