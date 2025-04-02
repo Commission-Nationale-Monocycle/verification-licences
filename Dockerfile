@@ -28,13 +28,18 @@ FROM rust:1.85.0 AS bin-builder
 WORKDIR /build
 
 COPY ./dto ./dto
+COPY ./migrations ./migrations
 COPY ./src ./src
 COPY ./Cargo.lock .
 COPY ./Cargo.toml .
+COPY ./diesel.toml ./
 
 RUN cargo install --path .
 
 FROM ubuntu:24.04 AS runner
+
+RUN apt update && apt install -y sqlite3
+
 WORKDIR /app
 
 COPY ./Rocket.toml ./
