@@ -2,6 +2,7 @@
 **/node_modules/
 **/pkg/
 **/target/
+**/database.db
 /data/
 /demo_data/
 /public/static/styles.css
