@@ -33,12 +33,12 @@ fn delete_all(connection: &mut SqliteConnection) -> Result<usize> {
 
 fn insert_all(
     connection: &mut SqliteConnection,
-    memberships: &Vec<dto::membership::Membership>,
+    memberships: &[dto::membership::Membership],
 ) -> Result<usize> {
     use crate::database::schema::membership::*;
 
     let memberships = memberships
-        .into_iter()
+        .iter()
         .map(|membership| {
             (
                 last_name.eq(membership.name().clone()),
@@ -69,7 +69,7 @@ fn insert_all(
 #[allow(dead_code)]
 pub fn replace_memberships(
     connection: &mut SqliteConnection,
-    memberships: &Vec<dto::membership::Membership>,
+    memberships: &[dto::membership::Membership],
 ) -> Result<(usize, usize)> {
     let deleted_count = delete_all(connection)?;
     let inserted_count = insert_all(connection, memberships)?;
