@@ -1,6 +1,9 @@
+use crate::database::error::DatabaseError;
 use crate::database::establish_connection;
+use crate::error::ApplicationError;
 use crate::fileo::credentials::FileoCredentials;
 use crate::membership::config::MembershipsProviderConfig;
+use crate::membership::indexed_memberships::IndexedMemberships;
 use crate::uda::credentials::UdaCredentials;
 use crate::web::api::memberships_state::MembershipsState;
 use crate::web::api::{fileo_controller, memberships_controller, uda_controller};
@@ -25,6 +28,9 @@ impl Server for ApiServer {
         let members_provider_config = build_members_provider_config();
         let memberships_state = match MembershipsState::load_memberships(&mut connection) {
             Ok(state) => state,
+            Err(ApplicationError::Database(DatabaseError::UnknownLastUpdate)) => {
+                MembershipsState::new(None, IndexedMemberships::default())
+            }
             Err(error) => {
                 error!("{error:#?}");
                 panic!("Initialization failed, aborting.");
