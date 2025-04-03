@@ -55,10 +55,17 @@ fn insert_all(
             )
         })
         .collect::<Vec<_>>();
+    // Limit of 32766 parameters in a query for SQLite > 3.32.0.
+    // As each line has 12 parameters, we have a theoretic maximum of 32 766 / 12 = 2730,5.
+    // Let's say we insert 2500 elements at a time.
+    let memberships = memberships.chunks(2500);
 
-    let count = diesel::insert_into(crate::database::schema::membership::table)
-        .values(&memberships)
-        .execute(connection)?;
+    let mut count = 0;
+    for chunk in memberships {
+        count += diesel::insert_into(crate::database::schema::membership::table)
+            .values(chunk)
+            .execute(connection)?;
+    }
 
     super::last_update::update(connection, &UpdatableElement::Memberships)?;
 
@@ -170,15 +177,14 @@ mod tests {
         use crate::database::model::membership::Membership;
         use crate::database::with_temp_database;
         use crate::membership::indexed_memberships::tests::{jon_doe, jonette_snow};
+        use chrono::Utc;
         use diesel::{QueryDsl, RunQueryDsl, SelectableHelper};
 
-        #[test]
-        fn success() {
+        fn test_insert(expected_memberships: &[dto::membership::Membership]) {
             with_temp_database(|| {
                 let mut connection = establish_connection();
-                let expected_memberships = vec![jon_doe(), jonette_snow()];
 
-                let result = insert_all(&mut connection, &expected_memberships).unwrap();
+                let result = insert_all(&mut connection, expected_memberships).unwrap();
                 assert_eq!(expected_memberships.len(), result);
 
                 let results = crate::database::schema::membership::dsl::membership
@@ -200,6 +206,36 @@ mod tests {
                     .unwrap()
                     .unwrap(); // The last_update table should have been updated
             })
+        }
+
+        #[test]
+        fn success() {
+            let expected_memberships = vec![jon_doe(), jonette_snow()];
+            test_insert(&expected_memberships);
+        }
+
+        /// A long list of memberships to insert could make the query fail if it isn't correctly chunked.
+        #[test]
+        fn success_with_long_list() {
+            let expected_memberships = (0..10000)
+                .map(|i| {
+                    dto::membership::Membership::new(
+                        i.to_string(),
+                        i.to_string(),
+                        i.to_string(),
+                        None,
+                        None,
+                        i.to_string(),
+                        i.to_string(),
+                        true,
+                        Utc::now().date_naive(),
+                        false,
+                        i.to_string(),
+                        i.to_string(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            test_insert(&expected_memberships);
         }
     }
 
