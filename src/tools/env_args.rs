@@ -1,6 +1,4 @@
 #[cfg(test)]
-use rocket::tokio::runtime::Runtime;
-#[cfg(test)]
 use std::cell::RefCell;
 #[cfg(not(test))]
 use std::env;
@@ -81,9 +79,29 @@ fn get_env_args() -> Vec<String> {
     ENV_ARGS.with(|vec| vec.clone().into_inner())
 }
 
+#[allow(clippy::test_attr_in_doctest)]
 #[cfg(test)]
 /// When running tests, env args are extended from within the app.
-/// You can set them up from there by wrapping your test with this function.
+/// You can set them up from there by wrapping your test with this function. E.g.:
+/// ```rust
+///     with_env_args(
+///         vec!["--arg=value".to_owned()],
+///         || {
+///             // Do something with the args
+///         },
+///     )
+/// ```
+///
+/// This can also be used for async tests. E.g.:
+/// ```rust
+///     async fn test() {
+///         // Do something with the args
+///     }
+///     with_env_args(
+///         vec!["--arg=value".to_owned()],
+///         || Runtime::new().unwrap().block_on(test()),
+///     )
+/// ```
 pub fn with_env_args<F, T>(mut args: Vec<String>, function: F) -> T
 where
     F: FnOnce() -> T,
@@ -93,24 +111,6 @@ where
         args.extend_from_slice(&global_env_args);
         let old_value = refcell.replace(args);
         let result = function();
-        refcell.replace(old_value);
-        result
-    })
-}
-
-#[cfg(test)]
-/// When running tests, env args are extended from within the app.
-/// You can set them up from there by wrapping your test with this function.
-pub fn with_env_args_async<F, T>(mut args: Vec<String>, function: F) -> T
-where
-    F: AsyncFnOnce() -> T,
-{
-    ENV_ARGS.with(|refcell| {
-        let global_env_args = std::env::args().collect::<Vec<String>>();
-        args.extend_from_slice(&global_env_args);
-        let old_value = refcell.replace(args);
-        let rt = Runtime::new().unwrap();
-        let result = rt.block_on(function());
         refcell.replace(old_value);
         result
     })
