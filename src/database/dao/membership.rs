@@ -96,6 +96,124 @@ pub fn replace_memberships(
     Ok((deleted_count, inserted_count))
 }
 
+#[allow(dead_code)]
+pub(crate) mod find {
+    use super::super::Result;
+    use crate::database::model::membership::Membership;
+    use crate::database::schema::membership::{
+        end_date, normalized_first_name, normalized_first_name_last_name, normalized_last_name,
+        normalized_last_name_first_name, normalized_membership_number,
+    };
+    use crate::tools::normalize;
+    use diesel::{
+        BoolExpressionMethods, ExpressionMethods, QueryDsl, RunQueryDsl, SelectableHelper,
+        SqliteConnection,
+    };
+
+    pub fn by_num(
+        connection: &mut SqliteConnection,
+        membership_number: &str,
+    ) -> Result<Option<dto::membership::Membership>> {
+        let results = crate::database::schema::membership::dsl::membership
+            .filter(normalized_membership_number.eq(normalize(membership_number)))
+            .order(end_date.desc())
+            .limit(1)
+            .select(Membership::as_select())
+            .load(connection)?;
+        if let Some(membership) = results.first().cloned() {
+            Ok(Some(dto::membership::Membership::try_from(membership)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn by_num_identity(
+        connection: &mut SqliteConnection,
+        membership_number: &str,
+        identity: &str,
+    ) -> Result<Option<dto::membership::Membership>> {
+        let normalized_identity = normalize(identity);
+        let results = crate::database::schema::membership::dsl::membership
+            .filter(normalized_membership_number.eq(normalize(membership_number)))
+            .filter(
+                normalized_last_name_first_name
+                    .eq(&normalized_identity)
+                    .or(normalized_first_name_last_name.eq(&normalized_identity)),
+            )
+            .order(end_date.desc())
+            .limit(1)
+            .select(Membership::as_select())
+            .load(connection)?;
+        if let Some(membership) = results.first().cloned() {
+            Ok(Some(dto::membership::Membership::try_from(membership)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn by_num_last_name_first_name(
+        connection: &mut SqliteConnection,
+        membership_number: &str,
+        last_name: &str,
+        first_name: &str,
+    ) -> Result<Option<dto::membership::Membership>> {
+        let results = crate::database::schema::membership::dsl::membership
+            .filter(normalized_membership_number.eq(normalize(membership_number)))
+            .filter(normalized_last_name.eq(normalize(last_name)))
+            .filter(normalized_first_name.eq(normalize(first_name)))
+            .order(end_date.desc())
+            .limit(1)
+            .select(Membership::as_select())
+            .load(connection)?;
+        if let Some(membership) = results.first().cloned() {
+            Ok(Some(dto::membership::Membership::try_from(membership)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn by_identity(
+        connection: &mut SqliteConnection,
+        identity: &str,
+    ) -> Result<Option<dto::membership::Membership>> {
+        let normalized_identity = normalize(identity);
+        let results = crate::database::schema::membership::dsl::membership
+            .filter(
+                normalized_last_name_first_name
+                    .eq(&normalized_identity)
+                    .or(normalized_first_name_last_name.eq(&normalized_identity)),
+            )
+            .order(end_date.desc())
+            .limit(1)
+            .select(Membership::as_select())
+            .load(connection)?;
+        if let Some(membership) = results.first().cloned() {
+            Ok(Some(dto::membership::Membership::try_from(membership)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn by_last_name_first_name(
+        connection: &mut SqliteConnection,
+        last_name: &str,
+        first_name: &str,
+    ) -> Result<Option<dto::membership::Membership>> {
+        let results = crate::database::schema::membership::dsl::membership
+            .filter(normalized_last_name.eq(normalize(last_name)))
+            .filter(normalized_first_name.eq(normalize(first_name)))
+            .order(end_date.desc())
+            .limit(1)
+            .select(Membership::as_select())
+            .load(connection)?;
+        if let Some(membership) = results.first().cloned() {
+            Ok(Some(dto::membership::Membership::try_from(membership)?))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::database::schema::membership::*;
@@ -308,6 +426,592 @@ mod tests {
                     .unwrap()
                     .unwrap(); // The last_update table should have been updated
             })
+        }
+    }
+
+    mod find {
+        mod by_num {
+            use crate::database::dao::membership::find::by_num;
+            use crate::database::dao::membership::insert_all;
+            use crate::database::dao::membership::tests::establish_connection;
+            use crate::database::with_temp_database;
+            use chrono::{Months, Utc};
+
+            #[test]
+            fn find_the_only_one() {
+                with_temp_database(|| {
+                    let num = "123456".to_owned();
+                    let membership = dto::membership::Membership::new(
+                        "Doe".to_owned(),
+                        "Jon".to_owned(),
+                        "M".to_owned(),
+                        None,
+                        None,
+                        num.clone(),
+                        "address@test.com".to_owned(),
+                        true,
+                        Utc::now().date_naive(),
+                        false,
+                        "club".to_owned(),
+                        "A12345".to_owned(),
+                    );
+
+                    let mut connection = establish_connection();
+
+                    insert_all(&mut connection, &[membership.clone()]).unwrap();
+
+                    let result = by_num(&mut connection, &num).unwrap().unwrap();
+                    assert_eq!(membership, result);
+                });
+            }
+
+            #[test]
+            fn find_the_last_one() {
+                with_temp_database(|| {
+                    let num = "123456".to_owned();
+                    let membership = dto::membership::Membership::new(
+                        "Doe".to_owned(),
+                        "Jon".to_owned(),
+                        "M".to_owned(),
+                        None,
+                        None,
+                        num.clone(),
+                        "address@test.com".to_owned(),
+                        true,
+                        Utc::now().date_naive(),
+                        false,
+                        "club".to_owned(),
+                        "A12345".to_owned(),
+                    );
+
+                    let old_membership = dto::membership::Membership::new(
+                        "Doe".to_owned(),
+                        "Jon".to_owned(),
+                        "M".to_owned(),
+                        None,
+                        None,
+                        num.clone(),
+                        "address@test.com".to_owned(),
+                        true,
+                        Utc::now()
+                            .date_naive()
+                            .checked_sub_months(Months::new(12))
+                            .unwrap(),
+                        false,
+                        "club".to_owned(),
+                        "A12345".to_owned(),
+                    );
+
+                    let mut connection = establish_connection();
+
+                    insert_all(&mut connection, &[membership.clone(), old_membership]).unwrap();
+
+                    let result = by_num(&mut connection, &num).unwrap().unwrap();
+                    assert_eq!(membership, result);
+                });
+            }
+
+            #[test]
+            fn none_matching() {
+                with_temp_database(|| {
+                    let num = "123456".to_owned();
+                    let mut connection = establish_connection();
+
+                    insert_all(&mut connection, &[]).unwrap();
+
+                    let result = by_num(&mut connection, &num).unwrap();
+                    assert_eq!(None, result);
+                });
+            }
+        }
+
+        mod by_num_identity {
+            use crate::database::dao::membership::find::by_num_identity;
+            use crate::database::dao::membership::insert_all;
+            use crate::database::dao::membership::tests::establish_connection;
+            use crate::database::with_temp_database;
+            use chrono::{Months, Utc};
+
+            #[test]
+            fn find_the_only_one() {
+                with_temp_database(|| {
+                    let num = "123456".to_owned();
+                    let first_name = "Jon".to_owned();
+                    let last_name = "Doe".to_owned();
+                    let identity = format!("{}{}", &first_name, &last_name);
+                    let membership = dto::membership::Membership::new(
+                        last_name,
+                        first_name,
+                        "M".to_owned(),
+                        None,
+                        None,
+                        num.clone(),
+                        "address@test.com".to_owned(),
+                        true,
+                        Utc::now().date_naive(),
+                        false,
+                        "club".to_owned(),
+                        "A12345".to_owned(),
+                    );
+
+                    let mut connection = establish_connection();
+
+                    insert_all(&mut connection, &[membership.clone()]).unwrap();
+
+                    let result = by_num_identity(&mut connection, &num, &identity)
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(membership, result);
+                });
+            }
+
+            #[test]
+            fn find_the_only_one_by_reversed_identity() {
+                with_temp_database(|| {
+                    let num = "123456".to_owned();
+                    let first_name = "Jon".to_owned();
+                    let last_name = "Doe".to_owned();
+                    let identity = format!("{}{}", &last_name, &first_name);
+                    let membership = dto::membership::Membership::new(
+                        last_name,
+                        first_name,
+                        "M".to_owned(),
+                        None,
+                        None,
+                        num.clone(),
+                        "address@test.com".to_owned(),
+                        true,
+                        Utc::now().date_naive(),
+                        false,
+                        "club".to_owned(),
+                        "A12345".to_owned(),
+                    );
+
+                    let mut connection = establish_connection();
+
+                    insert_all(&mut connection, &[membership.clone()]).unwrap();
+
+                    let result = by_num_identity(&mut connection, &num, &identity)
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(membership, result);
+                });
+            }
+
+            #[test]
+            fn find_the_last_one() {
+                with_temp_database(|| {
+                    let num = "123456".to_owned();
+                    let first_name = "Jon".to_owned();
+                    let last_name = "Doe".to_owned();
+                    let identity = format!("{}{}", &first_name, &last_name);
+                    let membership = dto::membership::Membership::new(
+                        first_name.clone(),
+                        last_name.clone(),
+                        "M".to_owned(),
+                        None,
+                        None,
+                        num.clone(),
+                        "address@test.com".to_owned(),
+                        true,
+                        Utc::now().date_naive(),
+                        false,
+                        "club".to_owned(),
+                        "A12345".to_owned(),
+                    );
+
+                    let old_membership = dto::membership::Membership::new(
+                        first_name.clone(),
+                        last_name.clone(),
+                        "M".to_owned(),
+                        None,
+                        None,
+                        num.clone(),
+                        "address@test.com".to_owned(),
+                        true,
+                        Utc::now()
+                            .date_naive()
+                            .checked_sub_months(Months::new(12))
+                            .unwrap(),
+                        false,
+                        "club".to_owned(),
+                        "A12345".to_owned(),
+                    );
+
+                    let mut connection = establish_connection();
+
+                    insert_all(&mut connection, &[membership.clone(), old_membership]).unwrap();
+
+                    let result = by_num_identity(&mut connection, &num, &identity)
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(membership, result);
+                });
+            }
+
+            #[test]
+            fn none_matching() {
+                with_temp_database(|| {
+                    let num = "123456".to_owned();
+                    let first_name = "Jon".to_owned();
+                    let last_name = "Doe".to_owned();
+                    let identity = format!("{}{}", &first_name, &last_name);
+                    let mut connection = establish_connection();
+
+                    insert_all(&mut connection, &[]).unwrap();
+
+                    let result = by_num_identity(&mut connection, &num, &identity).unwrap();
+                    assert_eq!(None, result);
+                });
+            }
+        }
+
+        mod by_num_last_name_first_name {
+            use crate::database::dao::membership::find::by_num_last_name_first_name;
+            use crate::database::dao::membership::insert_all;
+            use crate::database::dao::membership::tests::establish_connection;
+            use crate::database::with_temp_database;
+            use chrono::{Months, Utc};
+
+            #[test]
+            fn find_the_only_one() {
+                with_temp_database(|| {
+                    let num = "123456".to_owned();
+                    let first_name = "Jon".to_owned();
+                    let last_name = "Doe".to_owned();
+                    let membership = dto::membership::Membership::new(
+                        last_name.clone(),
+                        first_name.clone(),
+                        "M".to_owned(),
+                        None,
+                        None,
+                        num.clone(),
+                        "address@test.com".to_owned(),
+                        true,
+                        Utc::now().date_naive(),
+                        false,
+                        "club".to_owned(),
+                        "A12345".to_owned(),
+                    );
+
+                    let mut connection = establish_connection();
+
+                    insert_all(&mut connection, &[membership.clone()]).unwrap();
+
+                    let result =
+                        by_num_last_name_first_name(&mut connection, &num, &last_name, &first_name)
+                            .unwrap()
+                            .unwrap();
+                    assert_eq!(membership, result);
+                });
+            }
+
+            #[test]
+            fn find_the_last_one() {
+                with_temp_database(|| {
+                    let num = "123456".to_owned();
+                    let first_name = "Jon".to_owned();
+                    let last_name = "Doe".to_owned();
+                    let membership = dto::membership::Membership::new(
+                        last_name.clone(),
+                        first_name.clone(),
+                        "M".to_owned(),
+                        None,
+                        None,
+                        num.clone(),
+                        "address@test.com".to_owned(),
+                        true,
+                        Utc::now().date_naive(),
+                        false,
+                        "club".to_owned(),
+                        "A12345".to_owned(),
+                    );
+
+                    let old_membership = dto::membership::Membership::new(
+                        last_name.clone(),
+                        first_name.clone(),
+                        "M".to_owned(),
+                        None,
+                        None,
+                        num.clone(),
+                        "address@test.com".to_owned(),
+                        true,
+                        Utc::now()
+                            .date_naive()
+                            .checked_sub_months(Months::new(12))
+                            .unwrap(),
+                        false,
+                        "club".to_owned(),
+                        "A12345".to_owned(),
+                    );
+
+                    let mut connection = establish_connection();
+
+                    insert_all(&mut connection, &[membership.clone(), old_membership]).unwrap();
+
+                    let result =
+                        by_num_last_name_first_name(&mut connection, &num, &last_name, &first_name)
+                            .unwrap()
+                            .unwrap();
+                    assert_eq!(membership, result);
+                });
+            }
+
+            #[test]
+            fn none_matching() {
+                with_temp_database(|| {
+                    let num = "123456".to_owned();
+                    let first_name = "Jon".to_owned();
+                    let last_name = "Doe".to_owned();
+                    let mut connection = establish_connection();
+
+                    insert_all(&mut connection, &[]).unwrap();
+
+                    let result =
+                        by_num_last_name_first_name(&mut connection, &num, &last_name, &first_name)
+                            .unwrap();
+                    assert_eq!(None, result);
+                });
+            }
+        }
+
+        mod by_identity {
+            use crate::database::dao::membership::find::by_identity;
+            use crate::database::dao::membership::insert_all;
+            use crate::database::dao::membership::tests::establish_connection;
+            use crate::database::with_temp_database;
+            use chrono::{Months, Utc};
+
+            #[test]
+            fn find_the_only_one() {
+                with_temp_database(|| {
+                    let num = "123456".to_owned();
+                    let first_name = "Jon".to_owned();
+                    let last_name = "Doe".to_owned();
+                    let identity = format!("{}{}", &first_name, &last_name);
+                    let membership = dto::membership::Membership::new(
+                        last_name,
+                        first_name,
+                        "M".to_owned(),
+                        None,
+                        None,
+                        num,
+                        "address@test.com".to_owned(),
+                        true,
+                        Utc::now().date_naive(),
+                        false,
+                        "club".to_owned(),
+                        "A12345".to_owned(),
+                    );
+
+                    let mut connection = establish_connection();
+
+                    insert_all(&mut connection, &[membership.clone()]).unwrap();
+
+                    let result = by_identity(&mut connection, &identity).unwrap().unwrap();
+                    assert_eq!(membership, result);
+                });
+            }
+
+            #[test]
+            fn find_the_only_one_by_reversed_identity() {
+                with_temp_database(|| {
+                    let num = "123456".to_owned();
+                    let first_name = "Jon".to_owned();
+                    let last_name = "Doe".to_owned();
+                    let identity = format!("{}{}", &last_name, &first_name);
+                    let membership = dto::membership::Membership::new(
+                        last_name,
+                        first_name,
+                        "M".to_owned(),
+                        None,
+                        None,
+                        num,
+                        "address@test.com".to_owned(),
+                        true,
+                        Utc::now().date_naive(),
+                        false,
+                        "club".to_owned(),
+                        "A12345".to_owned(),
+                    );
+
+                    let mut connection = establish_connection();
+
+                    insert_all(&mut connection, &[membership.clone()]).unwrap();
+
+                    let result = by_identity(&mut connection, &identity).unwrap().unwrap();
+                    assert_eq!(membership, result);
+                });
+            }
+
+            #[test]
+            fn find_the_last_one() {
+                with_temp_database(|| {
+                    let num = "123456".to_owned();
+                    let first_name = "Jon".to_owned();
+                    let last_name = "Doe".to_owned();
+                    let identity = format!("{}{}", &first_name, &last_name);
+                    let membership = dto::membership::Membership::new(
+                        last_name.clone(),
+                        first_name.clone(),
+                        "M".to_owned(),
+                        None,
+                        None,
+                        num.clone(),
+                        "address@test.com".to_owned(),
+                        true,
+                        Utc::now().date_naive(),
+                        false,
+                        "club".to_owned(),
+                        "A12345".to_owned(),
+                    );
+
+                    let old_membership = dto::membership::Membership::new(
+                        last_name.clone(),
+                        first_name.clone(),
+                        "M".to_owned(),
+                        None,
+                        None,
+                        num,
+                        "address@test.com".to_owned(),
+                        true,
+                        Utc::now()
+                            .date_naive()
+                            .checked_sub_months(Months::new(12))
+                            .unwrap(),
+                        false,
+                        "club".to_owned(),
+                        "A12345".to_owned(),
+                    );
+
+                    let mut connection = establish_connection();
+
+                    insert_all(&mut connection, &[membership.clone(), old_membership]).unwrap();
+
+                    let result = by_identity(&mut connection, &identity).unwrap().unwrap();
+                    assert_eq!(membership, result);
+                });
+            }
+
+            #[test]
+            fn none_matching() {
+                with_temp_database(|| {
+                    let first_name = "Jon".to_owned();
+                    let last_name = "Doe".to_owned();
+                    let identity = format!("{}{}", &first_name, &last_name);
+                    let mut connection = establish_connection();
+
+                    insert_all(&mut connection, &[]).unwrap();
+
+                    let result = by_identity(&mut connection, &identity).unwrap();
+                    assert_eq!(None, result);
+                });
+            }
+        }
+
+        mod by_last_name_first_name {
+            use crate::database::dao::membership::find::by_last_name_first_name;
+            use crate::database::dao::membership::insert_all;
+            use crate::database::dao::membership::tests::establish_connection;
+            use crate::database::with_temp_database;
+            use chrono::{Months, Utc};
+
+            #[test]
+            fn find_the_only_one() {
+                with_temp_database(|| {
+                    let num = "123456".to_owned();
+                    let first_name = "Jon".to_owned();
+                    let last_name = "Doe".to_owned();
+                    let membership = dto::membership::Membership::new(
+                        last_name.clone(),
+                        first_name.clone(),
+                        "M".to_owned(),
+                        None,
+                        None,
+                        num,
+                        "address@test.com".to_owned(),
+                        true,
+                        Utc::now().date_naive(),
+                        false,
+                        "club".to_owned(),
+                        "A12345".to_owned(),
+                    );
+
+                    let mut connection = establish_connection();
+
+                    insert_all(&mut connection, &[membership.clone()]).unwrap();
+
+                    let result = by_last_name_first_name(&mut connection, &last_name, &first_name)
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(membership, result);
+                });
+            }
+
+            #[test]
+            fn find_the_last_one() {
+                with_temp_database(|| {
+                    let num = "123456".to_owned();
+                    let first_name = "Jon".to_owned();
+                    let last_name = "Doe".to_owned();
+                    let membership = dto::membership::Membership::new(
+                        last_name.clone(),
+                        first_name.clone(),
+                        "M".to_owned(),
+                        None,
+                        None,
+                        num.clone(),
+                        "address@test.com".to_owned(),
+                        true,
+                        Utc::now().date_naive(),
+                        false,
+                        "club".to_owned(),
+                        "A12345".to_owned(),
+                    );
+
+                    let old_membership = dto::membership::Membership::new(
+                        last_name.clone(),
+                        first_name.clone(),
+                        "M".to_owned(),
+                        None,
+                        None,
+                        num,
+                        "address@test.com".to_owned(),
+                        true,
+                        Utc::now()
+                            .date_naive()
+                            .checked_sub_months(Months::new(12))
+                            .unwrap(),
+                        false,
+                        "club".to_owned(),
+                        "A12345".to_owned(),
+                    );
+
+                    let mut connection = establish_connection();
+
+                    insert_all(&mut connection, &[membership.clone(), old_membership]).unwrap();
+
+                    let result = by_last_name_first_name(&mut connection, &last_name, &first_name)
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(membership, result);
+                });
+            }
+
+            #[test]
+            fn none_matching() {
+                with_temp_database(|| {
+                    let first_name = "Jon".to_owned();
+                    let last_name = "Doe".to_owned();
+                    let mut connection = establish_connection();
+
+                    insert_all(&mut connection, &[]).unwrap();
+
+                    let result =
+                        by_last_name_first_name(&mut connection, &last_name, &first_name).unwrap();
+                    assert_eq!(None, result);
+                });
+            }
         }
     }
 }
