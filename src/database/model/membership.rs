@@ -20,11 +20,11 @@ pub(crate) struct Membership {
     expired: bool,
     club: String,
     structure_code: String,
-    normalized_membership_number: Option<String>,
-    normalized_last_name: Option<String>,
-    normalized_first_name: Option<String>,
-    normalized_last_name_first_name: Option<String>,
-    normalized_first_name_last_name: Option<String>,
+    normalized_membership_number: String,
+    normalized_last_name: String,
+    normalized_first_name: String,
+    normalized_last_name_first_name: String,
+    normalized_first_name_last_name: String,
 }
 
 impl TryFrom<Membership> for dto::membership::Membership {
