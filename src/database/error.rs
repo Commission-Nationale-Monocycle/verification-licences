@@ -7,6 +7,8 @@ use thiserror::Error;
 pub enum DatabaseError {
     #[error("The --database-url argument is missing.")]
     MissingDatabaseUrl,
+    #[error("An error with r2d2 has occurred.")]
+    R2d2(String),
     #[error("The connection to the database failed.")]
     ConnectionFailed,
     #[error("An error occurred within the database.")]

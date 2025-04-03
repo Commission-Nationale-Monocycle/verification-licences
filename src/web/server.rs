@@ -1,3 +1,5 @@
+use diesel::SqliteConnection;
+use diesel::r2d2::{ConnectionManager, Pool};
 use rocket::{Build, Rocket};
 
 use crate::tools::env_args::retrieve_arg_value;
@@ -11,10 +13,11 @@ pub trait Server {
     fn configure(&self, rocket_build: Rocket<Build>) -> Rocket<Build>;
 }
 
-pub fn build_server() -> Rocket<Build> {
+pub fn build_server(pool: Pool<ConnectionManager<SqliteConnection>>) -> Rocket<Build> {
     let api_port = get_api_port();
-    let rocket_build =
-        rocket::build().configure(rocket::Config::figment().merge(("port", api_port)));
+    let rocket_build = rocket::build()
+        .configure(rocket::Config::figment().merge(("port", api_port)))
+        .manage(pool);
 
     let servers: Vec<Box<dyn Server>> =
         vec![Box::new(ApiServer::new()), Box::new(FrontendServer::new())];

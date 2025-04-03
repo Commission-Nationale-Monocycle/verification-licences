@@ -5,6 +5,8 @@ use crate::tools::email::send_email;
 use crate::tools::{log_error_and_return, log_message_and_return};
 use crate::uda::credentials::UdaCredentials;
 use crate::web::api::memberships_state::MembershipsState;
+use diesel::SqliteConnection;
+use diesel::r2d2::{ConnectionManager, Pool};
 use dto::checked_member::CheckedMember;
 use dto::csv_member::CsvMember;
 use dto::email::Email;
@@ -26,10 +28,11 @@ use std::sync::Mutex;
     data = "<members_to_check>"
 )]
 pub async fn check_csv_members(
+    pool: &State<Pool<ConnectionManager<SqliteConnection>>>,
     members_to_check: Json<Vec<CsvMember>>,
     _credentials: FileoCredentials,
 ) -> Result<String, Status> {
-    let result = check(members_to_check.into_inner())?;
+    let result = check(pool.inner(), members_to_check.into_inner())?;
 
     Ok(json!(result).to_string())
 }
@@ -40,17 +43,21 @@ pub async fn check_csv_members(
     data = "<members_to_check>"
 )]
 pub async fn check_uda_members(
+    pool: &State<Pool<ConnectionManager<SqliteConnection>>>,
     members_to_check: Json<Vec<UdaMember>>,
     _fileo_credentials: FileoCredentials,
     _uda_credentials: UdaCredentials,
 ) -> Result<String, Status> {
-    let result = check(members_to_check.into_inner())?;
+    let result = check(pool.inner(), members_to_check.into_inner())?;
 
     Ok(json!(result).to_string())
 }
 
-fn check<T: MemberToCheck>(members_to_check: Vec<T>) -> Result<Vec<CheckedMember<T>>, Status> {
-    let checked_members = check_members(members_to_check)
+fn check<T: MemberToCheck>(
+    pool: &Pool<ConnectionManager<SqliteConnection>>,
+    members_to_check: Vec<T>,
+) -> Result<Vec<CheckedMember<T>>, Status> {
+    let checked_members = check_members(pool, members_to_check)
         .map_err(log_error_and_return(Status::InternalServerError))?;
 
     Ok(checked_members)
@@ -143,11 +150,13 @@ mod tests {
     }
 
     mod check_members {
-        use crate::database::{establish_connection, with_temp_database};
+        use crate::database::with_temp_database;
         use crate::web::api::memberships_controller::check_uda_members;
         use crate::web::api::memberships_controller::tests::{
             initialize_fileo_login, initialize_uda_login,
         };
+        use diesel::SqliteConnection;
+        use diesel::r2d2::{ConnectionManager, Pool};
         use dto::checked_member::{CheckResult, CheckedMember};
         use dto::membership::tests::get_expected_membership;
         use dto::uda_member::UdaMember;
@@ -159,7 +168,7 @@ mod tests {
 
         #[test]
         fn success() {
-            async fn test() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
                 let member_1 = UdaMember::new(
                     1,
                     Some("123456".to_owned()),
@@ -183,7 +192,7 @@ mod tests {
                 let (fileo_uuid, fileo_credentials_storage_mutex) = initialize_fileo_login();
                 let (uda_uuid, uda_credentials_storage_mutex) = initialize_uda_login();
 
-                let mut connection = establish_connection().unwrap();
+                let mut connection = pool.get().unwrap();
                 crate::database::dao::membership::replace_memberships(
                     &mut connection,
                     &[get_expected_membership()],
@@ -193,6 +202,7 @@ mod tests {
                 let rocket = rocket::build()
                     .manage(fileo_credentials_storage_mutex)
                     .manage(uda_credentials_storage_mutex)
+                    .manage(pool)
                     .mount("/", routes![check_uda_members]);
 
                 let client = Client::tracked(rocket).await.unwrap();
@@ -223,7 +233,7 @@ mod tests {
                 )
             }
 
-            with_temp_database(|| Runtime::new().unwrap().block_on(test()));
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
     }
 

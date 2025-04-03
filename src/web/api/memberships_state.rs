@@ -50,7 +50,7 @@ mod tests {
         use std::ffi::OsString;
 
         use crate::database::dao::membership::replace_memberships;
-        use crate::database::{establish_connection, with_temp_database};
+        use crate::database::with_temp_database;
         use crate::membership::file_details::FileDetails;
         use crate::membership::indexed_memberships::IndexedMemberships;
         use crate::membership::indexed_memberships::tests::{jon_doe, jonette_snow};
@@ -59,8 +59,8 @@ mod tests {
 
         #[test]
         fn should_load_members() {
-            with_temp_database(|| {
-                let mut connection = establish_connection().unwrap();
+            with_temp_database(|pool| {
+                let mut connection = pool.get().unwrap();
                 let expected_memberships = vec![jon_doe(), jonette_snow()];
                 replace_memberships(&mut connection, &expected_memberships).unwrap();
                 let state = MembershipsState::load_memberships(&mut connection).unwrap();
