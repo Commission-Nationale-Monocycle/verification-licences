@@ -191,7 +191,7 @@ mod tests {
                 let mut connection = establish_connection().unwrap();
                 crate::database::dao::membership::replace_memberships(
                     &mut connection,
-                    &vec![get_expected_membership()],
+                    &[get_expected_membership()],
                 )
                 .unwrap();
 
