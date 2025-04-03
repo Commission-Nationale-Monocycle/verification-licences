@@ -17,6 +17,8 @@ pub enum DatabaseError {
     ConversionError(String),
     #[error("Can't update last updated field")]
     CantUpdateLastUpdated(String),
+    #[error("Last update should be known at this point.")]
+    UnknownLastUpdate,
 }
 
 impl From<Box<dyn Error + Send + Sync + 'static>> for DatabaseError {

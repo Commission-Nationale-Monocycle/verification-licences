@@ -76,6 +76,10 @@ mod tests {
     use chrono::NaiveDateTime;
     use diesel::prelude::*;
 
+    fn establish_connection() -> SqliteConnection {
+        crate::database::establish_connection().unwrap()
+    }
+
     fn test_update_element(
         connection: &mut SqliteConnection,
         updatable_element: &UpdatableElement,
@@ -100,61 +104,69 @@ mod tests {
     }
 
     mod get_last_update {
-        use crate::database::dao::last_update::tests::test_update_element;
+        use crate::database::dao::last_update::tests::{establish_connection, test_update_element};
         use crate::database::dao::last_update::{UpdatableElement, get_last_update};
-        use crate::database::tests::establish_connection;
+        use crate::database::with_temp_database;
 
         #[test]
         fn none() {
-            let mut connection = establish_connection();
+            with_temp_database(|| {
+                let mut connection = establish_connection();
 
-            assert_eq!(
-                None,
-                get_last_update(&mut connection, &UpdatableElement::Memberships).unwrap()
-            );
-            assert_eq!(
-                None,
-                get_last_update(&mut connection, &UpdatableElement::UdaInstances).unwrap()
-            );
+                assert_eq!(
+                    None,
+                    get_last_update(&mut connection, &UpdatableElement::Memberships).unwrap()
+                );
+                assert_eq!(
+                    None,
+                    get_last_update(&mut connection, &UpdatableElement::UdaInstances).unwrap()
+                );
+            })
         }
 
         #[test]
         fn some_after_update() {
-            let mut connection = establish_connection();
+            with_temp_database(|| {
+                let mut connection = establish_connection();
 
-            let time = test_update_element(&mut connection, &UpdatableElement::Memberships);
-            assert_eq!(
-                Some(time),
-                get_last_update(&mut connection, &UpdatableElement::Memberships).unwrap()
-            );
-            let time = test_update_element(&mut connection, &UpdatableElement::UdaInstances);
-            assert_eq!(
-                Some(time),
-                get_last_update(&mut connection, &UpdatableElement::UdaInstances).unwrap()
-            );
+                let time = test_update_element(&mut connection, &UpdatableElement::Memberships);
+                assert_eq!(
+                    Some(time),
+                    get_last_update(&mut connection, &UpdatableElement::Memberships).unwrap()
+                );
+                let time = test_update_element(&mut connection, &UpdatableElement::UdaInstances);
+                assert_eq!(
+                    Some(time),
+                    get_last_update(&mut connection, &UpdatableElement::UdaInstances).unwrap()
+                );
+            })
         }
     }
 
     mod update {
         use crate::database::dao::last_update::UpdatableElement;
-        use crate::database::dao::last_update::tests::test_update_element;
-        use crate::database::tests::establish_connection;
+        use crate::database::dao::last_update::tests::{establish_connection, test_update_element};
+        use crate::database::with_temp_database;
 
         #[test]
         fn success_first_update() {
-            let mut connection = establish_connection();
-            test_update_element(&mut connection, &UpdatableElement::Memberships);
-            test_update_element(&mut connection, &UpdatableElement::UdaInstances);
+            with_temp_database(|| {
+                let mut connection = establish_connection();
+                test_update_element(&mut connection, &UpdatableElement::Memberships);
+                test_update_element(&mut connection, &UpdatableElement::UdaInstances);
+            })
         }
 
         #[test]
         fn success_second_update() {
-            let mut connection = establish_connection();
+            with_temp_database(|| {
+                let mut connection = establish_connection();
 
-            test_update_element(&mut connection, &UpdatableElement::Memberships);
-            test_update_element(&mut connection, &UpdatableElement::Memberships);
-            test_update_element(&mut connection, &UpdatableElement::UdaInstances);
-            test_update_element(&mut connection, &UpdatableElement::UdaInstances);
+                test_update_element(&mut connection, &UpdatableElement::Memberships);
+                test_update_element(&mut connection, &UpdatableElement::Memberships);
+                test_update_element(&mut connection, &UpdatableElement::UdaInstances);
+                test_update_element(&mut connection, &UpdatableElement::UdaInstances);
+            })
         }
     }
 }

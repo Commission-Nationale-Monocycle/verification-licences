@@ -1,3 +1,4 @@
+use crate::database::establish_connection;
 use crate::fileo::credentials::FileoCredentials;
 use crate::membership::config::MembershipsProviderConfig;
 use crate::membership::get_memberships_file_folder;
@@ -21,15 +22,15 @@ impl ApiServer {
 
 impl Server for ApiServer {
     fn configure(&self, rocket_build: Rocket<Build>) -> Rocket<Build> {
+        let mut connection = establish_connection().unwrap();
         let members_provider_config = build_members_provider_config();
-        let memberships_state =
-            match MembershipsState::load_memberships(members_provider_config.folder()) {
-                Ok(state) => state,
-                Err(error) => {
-                    error!("{error:#?}");
-                    panic!("Initialization failed, aborting.");
-                }
-            };
+        let memberships_state = match MembershipsState::load_memberships(&mut connection) {
+            Ok(state) => state,
+            Err(error) => {
+                error!("{error:#?}");
+                panic!("Initialization failed, aborting.");
+            }
+        };
 
         rocket_build
             .manage(members_provider_config)

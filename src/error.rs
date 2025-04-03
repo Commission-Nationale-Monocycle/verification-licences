@@ -1,6 +1,5 @@
 use crate::database::error::DatabaseError;
 use crate::fileo::error::FileoError;
-use crate::membership::error::MembershipError;
 use crate::uda::error::UdaError;
 use crate::web::error::WebError;
 use thiserror::Error;
@@ -17,6 +16,4 @@ pub enum ApplicationError {
     Fileo(#[from] FileoError),
     #[error("Error while working with UDA.")]
     Uda(#[from] UdaError),
-    #[error("Error while working with memberships.")]
-    Membership(#[from] MembershipError),
 }
