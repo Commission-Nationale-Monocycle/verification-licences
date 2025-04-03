@@ -1,4 +1,3 @@
-use crate::database::establish_connection;
 use crate::fileo::credentials::FileoCredentials;
 use crate::membership;
 use crate::membership::check::check_members;
@@ -51,12 +50,8 @@ pub async fn check_uda_members(
 }
 
 fn check<T: MemberToCheck>(members_to_check: Vec<T>) -> Result<Vec<CheckedMember<T>>, Status> {
-    let mut connection =
-        establish_connection().map_err(log_error_and_return(Status::InternalServerError))?;
-    let memberships = crate::database::dao::membership::retrieve_memberships(&mut connection)
+    let checked_members = check_members(members_to_check)
         .map_err(log_error_and_return(Status::InternalServerError))?;
-    let memberships = memberships.into();
-    let checked_members = check_members(&memberships, members_to_check);
 
     Ok(checked_members)
 }
