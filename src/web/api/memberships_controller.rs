@@ -148,7 +148,7 @@ mod tests {
     }
 
     mod check_members {
-        use crate::database::{establish_connection, with_temp_database_async};
+        use crate::database::{establish_connection, with_temp_database};
         use crate::web::api::memberships_controller::check_uda_members;
         use crate::web::api::memberships_controller::tests::{
             initialize_fileo_login, initialize_uda_login,
@@ -160,6 +160,7 @@ mod tests {
         use rocket::http::{ContentType, Header, Status};
         use rocket::local::asynchronous::Client;
         use rocket::serde::json::json;
+        use rocket::tokio::runtime::Runtime;
 
         #[test]
         fn success() {
@@ -226,7 +227,8 @@ mod tests {
                     checked_members
                 )
             }
-            with_temp_database_async(test);
+
+            with_temp_database(|| Runtime::new().unwrap().block_on(test()));
         }
     }
 

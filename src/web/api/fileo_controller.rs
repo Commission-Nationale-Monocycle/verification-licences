@@ -310,7 +310,7 @@ mod tests {
     }
 
     mod download_members {
-        use crate::database::with_temp_database_async;
+        use crate::database::with_temp_database;
         use crate::fileo::authentication::AUTHENTICATION_COOKIE;
         use crate::fileo::credentials::FileoCredentials;
         use crate::membership::indexed_memberships::IndexedMemberships;
@@ -326,6 +326,7 @@ mod tests {
         use rocket::State;
         use rocket::http::{Cookie, Status};
         use rocket::local::asynchronous::Client;
+        use rocket::tokio::runtime::Runtime;
         use std::sync::Mutex;
         use wiremock::matchers::{body_string_contains, method, path, query_param_contains};
         use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -399,7 +400,7 @@ mod tests {
                 let members = membership_state.memberships();
                 assert_eq!(&get_expected_membership(), members.first().unwrap());
             }
-            with_temp_database_async(test);
+            with_temp_database(|| Runtime::new().unwrap().block_on(test()));
         }
 
         #[async_test]

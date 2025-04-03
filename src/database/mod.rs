@@ -3,7 +3,7 @@ use crate::database::migrations::run_migrations;
 use crate::error::Result;
 use crate::tools::env_args::retrieve_expected_arg_value;
 #[cfg(test)]
-use crate::tools::env_args::{with_env_args, with_env_args_async};
+use crate::tools::env_args::with_env_args;
 use crate::tools::log_error_and_return;
 #[cfg(test)]
 use crate::tools::test::tests::temp_dir;
@@ -29,6 +29,7 @@ pub fn establish_connection() -> Result<SqliteConnection> {
 }
 
 #[allow(clippy::test_attr_in_doctest)]
+#[cfg(test)]
 /// In order for tests to work, they should connect to a temporary database.
 /// To do so, they can use this function, which will provide a new database.
 /// E.g.:
@@ -41,41 +42,22 @@ pub fn establish_connection() -> Result<SqliteConnection> {
 ///     });
 /// }
 /// ```
-#[cfg(test)]
-pub(crate) fn with_temp_database<F, T>(function: F) -> T
-where
-    F: FnOnce() -> T,
-{
-    with_env_args(
-        vec![format!(
-            "--database-url={}",
-            temp_dir().join("database.db").to_str().unwrap()
-        )],
-        || {
-            init_db().unwrap();
-            function()
-        },
-    )
-}
-
-#[allow(clippy::test_attr_in_doctest)]
-/// In order for tests to work, they should connect to a temporary database.
-/// To do so, they can use this function, which will provide a new database.
-/// ```rust
+///
+/// This can also be used for async tests. E.g.:
+///``` rust
 /// #[test]
 /// fn test() {
 ///     async fn async_test() {
 ///         // Do something asynchronously
 ///     }
-///     with_temp_database_async(async_test));
+///     with_temp_database(|| Runtime::new().unwrap().block_on(async_test()));
 /// }
 /// ```
-#[cfg(test)]
-pub(crate) fn with_temp_database_async<F, T>(function: F) -> T
+pub(crate) fn with_temp_database<F, T>(function: F) -> T
 where
-    F: AsyncFnOnce() -> T,
+    F: FnOnce() -> T,
 {
-    with_env_args_async(
+    with_env_args(
         vec![format!(
             "--database-url={}",
             temp_dir().join("database.db").to_str().unwrap()
