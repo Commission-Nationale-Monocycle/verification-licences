@@ -1,9 +1,5 @@
 name: Deploy
 
-on:
-  push:
-    branches: [ main ]
-
 jobs:
   build-bin:
     runs-on: ubuntu-22.04
