@@ -1,14 +1,13 @@
 use crate::database::error::DatabaseError;
-use crate::database::error::DatabaseError::{ConnectionFailed, MissingDatabaseUrl};
+use crate::database::error::DatabaseError::MissingDatabaseUrl;
 use crate::database::migrations::run_migrations;
 use crate::tools::env_args::retrieve_expected_arg_value;
 #[cfg(test)]
 use crate::tools::env_args::with_env_args;
-use crate::tools::log_error_and_return;
 #[cfg(test)]
 use crate::tools::test::tests::temp_dir;
+use diesel::SqliteConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
-use diesel::{Connection, SqliteConnection};
 
 pub(super) mod dao;
 pub(crate) mod error;
@@ -29,14 +28,6 @@ pub(crate) fn init_connection_pool() -> Result<Pool<ConnectionManager<SqliteConn
         .map_err(|error| DatabaseError::R2d2(error.to_string()))?;
     run_migrations(&mut connection)?;
     Ok(pool)
-}
-
-/// Establish a connection to the database whose URL is passed as an argument to the app (`--database-url`).
-pub fn establish_connection() -> Result<SqliteConnection> {
-    let database_url = retrieve_expected_arg_value("--database-url", MissingDatabaseUrl)?;
-    let connection = SqliteConnection::establish(&database_url)
-        .map_err(log_error_and_return(ConnectionFailed))?;
-    Ok(connection)
 }
 
 #[allow(clippy::test_attr_in_doctest)]

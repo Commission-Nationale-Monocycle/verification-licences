@@ -1,5 +1,4 @@
 use crate::database::error::DatabaseError;
-use crate::database::establish_connection;
 use crate::error::ApplicationError;
 use crate::fileo::credentials::FileoCredentials;
 use crate::membership::config::MembershipsProviderConfig;
@@ -9,6 +8,8 @@ use crate::web::api::memberships_state::MembershipsState;
 use crate::web::api::{fileo_controller, memberships_controller, uda_controller};
 use crate::web::credentials_storage::CredentialsStorage;
 use crate::web::server::Server;
+use diesel::SqliteConnection;
+use diesel::r2d2::{ConnectionManager, Pool};
 use dto::uda_instance::InstancesList;
 use regex::Regex;
 use rocket::{Build, Rocket};
@@ -24,7 +25,9 @@ impl ApiServer {
 
 impl Server for ApiServer {
     fn configure(&self, rocket_build: Rocket<Build>) -> Rocket<Build> {
-        let mut connection = establish_connection().unwrap();
+        let pool: &Pool<ConnectionManager<SqliteConnection>> =
+            rocket_build.state().expect("Pool should be accessible.");
+        let mut connection = pool.get().expect("Connection should be available.");
         let members_provider_config = build_members_provider_config();
         let memberships_state = match MembershipsState::load_memberships(&mut connection) {
             Ok(state) => state,
