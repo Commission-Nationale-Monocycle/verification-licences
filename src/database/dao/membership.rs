@@ -4,7 +4,6 @@ use crate::database::model::membership::Membership;
 use diesel::prelude::*;
 use diesel::{QueryDsl, RunQueryDsl, SelectableHelper};
 
-#[allow(dead_code)]
 pub fn retrieve_memberships(
     connection: &mut SqliteConnection,
 ) -> Result<Vec<dto::membership::Membership>> {
@@ -74,7 +73,6 @@ fn insert_all(
 
 /// Delete all known memberships and replace them with new ones.
 /// Return the number of deleted memberships and the number of inserted memberships.
-#[allow(dead_code)]
 pub fn replace_memberships(
     connection: &mut SqliteConnection,
     memberships: &[dto::membership::Membership],

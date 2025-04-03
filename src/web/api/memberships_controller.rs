@@ -1,8 +1,9 @@
+use crate::database::establish_connection;
 use crate::fileo::credentials::FileoCredentials;
 use crate::membership;
 use crate::membership::check::check_members;
 use crate::tools::email::send_email;
-use crate::tools::log_message_and_return;
+use crate::tools::{log_error_and_return, log_message_and_return};
 use crate::uda::credentials::UdaCredentials;
 use crate::web::api::memberships_state::MembershipsState;
 use dto::checked_member::CheckedMember;
@@ -26,11 +27,10 @@ use std::sync::Mutex;
     data = "<members_to_check>"
 )]
 pub async fn check_csv_members(
-    memberships_state: &State<Mutex<MembershipsState>>,
     members_to_check: Json<Vec<CsvMember>>,
     _credentials: FileoCredentials,
-) -> Result<String, String> {
-    let result = check(memberships_state, members_to_check.into_inner())?;
+) -> Result<String, Status> {
+    let result = check(members_to_check.into_inner())?;
 
     Ok(json!(result).to_string())
 }
@@ -41,27 +41,22 @@ pub async fn check_csv_members(
     data = "<members_to_check>"
 )]
 pub async fn check_uda_members(
-    memberships_state: &State<Mutex<MembershipsState>>,
     members_to_check: Json<Vec<UdaMember>>,
     _fileo_credentials: FileoCredentials,
     _uda_credentials: UdaCredentials,
-) -> Result<String, String> {
-    let result = check(memberships_state, members_to_check.into_inner())?;
+) -> Result<String, Status> {
+    let result = check(members_to_check.into_inner())?;
 
     Ok(json!(result).to_string())
 }
 
-fn check<T: MemberToCheck>(
-    memberships_state: &Mutex<MembershipsState>,
-    members_to_check: Vec<T>,
-) -> Result<Vec<CheckedMember<T>>, String> {
-    let memberships_state = memberships_state.lock().map_err(log_message_and_return(
-        "Couldn't acquire lock",
-        "Error while checking members.",
-    ))?;
-
-    let memberships = memberships_state.memberships();
-    let checked_members = check_members(memberships, members_to_check);
+fn check<T: MemberToCheck>(members_to_check: Vec<T>) -> Result<Vec<CheckedMember<T>>, Status> {
+    let mut connection =
+        establish_connection().map_err(log_error_and_return(Status::InternalServerError))?;
+    let memberships = crate::database::dao::membership::retrieve_memberships(&mut connection)
+        .map_err(log_error_and_return(Status::InternalServerError))?;
+    let memberships = memberships.into();
+    let checked_members = check_members(&memberships, members_to_check);
 
     Ok(checked_members)
 }
@@ -153,12 +148,11 @@ mod tests {
     }
 
     mod check_members {
-        use crate::membership::indexed_memberships::IndexedMemberships;
+        use crate::database::{establish_connection, with_temp_database_async};
         use crate::web::api::memberships_controller::check_uda_members;
         use crate::web::api::memberships_controller::tests::{
             initialize_fileo_login, initialize_uda_login,
         };
-        use crate::web::api::memberships_state::MembershipsState;
         use dto::checked_member::{CheckResult, CheckedMember};
         use dto::membership::tests::get_expected_membership;
         use dto::uda_member::UdaMember;
@@ -166,71 +160,73 @@ mod tests {
         use rocket::http::{ContentType, Header, Status};
         use rocket::local::asynchronous::Client;
         use rocket::serde::json::json;
-        use std::sync::Mutex;
 
-        #[async_test]
-        async fn success() {
-            let member_1 = UdaMember::new(
-                1,
-                Some("123456".to_owned()),
-                "Jon".to_owned(),
-                "Doe".to_owned(),
-                "jon.doe@email.com".to_owned(),
-                Some("Le club de test".to_owned()),
-                true,
-            );
-            let member_2 = UdaMember::new(
-                2,
-                Some("654321".to_owned()),
-                "Jonette".to_owned(),
-                "Snow".to_owned(),
-                "jonette.snow@email.com".to_owned(),
-                None,
-                false,
-            );
-            let members = vec![member_1.clone(), member_2.clone()];
+        #[test]
+        fn success() {
+            async fn test() {
+                let member_1 = UdaMember::new(
+                    1,
+                    Some("123456".to_owned()),
+                    "Jon".to_owned(),
+                    "Doe".to_owned(),
+                    "jon.doe@email.com".to_owned(),
+                    Some("Le club de test".to_owned()),
+                    true,
+                );
+                let member_2 = UdaMember::new(
+                    2,
+                    Some("654321".to_owned()),
+                    "Jonette".to_owned(),
+                    "Snow".to_owned(),
+                    "jonette.snow@email.com".to_owned(),
+                    None,
+                    false,
+                );
+                let members = vec![member_1.clone(), member_2.clone()];
 
-            let (fileo_uuid, fileo_credentials_storage_mutex) = initialize_fileo_login();
-            let (uda_uuid, uda_credentials_storage_mutex) = initialize_uda_login();
+                let (fileo_uuid, fileo_credentials_storage_mutex) = initialize_fileo_login();
+                let (uda_uuid, uda_credentials_storage_mutex) = initialize_uda_login();
 
-            let memberships_state = MembershipsState::new(
-                None,
-                IndexedMemberships::from(vec![get_expected_membership()]),
-            );
-            let memberships_state = Mutex::new(memberships_state);
+                let mut connection = establish_connection().unwrap();
+                crate::database::dao::membership::replace_memberships(
+                    &mut connection,
+                    &vec![get_expected_membership()],
+                )
+                .unwrap();
 
-            let rocket = rocket::build()
-                .manage(fileo_credentials_storage_mutex)
-                .manage(uda_credentials_storage_mutex)
-                .manage(memberships_state)
-                .mount("/", routes![check_uda_members]);
+                let rocket = rocket::build()
+                    .manage(fileo_credentials_storage_mutex)
+                    .manage(uda_credentials_storage_mutex)
+                    .mount("/", routes![check_uda_members]);
 
-            let client = Client::tracked(rocket).await.unwrap();
-            let request = client
-                .post("/members/uda/check")
-                .cookie((
-                    crate::fileo::authentication::AUTHENTICATION_COOKIE,
-                    fileo_uuid,
-                ))
-                .cookie((crate::uda::authentication::AUTHENTICATION_COOKIE, uda_uuid))
-                .body(json!(members).to_string().as_bytes())
-                .header(Header::new(
-                    CONTENT_TYPE.to_string(),
-                    ContentType::JSON.to_string(),
-                ));
+                let client = Client::tracked(rocket).await.unwrap();
+                let request = client
+                    .post("/members/uda/check")
+                    .cookie((
+                        crate::fileo::authentication::AUTHENTICATION_COOKIE,
+                        fileo_uuid,
+                    ))
+                    .cookie((crate::uda::authentication::AUTHENTICATION_COOKIE, uda_uuid))
+                    .body(json!(members).to_string().as_bytes())
+                    .header(Header::new(
+                        CONTENT_TYPE.to_string(),
+                        ContentType::JSON.to_string(),
+                    ));
 
-            let response = request.dispatch().await;
-            assert_eq!(Status::Ok, response.status());
+                let response = request.dispatch().await;
+                assert_eq!(Status::Ok, response.status());
 
-            let checked_members: Vec<CheckedMember<UdaMember>> =
-                response.into_json().await.unwrap();
-            assert_eq!(
-                vec![
-                    CheckedMember::new(member_1, CheckResult::Match(get_expected_membership())),
-                    CheckedMember::new(member_2, CheckResult::NoMatch),
-                ],
-                checked_members
-            )
+                let checked_members: Vec<CheckedMember<UdaMember>> =
+                    response.into_json().await.unwrap();
+                assert_eq!(
+                    vec![
+                        CheckedMember::new(member_1, CheckResult::Match(get_expected_membership())),
+                        CheckedMember::new(member_2, CheckResult::NoMatch),
+                    ],
+                    checked_members
+                )
+            }
+            with_temp_database_async(test);
         }
     }
 
