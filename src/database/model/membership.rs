@@ -3,7 +3,7 @@ use chrono::NaiveDate;
 use diesel::prelude::*;
 use std::str::FromStr;
 
-#[derive(Queryable, Selectable, Insertable, Debug)]
+#[derive(Queryable, Selectable, Insertable, Debug, Clone)]
 #[diesel(table_name = crate::database::schema::membership)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]
 pub(crate) struct Membership {
