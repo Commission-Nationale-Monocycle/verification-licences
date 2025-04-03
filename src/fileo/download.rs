@@ -1,23 +1,19 @@
-use std::ffi::{OsStr, OsString};
 use std::io::BufReader;
-use std::path::PathBuf;
 
 use crate::error::{ApplicationError, Result};
 use crate::fileo::credentials::FileoCredentials;
 use crate::fileo::error::FileoError;
 use crate::fileo::error::FileoError::{
     CantLoadListOnServer, CantRetrieveDownloadLink, MalformedMembershipsDownloadResponse,
-    MembershipsFileFolderCreationFailed, MembershipsFileWriteFailed, NoDownloadLink,
+    NoDownloadLink,
 };
 use crate::fileo::imported_membership::ImportedMembership;
 use crate::membership::config::MembershipsProviderConfig;
-use crate::membership::file_details::FileDetails;
 use crate::tools::web::build_client;
 use crate::tools::{log_error_and_return, log_message, log_message_and_return};
 use crate::web::error::WebError::{
     CantReadPageContent, ConnectionFailed, LackOfPermissions, NotFound, WrongCredentials,
 };
-use chrono::Local;
 use csv::Reader;
 use dto::membership::Membership;
 use encoding::all::ISO_8859_1;
@@ -34,10 +30,8 @@ pub async fn download_memberships_list(
     memberships_provider_config: &MembershipsProviderConfig,
     credentials: &FileoCredentials,
 ) -> Result<Vec<Membership>> {
-    let folder = memberships_provider_config.folder();
     let host = memberships_provider_config.host();
     let download_link_regex = memberships_provider_config.download_link_regex();
-    create_memberships_file_dir(folder)?;
 
     let client = build_client()?;
     login_to_fileo(&client, host, credentials).await?;
@@ -243,21 +237,6 @@ fn format_arguments_into_body(args: &[(&str, &str)]) -> String {
         .join("&")
 }
 
-fn create_memberships_file_dir(memberships_file_folder: &OsStr) -> Result<()> {
-    std::fs::create_dir_all(memberships_file_folder)
-        .map_err(MembershipsFileFolderCreationFailed)?;
-
-    Ok(())
-}
-
-fn write_list_to_file(members_file_folder: &OsStr, file_content: &str) -> Result<FileDetails> {
-    let date_time = Local::now().date_naive();
-    let filepath = PathBuf::from(members_file_folder)
-        .join(format!("memberships-{}.csv", date_time.format("%Y-%m-%d")));
-    std::fs::write(&filepath, file_content).map_err(MembershipsFileWriteFailed)?;
-    Ok(FileDetails::new(date_time, OsString::from(filepath)))
-}
-
 fn parse_file(file_content: &str) -> Vec<Membership> {
     let reader = BufReader::new(file_content.as_bytes());
     let mut reader = csv::ReaderBuilder::new()
@@ -288,16 +267,11 @@ mod tests {
     use crate::error::ApplicationError;
     use crate::error::ApplicationError::{Fileo, Web};
     use crate::membership::config::MembershipsProviderConfig;
-    use crate::membership::get_memberships_file_folder;
-    use crate::tools::test::tests::temp_dir;
     use crate::web::error::WebError;
     use dto::membership::tests::{get_expected_membership, get_membership_as_csv};
     use encoding::EncoderTrap;
     use regex::Regex;
     use rocket::http::ContentType;
-    use std::fs;
-    use std::path::PathBuf;
-    use std::time::SystemTime;
     use wiremock::matchers::{body_string_contains, method, path, query_param_contains};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -305,11 +279,9 @@ mod tests {
     async fn should_download_members_list() {
         let mock_server = MockServer::start().await;
 
-        let temp_dir = temp_dir();
         let config = MembershipsProviderConfig::new(
             mock_server.uri(),
             Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap(),
-            temp_dir.into_os_string(),
         );
         let credentials =
             FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
@@ -358,24 +330,6 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(vec![get_expected_membership()], result);
-    }
-
-    #[test]
-    fn should_create_members_file_dir() {
-        let path = temp_dir();
-        let path = path.join(
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_millis()
-                .to_string(),
-        );
-        fs::create_dir(&path).unwrap();
-        let members_file_folder_path = path.join(get_memberships_file_folder());
-        let result = create_memberships_file_dir(members_file_folder_path.as_ref());
-
-        assert!(result.is_ok());
-        assert!(fs::exists(members_file_folder_path).is_ok_and(|r| r));
     }
 
     #[test]
@@ -645,30 +599,6 @@ mod tests {
         let result = download_list(&client, &mock_server.uri()).await;
         let error = result.err().unwrap();
         assert!(matches!(error, ApplicationError::Web(NotFound)));
-    }
-
-    #[test]
-    fn should_write_list_to_file() {
-        let temp_dir = temp_dir();
-        let expected_content = "content;csv";
-
-        let result = write_list_to_file(temp_dir.as_ref(), expected_content);
-
-        let file_details = result.unwrap();
-        let content = fs::read_to_string(file_details.filepath()).unwrap();
-        assert_eq!(expected_content, content);
-    }
-
-    #[test]
-    fn should_write_list_to_file_when_non_existing_folder() {
-        let temp_dir = PathBuf::from("/this/path/does/not/exist");
-
-        let result = write_list_to_file(temp_dir.as_ref(), "");
-
-        assert!(matches!(
-            result.err().unwrap(),
-            Fileo(MembershipsFileWriteFailed(_))
-        ));
     }
     // endregion
 

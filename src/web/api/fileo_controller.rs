@@ -98,7 +98,6 @@ pub async fn download_memberships(
 #[cfg(test)]
 mod tests {
     use crate::membership::config::MembershipsProviderConfig;
-    use crate::tools::test::tests::temp_dir;
     use crate::web::api::memberships_state::MembershipsState;
     use regex::Regex;
     use std::sync::Mutex;
@@ -106,11 +105,9 @@ mod tests {
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     fn create_memberships_provider_test_config(uri: &str) -> MembershipsProviderConfig {
-        let temp_dir = temp_dir();
         MembershipsProviderConfig::new(
             uri.to_owned(),
             Regex::new(&format!("{}/download\\.csv", uri)).unwrap(),
-            temp_dir.into_os_string(),
         )
     }
 
@@ -329,8 +326,6 @@ mod tests {
         use rocket::State;
         use rocket::http::{Cookie, Status};
         use rocket::local::asynchronous::Client;
-        use std::fs;
-        use std::path::PathBuf;
         use std::sync::Mutex;
         use wiremock::matchers::{body_string_contains, method, path, query_param_contains};
         use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -341,13 +336,8 @@ mod tests {
                 let mock_server = MockServer::start().await;
 
                 let config = create_memberships_provider_test_config(&mock_server.uri());
-                let old_file_path =
-                    PathBuf::from(config.folder()).join("memberships-1980-01-01.csv");
                 let download_filename = "download.csv";
                 let download_link = format!("{}/{download_filename}", mock_server.uri());
-
-                fs::write(&old_file_path, "").unwrap();
-                assert!(fs::exists(&old_file_path).ok().unwrap());
 
                 setup_login(&mock_server).await;
                 Mock::given(method("POST"))

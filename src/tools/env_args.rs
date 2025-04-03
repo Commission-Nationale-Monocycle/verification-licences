@@ -1,3 +1,4 @@
+#[cfg(test)]
 use rocket::tokio::runtime::Runtime;
 #[cfg(test)]
 use std::cell::RefCell;

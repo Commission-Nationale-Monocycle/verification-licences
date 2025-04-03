@@ -1,7 +1,6 @@
 use crate::database::establish_connection;
 use crate::fileo::credentials::FileoCredentials;
 use crate::membership::config::MembershipsProviderConfig;
-use crate::membership::get_memberships_file_folder;
 use crate::uda::credentials::UdaCredentials;
 use crate::web::api::memberships_state::MembershipsState;
 use crate::web::api::{fileo_controller, memberships_controller, uda_controller};
@@ -58,11 +57,7 @@ impl Server for ApiServer {
 }
 
 fn build_members_provider_config() -> MembershipsProviderConfig {
-    MembershipsProviderConfig::new(
-        get_fileo_host(),
-        get_download_link_regex(),
-        get_memberships_file_folder().to_os_string(),
-    )
+    MembershipsProviderConfig::new(get_fileo_host(), get_download_link_regex())
 }
 
 #[cfg(not(feature = "demo"))]

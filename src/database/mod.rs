@@ -1,8 +1,11 @@
 use crate::database::error::DatabaseError::{ConnectionFailed, MissingDatabaseUrl};
 use crate::database::migrations::run_migrations;
 use crate::error::Result;
-use crate::tools::env_args::{retrieve_expected_arg_value, with_env_args, with_env_args_async};
+use crate::tools::env_args::retrieve_expected_arg_value;
+#[cfg(test)]
+use crate::tools::env_args::{with_env_args, with_env_args_async};
 use crate::tools::log_error_and_return;
+#[cfg(test)]
 use crate::tools::test::tests::temp_dir;
 use diesel::{Connection, SqliteConnection};
 
@@ -25,6 +28,7 @@ pub fn establish_connection() -> Result<SqliteConnection> {
     Ok(connection)
 }
 
+#[allow(clippy::test_attr_in_doctest)]
 /// In order for tests to work, they should connect to a temporary database.
 /// To do so, they can use this function, which will provide a new database.
 /// E.g.:
@@ -54,6 +58,7 @@ where
     )
 }
 
+#[allow(clippy::test_attr_in_doctest)]
 /// In order for tests to work, they should connect to a temporary database.
 /// To do so, they can use this function, which will provide a new database.
 /// ```rust
