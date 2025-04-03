@@ -55,10 +55,17 @@ fn insert_all(
             )
         })
         .collect::<Vec<_>>();
+    // Limit of 32766 parameters in a query for SQLite > 3.32.0.
+    // As each line has 12 parameters, we have a theoretic maximum of 32 766 / 12 = 2730,5.
+    // Let's say we insert 2500 elements at a time.
+    let memberships = memberships.chunks(2500);
 
-    let count = diesel::insert_into(crate::database::schema::membership::table)
-        .values(&memberships)
-        .execute(connection)?;
+    let mut count = 0;
+    for chunk in memberships {
+        count += diesel::insert_into(crate::database::schema::membership::table)
+            .values(chunk)
+            .execute(connection)?;
+    }
 
     super::last_update::update(connection, &UpdatableElement::Memberships)?;
 
@@ -83,6 +90,10 @@ mod tests {
     use crate::database::schema::membership::*;
     use crate::membership::indexed_memberships::tests::{jon_doe, jonette_snow};
     use diesel::prelude::*;
+
+    fn establish_connection() -> SqliteConnection {
+        crate::database::establish_connection().unwrap()
+    }
 
     fn populate_db(connection: &mut SqliteConnection) -> Vec<dto::membership::Membership> {
         let expected_memberships = vec![jon_doe(), jonette_snow()];
@@ -117,85 +128,124 @@ mod tests {
 
     mod retrieve_memberships {
         use crate::database::dao::membership::retrieve_memberships;
-        use crate::database::dao::membership::tests::populate_db;
-        use crate::database::tests::establish_connection;
+        use crate::database::dao::membership::tests::{establish_connection, populate_db};
+        use crate::database::with_temp_database;
 
         #[test]
         fn success() {
-            let mut connection = establish_connection();
-            let expected_memberships = populate_db(&mut connection);
+            with_temp_database(|| {
+                let mut connection = establish_connection();
+                let expected_memberships = populate_db(&mut connection);
 
-            let result = retrieve_memberships(&mut connection).unwrap();
-            assert_eq!(expected_memberships, result);
+                let result = retrieve_memberships(&mut connection).unwrap();
+                assert_eq!(expected_memberships, result);
+            })
         }
     }
 
     mod delete_all {
         use crate::database::dao::membership::delete_all;
-        use crate::database::dao::membership::tests::populate_db;
-        use crate::database::tests::establish_connection;
+        use crate::database::dao::membership::tests::{establish_connection, populate_db};
+        use crate::database::with_temp_database;
 
         #[test]
         fn success() {
-            let mut connection = establish_connection();
-            let expected_memberships = populate_db(&mut connection);
+            with_temp_database(|| {
+                let mut connection = establish_connection();
+                let expected_memberships = populate_db(&mut connection);
 
-            let result = delete_all(&mut connection).unwrap();
-            assert_eq!(expected_memberships.len(), result);
+                let result = delete_all(&mut connection).unwrap();
+                assert_eq!(expected_memberships.len(), result);
+            })
         }
 
         #[test]
         fn success_when_already_empty() {
-            let mut connection = establish_connection();
+            with_temp_database(|| {
+                let mut connection = establish_connection();
 
-            let result = delete_all(&mut connection).unwrap();
-            assert_eq!(0, result);
+                let result = delete_all(&mut connection).unwrap();
+                assert_eq!(0, result);
+            })
         }
     }
 
     mod insert_all {
         use crate::database::dao::last_update::{UpdatableElement, get_last_update};
         use crate::database::dao::membership::insert_all;
+        use crate::database::dao::membership::tests::establish_connection;
         use crate::database::model::membership::Membership;
-        use crate::database::tests::establish_connection;
+        use crate::database::with_temp_database;
         use crate::membership::indexed_memberships::tests::{jon_doe, jonette_snow};
+        use chrono::Utc;
         use diesel::{QueryDsl, RunQueryDsl, SelectableHelper};
+
+        fn test_insert(expected_memberships: &[dto::membership::Membership]) {
+            with_temp_database(|| {
+                let mut connection = establish_connection();
+
+                let result = insert_all(&mut connection, expected_memberships).unwrap();
+                assert_eq!(expected_memberships.len(), result);
+
+                let results = crate::database::schema::membership::dsl::membership
+                    .select(Membership::as_select())
+                    .load(&mut connection)
+                    .unwrap();
+
+                let memberships = {
+                    let mut memberships = Vec::new();
+                    for result in results {
+                        memberships.push(dto::membership::Membership::try_from(result).unwrap());
+                    }
+
+                    memberships
+                };
+
+                assert_eq!(expected_memberships, memberships);
+                get_last_update(&mut connection, &UpdatableElement::Memberships)
+                    .unwrap()
+                    .unwrap(); // The last_update table should have been updated
+            })
+        }
 
         #[test]
         fn success() {
-            let mut connection = establish_connection();
             let expected_memberships = vec![jon_doe(), jonette_snow()];
+            test_insert(&expected_memberships);
+        }
 
-            let result = insert_all(&mut connection, &expected_memberships).unwrap();
-            assert_eq!(expected_memberships.len(), result);
-
-            let results = crate::database::schema::membership::dsl::membership
-                .select(Membership::as_select())
-                .load(&mut connection)
-                .unwrap();
-
-            let memberships = {
-                let mut memberships = Vec::new();
-                for result in results {
-                    memberships.push(dto::membership::Membership::try_from(result).unwrap());
-                }
-
-                memberships
-            };
-
-            assert_eq!(expected_memberships, memberships);
-            get_last_update(&mut connection, &UpdatableElement::Memberships)
-                .unwrap()
-                .unwrap(); // The last_update table should have been updated
+        /// A long list of memberships to insert could make the query fail if it isn't correctly chunked.
+        #[test]
+        fn success_with_long_list() {
+            let expected_memberships = (0..10000)
+                .map(|i| {
+                    dto::membership::Membership::new(
+                        i.to_string(),
+                        i.to_string(),
+                        i.to_string(),
+                        None,
+                        None,
+                        i.to_string(),
+                        i.to_string(),
+                        true,
+                        Utc::now().date_naive(),
+                        false,
+                        i.to_string(),
+                        i.to_string(),
+                    )
+                })
+                .collect::<Vec<_>>();
+            test_insert(&expected_memberships);
         }
     }
 
     mod replace_memberships {
         use crate::database::dao::last_update::{UpdatableElement, get_last_update};
         use crate::database::dao::membership::replace_memberships;
+        use crate::database::dao::membership::tests::establish_connection;
         use crate::database::dao::membership::tests::populate_db;
         use crate::database::model::membership::Membership;
-        use crate::database::tests::establish_connection;
+        use crate::database::with_temp_database;
         use crate::membership::indexed_memberships::tests::{
             jon_doe_previous_membership, other_jon_doe,
         };
@@ -203,34 +253,36 @@ mod tests {
 
         #[test]
         fn success() {
-            let mut connection = establish_connection();
-            let initial_memberships = populate_db(&mut connection);
-            let expected_memberships = vec![jon_doe_previous_membership(), other_jon_doe()];
+            with_temp_database(|| {
+                let mut connection = establish_connection();
+                let initial_memberships = populate_db(&mut connection);
+                let expected_memberships = vec![jon_doe_previous_membership(), other_jon_doe()];
 
-            let result = replace_memberships(&mut connection, &expected_memberships).unwrap();
-            assert_eq!(
-                (initial_memberships.len(), expected_memberships.len()),
-                result
-            );
+                let result = replace_memberships(&mut connection, &expected_memberships).unwrap();
+                assert_eq!(
+                    (initial_memberships.len(), expected_memberships.len()),
+                    result
+                );
 
-            let results = crate::database::schema::membership::dsl::membership
-                .select(Membership::as_select())
-                .load(&mut connection)
-                .unwrap();
+                let results = crate::database::schema::membership::dsl::membership
+                    .select(Membership::as_select())
+                    .load(&mut connection)
+                    .unwrap();
 
-            let memberships = {
-                let mut memberships = Vec::new();
-                for result in results {
-                    memberships.push(dto::membership::Membership::try_from(result).unwrap());
-                }
+                let memberships = {
+                    let mut memberships = Vec::new();
+                    for result in results {
+                        memberships.push(dto::membership::Membership::try_from(result).unwrap());
+                    }
 
-                memberships
-            };
+                    memberships
+                };
 
-            assert_eq!(expected_memberships, memberships);
-            get_last_update(&mut connection, &UpdatableElement::Memberships)
-                .unwrap()
-                .unwrap(); // The last_update table should have been updated
+                assert_eq!(expected_memberships, memberships);
+                get_last_update(&mut connection, &UpdatableElement::Memberships)
+                    .unwrap()
+                    .unwrap(); // The last_update table should have been updated
+            })
         }
     }
 }

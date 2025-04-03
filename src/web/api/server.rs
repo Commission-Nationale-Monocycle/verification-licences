@@ -1,6 +1,9 @@
+use crate::database::error::DatabaseError;
+use crate::database::establish_connection;
+use crate::error::ApplicationError;
 use crate::fileo::credentials::FileoCredentials;
 use crate::membership::config::MembershipsProviderConfig;
-use crate::membership::get_memberships_file_folder;
+use crate::membership::indexed_memberships::IndexedMemberships;
 use crate::uda::credentials::UdaCredentials;
 use crate::web::api::memberships_state::MembershipsState;
 use crate::web::api::{fileo_controller, memberships_controller, uda_controller};
@@ -21,15 +24,18 @@ impl ApiServer {
 
 impl Server for ApiServer {
     fn configure(&self, rocket_build: Rocket<Build>) -> Rocket<Build> {
+        let mut connection = establish_connection().unwrap();
         let members_provider_config = build_members_provider_config();
-        let memberships_state =
-            match MembershipsState::load_memberships(members_provider_config.folder()) {
-                Ok(state) => state,
-                Err(error) => {
-                    error!("{error:#?}");
-                    panic!("Initialization failed, aborting.");
-                }
-            };
+        let memberships_state = match MembershipsState::load_memberships(&mut connection) {
+            Ok(state) => state,
+            Err(ApplicationError::Database(DatabaseError::UnknownLastUpdate)) => {
+                MembershipsState::new(None, IndexedMemberships::default())
+            }
+            Err(error) => {
+                error!("{error:#?}");
+                panic!("Initialization failed, aborting.");
+            }
+        };
 
         rocket_build
             .manage(members_provider_config)
@@ -57,11 +63,7 @@ impl Server for ApiServer {
 }
 
 fn build_members_provider_config() -> MembershipsProviderConfig {
-    MembershipsProviderConfig::new(
-        get_fileo_host(),
-        get_download_link_regex(),
-        get_memberships_file_folder().to_os_string(),
-    )
+    MembershipsProviderConfig::new(get_fileo_host(), get_download_link_regex())
 }
 
 #[cfg(not(feature = "demo"))]

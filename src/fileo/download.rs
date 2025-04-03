@@ -1,21 +1,21 @@
-use std::ffi::{OsStr, OsString};
-use std::path::PathBuf;
+use std::io::BufReader;
 
 use crate::error::{ApplicationError, Result};
 use crate::fileo::credentials::FileoCredentials;
 use crate::fileo::error::FileoError;
 use crate::fileo::error::FileoError::{
     CantLoadListOnServer, CantRetrieveDownloadLink, MalformedMembershipsDownloadResponse,
-    MembershipsFileFolderCreationFailed, MembershipsFileWriteFailed, NoDownloadLink,
+    NoDownloadLink,
 };
+use crate::fileo::imported_membership::ImportedMembership;
 use crate::membership::config::MembershipsProviderConfig;
-use crate::membership::file_details::FileDetails;
 use crate::tools::web::build_client;
-use crate::tools::{log_error_and_return, log_message_and_return};
+use crate::tools::{log_error_and_return, log_message, log_message_and_return};
 use crate::web::error::WebError::{
     CantReadPageContent, ConnectionFailed, LackOfPermissions, NotFound, WrongCredentials,
 };
-use chrono::Local;
+use csv::Reader;
+use dto::membership::Membership;
 use encoding::all::ISO_8859_1;
 use encoding::{DecoderTrap, Encoding};
 use log::{debug, error};
@@ -29,18 +29,16 @@ use rocket::http::ContentType;
 pub async fn download_memberships_list(
     memberships_provider_config: &MembershipsProviderConfig,
     credentials: &FileoCredentials,
-) -> Result<FileDetails> {
-    let folder = memberships_provider_config.folder();
+) -> Result<Vec<Membership>> {
     let host = memberships_provider_config.host();
     let download_link_regex = memberships_provider_config.download_link_regex();
-    create_memberships_file_dir(folder)?;
 
     let client = build_client()?;
     login_to_fileo(&client, host, credentials).await?;
     load_list_into_server_session(&client, host).await?;
     let download_url = retrieve_download_link(&client, host, download_link_regex).await?;
     let file_content = download_list(&client, &download_url).await?;
-    write_list_to_file(folder, &file_content)
+    Ok(parse_file(&file_content))
 }
 
 // region Requests
@@ -239,55 +237,56 @@ fn format_arguments_into_body(args: &[(&str, &str)]) -> String {
         .join("&")
 }
 
-fn create_memberships_file_dir(memberships_file_folder: &OsStr) -> Result<()> {
-    std::fs::create_dir_all(memberships_file_folder)
-        .map_err(MembershipsFileFolderCreationFailed)?;
-
-    Ok(())
+fn parse_file(file_content: &str) -> Vec<Membership> {
+    let reader = BufReader::new(file_content.as_bytes());
+    let mut reader = csv::ReaderBuilder::new()
+        .delimiter(b';')
+        .from_reader(reader);
+    load_memberships(&mut reader)
 }
 
-fn write_list_to_file(members_file_folder: &OsStr, file_content: &str) -> Result<FileDetails> {
-    let date_time = Local::now().date_naive();
-    let filepath = PathBuf::from(members_file_folder)
-        .join(format!("memberships-{}.csv", date_time.format("%Y-%m-%d")));
-    std::fs::write(&filepath, file_content).map_err(MembershipsFileWriteFailed)?;
-    Ok(FileDetails::new(date_time, OsString::from(filepath)))
+fn load_memberships<T>(reader: &mut Reader<T>) -> Vec<Membership>
+where
+    T: std::io::Read,
+{
+    reader
+        .deserialize()
+        .filter_map(|result: Result<ImportedMembership, _>| match result {
+            Ok(membership) => Some(membership.into()),
+            Err(e) => {
+                log_message("Error while reading membership")(e);
+                None
+            }
+        })
+        .collect::<Vec<_>>()
 }
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-    use std::path::PathBuf;
-    use std::time::SystemTime;
-
+    use super::*;
+    use crate::error::ApplicationError;
+    use crate::error::ApplicationError::{Fileo, Web};
+    use crate::membership::config::MembershipsProviderConfig;
+    use crate::web::error::WebError;
+    use dto::membership::tests::{get_expected_membership, get_membership_as_csv};
+    use encoding::EncoderTrap;
     use regex::Regex;
     use rocket::http::ContentType;
     use wiremock::matchers::{body_string_contains, method, path, query_param_contains};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    use super::*;
-    use crate::error::ApplicationError;
-    use crate::error::ApplicationError::{Fileo, Web};
-    use crate::membership::config::MembershipsProviderConfig;
-    use crate::membership::get_memberships_file_folder;
-    use crate::tools::test::tests::temp_dir;
-    use crate::web::error::WebError;
-
     #[async_test]
     async fn should_download_members_list() {
         let mock_server = MockServer::start().await;
 
-        let temp_dir = temp_dir();
         let config = MembershipsProviderConfig::new(
             mock_server.uri(),
             Regex::new(&format!("{}/download\\.csv", mock_server.uri())).unwrap(),
-            temp_dir.into_os_string(),
         );
         let credentials =
             FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
         let download_filename = "download.csv";
         let download_link = format!("{}/{download_filename}", mock_server.uri());
-        let expected_content = "ï";
 
         Mock::given(method("POST"))
             .and(path("/page.php"))
@@ -316,35 +315,21 @@ mod tests {
             ))
             .mount(&mock_server)
             .await;
-        let message_in_latin1: &[u8] = &[239]; // Represents the character `ï` in LATIN1/ISO_8859_1
+        let member_as_csv = get_membership_as_csv();
+        let member_as_csv = ISO_8859_1
+            .encode(&member_as_csv, EncoderTrap::Strict)
+            .unwrap();
+        let message_in_latin1: &[u8] = &member_as_csv;
         Mock::given(method("GET"))
             .and(path(format!("/{download_filename}").to_owned()))
             .respond_with(ResponseTemplate::new(200).set_body_raw(message_in_latin1, "text/csv"))
             .mount(&mock_server)
             .await;
 
-        let result = download_memberships_list(&config, &credentials).await;
-        let file_details = result.unwrap();
-        let content = fs::read_to_string(file_details.filepath()).unwrap();
-        assert_eq!(expected_content, content);
-    }
-
-    #[test]
-    fn should_create_members_file_dir() {
-        let path = temp_dir();
-        let path = path.join(
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_millis()
-                .to_string(),
-        );
-        fs::create_dir(&path).unwrap();
-        let members_file_folder_path = path.join(get_memberships_file_folder());
-        let result = create_memberships_file_dir(members_file_folder_path.as_ref());
-
-        assert!(result.is_ok());
-        assert!(fs::exists(members_file_folder_path).is_ok_and(|r| r));
+        let result = download_memberships_list(&config, &credentials)
+            .await
+            .unwrap();
+        assert_eq!(vec![get_expected_membership()], result);
     }
 
     #[test]
@@ -615,30 +600,6 @@ mod tests {
         let error = result.err().unwrap();
         assert!(matches!(error, ApplicationError::Web(NotFound)));
     }
-
-    #[test]
-    fn should_write_list_to_file() {
-        let temp_dir = temp_dir();
-        let expected_content = "content;csv";
-
-        let result = write_list_to_file(temp_dir.as_ref(), expected_content);
-
-        let file_details = result.unwrap();
-        let content = fs::read_to_string(file_details.filepath()).unwrap();
-        assert_eq!(expected_content, content);
-    }
-
-    #[test]
-    fn should_write_list_to_file_when_non_existing_folder() {
-        let temp_dir = PathBuf::from("/this/path/does/not/exist");
-
-        let result = write_list_to_file(temp_dir.as_ref(), "");
-
-        assert!(matches!(
-            result.err().unwrap(),
-            Fileo(MembershipsFileWriteFailed(_))
-        ));
-    }
     // endregion
 
     // region Requests preparation
@@ -745,5 +706,35 @@ mod tests {
             "Fileo Credentials {login=login, password=MASKED}",
             format!("{credentials:?}")
         );
+    }
+
+    mod load_memberships {
+        use crate::fileo::download::load_memberships;
+        use dto::membership::tests::{
+            get_expected_membership, get_malformed_membership_as_csv, get_membership_as_csv,
+        };
+        use std::io::BufReader;
+
+        #[test]
+        fn success() {
+            let entry = get_membership_as_csv();
+            let expected_member = get_expected_membership();
+
+            let mut reader = csv::ReaderBuilder::new()
+                .delimiter(b';')
+                .from_reader(BufReader::new(entry.as_bytes()));
+            let members = load_memberships(&mut reader);
+            assert_eq!(vec![expected_member], members);
+        }
+
+        #[test]
+        fn fail_when_malformed_input() {
+            let entry = get_malformed_membership_as_csv();
+            let mut reader = csv::ReaderBuilder::new()
+                .delimiter(b';')
+                .from_reader(BufReader::new(entry.as_bytes()));
+            let members = load_memberships(&mut reader);
+            assert!(members.is_empty(), "`members` is not empty.");
+        }
     }
 }
