@@ -51,11 +51,7 @@ The project is structured as follows:
 - [wasm](https://github.com/maxence-cornaton/verification-licences/tree/main/wasm): the client-side code, written in
   Rust and compiled into WASM.
 
-Besides, throughout your journey into the app, you'll encounter some generated folders:
-
-- _data/_: location for the downloaded memberships. This acts as the database.
-- _demo_data/_: similarly to `data`, this is the location for the demo memberships. This is populated when running in
-  demo mode.
+Besides, throughout your journey into the app, you'll encounter the following generated folder:
 - _public/static/pkg/_: this is the location for the generated WASM and JS libs.
 
 ## Running the tests
