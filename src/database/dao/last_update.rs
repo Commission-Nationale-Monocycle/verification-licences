@@ -20,7 +20,6 @@ impl Display for UpdatableElement {
     }
 }
 
-#[allow(dead_code)]
 pub fn get_last_update(
     connection: &mut SqliteConnection,
     updatable_element: &UpdatableElement,
