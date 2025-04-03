@@ -34,11 +34,13 @@ pub fn log_message_and_return<E: Debug, T>(
 }
 
 pub fn normalize(string: &str) -> String {
-    remove_diacritics(&string.split([' ', '-']).collect::<String>().to_lowercase())
-}
-
-pub fn normalize_opt(string: Option<String>) -> String {
-    normalize(string.expect("Expecting a value").as_str())
+    let normalized =
+        remove_diacritics(&string.split([' ', '-']).collect::<String>().to_lowercase());
+    // If that's a number, then we trim all "0"s by parsing it.
+    match normalized.parse::<u32>() {
+        Ok(parsed) => parsed.to_string(),
+        Err(_) => normalized,
+    }
 }
 
 #[cfg(test)]
