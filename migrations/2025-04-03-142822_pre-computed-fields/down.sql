@@ -1,0 +1,10 @@
+ALTER TABLE membership
+    DROP COLUMN normalized_membership_number;
+ALTER TABLE membership
+    DROP COLUMN normalized_last_name;
+ALTER TABLE membership
+    DROP COLUMN normalized_first_name;
+ALTER TABLE membership
+    DROP COLUMN normalized_last_name_first_name;
+ALTER TABLE membership
+    DROP COLUMN normalized_first_name_last_name;
