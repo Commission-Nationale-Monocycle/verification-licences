@@ -1,6 +1,7 @@
 use super::Result;
 use crate::database::dao::last_update::UpdatableElement;
 use crate::database::model::membership::Membership;
+use crate::tools::normalize;
 use diesel::prelude::*;
 use diesel::{QueryDsl, RunQueryDsl, SelectableHelper};
 
@@ -51,13 +52,25 @@ fn insert_all(
                 expired.eq(*membership.expired()),
                 club.eq(membership.club().clone()),
                 structure_code.eq(membership.structure_code().clone()),
+                normalized_membership_number.eq(normalize(membership.membership_number())),
+                normalized_last_name.eq(normalize(membership.name())),
+                normalized_first_name.eq(normalize(membership.first_name())),
+                normalized_last_name_first_name.eq(format!(
+                    "{}{}",
+                    normalize(membership.name()),
+                    normalize(membership.first_name()),
+                )),
+                normalized_first_name_last_name.eq(format!(
+                    "{}{}",
+                    normalize(membership.first_name()),
+                    normalize(membership.name()),
+                )),
             )
         })
         .collect::<Vec<_>>();
     // Limit of 32766 parameters in a query for SQLite > 3.32.0.
-    // As each line has 12 parameters, we have a theoretic maximum of 32 766 / 12 = 2730,5.
-    // Let's say we insert 2500 elements at a time.
-    let memberships = memberships.chunks(2500);
+    // As each line has 17 parameters, we have a theoretic maximum of 32 766 / 17 = 1927,4.
+    let memberships = memberships.chunks(1927);
 
     let mut count = 0;
     for chunk in memberships {
@@ -87,6 +100,7 @@ pub fn replace_memberships(
 mod tests {
     use crate::database::schema::membership::*;
     use crate::membership::indexed_memberships::tests::{jon_doe, jonette_snow};
+    use crate::tools::normalize;
     use diesel::prelude::*;
 
     fn establish_connection() -> SqliteConnection {
@@ -112,6 +126,19 @@ mod tests {
                     expired.eq(*membership.expired()),
                     club.eq(membership.club().clone()),
                     structure_code.eq(membership.structure_code().clone()),
+                    normalized_membership_number.eq(normalize(membership.membership_number())),
+                    normalized_last_name.eq(normalize(membership.name())),
+                    normalized_first_name.eq(normalize(membership.first_name())),
+                    normalized_last_name_first_name.eq(format!(
+                        "{}{}",
+                        normalize(membership.name()),
+                        normalize(membership.first_name()),
+                    )),
+                    normalized_first_name_last_name.eq(format!(
+                        "{}{}",
+                        normalize(membership.first_name()),
+                        normalize(membership.name()),
+                    )),
                 )
             })
             .collect::<Vec<_>>();

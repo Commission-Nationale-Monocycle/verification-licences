@@ -22,6 +22,11 @@ diesel::table! {
         expired -> Bool,
         club -> Text,
         structure_code -> Text,
+        normalized_membership_number -> Nullable<Text>,
+        normalized_last_name -> Nullable<Text>,
+        normalized_first_name -> Nullable<Text>,
+        normalized_last_name_first_name -> Nullable<Text>,
+        normalized_first_name_last_name -> Nullable<Text>,
     }
 }
 
