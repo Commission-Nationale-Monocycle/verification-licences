@@ -67,7 +67,7 @@ fn check_member<T: MemberToCheck>(
             let first_name = first_name
                 .clone()
                 .expect("There should be a value at this point");
-            if let Some(membership) = dao::membership::find::by_num_last_name_first_name(
+            if let Some(membership) = dao::membership::find::first::by_num_last_name_first_name(
                 connection,
                 &membership_number,
                 &last_name,
@@ -84,9 +84,11 @@ fn check_member<T: MemberToCheck>(
             let identity = identity
                 .clone()
                 .expect("There should be a value at this point");
-            if let Some(membership) =
-                dao::membership::find::by_num_identity(connection, &membership_number, &identity)?
-            {
+            if let Some(membership) = dao::membership::find::first::by_num_identity(
+                connection,
+                &membership_number,
+                &identity,
+            )? {
                 return Ok(Match(membership));
             }
         }
@@ -94,7 +96,9 @@ fn check_member<T: MemberToCheck>(
         let membership_number = membership_number
             .clone()
             .expect("There should be a value at this point");
-        if let Some(membership) = dao::membership::find::by_num(connection, &membership_number)? {
+        if let Some(membership) =
+            dao::membership::find::first::by_num(connection, &membership_number)?
+        {
             return Ok(PartialMatch(membership));
         }
 
@@ -110,9 +114,11 @@ fn check_member<T: MemberToCheck>(
         let first_name = first_name
             .clone()
             .expect("There should be a value at this point");
-        if let Some(membership) =
-            dao::membership::find::by_last_name_first_name(connection, &last_name, &first_name)?
-        {
+        if let Some(membership) = dao::membership::find::first::by_last_name_first_name(
+            connection,
+            &last_name,
+            &first_name,
+        )? {
             return Ok(PartialMatch(membership));
         }
     }
@@ -121,7 +127,8 @@ fn check_member<T: MemberToCheck>(
         let identity = identity
             .clone()
             .expect("There should be a value at this point");
-        if let Some(membership) = dao::membership::find::by_identity(connection, &identity)? {
+        if let Some(membership) = dao::membership::find::first::by_identity(connection, &identity)?
+        {
             return Ok(PartialMatch(membership));
         }
     }

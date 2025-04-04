@@ -65,7 +65,6 @@ impl Ord for Membership {
             .then(self.membership_number.cmp(&other.membership_number))
             .then(self.name.cmp(&other.name))
             .then(self.first_name.cmp(&other.first_name))
-            .then(self.end_date.cmp(&other.end_date))
     }
 }
 
