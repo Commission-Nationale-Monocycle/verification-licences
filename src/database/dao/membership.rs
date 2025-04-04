@@ -218,66 +218,53 @@ pub(crate) mod find {
 
     pub(crate) mod all {
         use super::super::Result;
+        use crate::database::dao::membership::find::get_order;
         use crate::database::model::membership::Membership;
-        use diesel::SqliteConnection;
+        use crate::database::schema::membership::{
+            normalized_first_name, normalized_last_name, normalized_membership_number,
+        };
+        use crate::tools::normalize;
+        use diesel::{
+            ExpressionMethods, QueryDsl, RunQueryDsl, SelectableHelper, SqliteConnection,
+        };
+        use dto::member_to_look_up::MemberToLookUp;
+        use std::collections::BTreeSet;
 
-        pub fn by_num(
+        pub fn by_member_to_lookup(
             connection: &mut SqliteConnection,
-            membership_number: &str,
-        ) -> Result<Vec<dto::membership::Membership>> {
-            let results = super::by_num(connection, membership_number, None)?;
-            convert_to_dto(results)
-        }
+            member_to_look_up: &MemberToLookUp,
+        ) -> Result<BTreeSet<dto::membership::Membership>> {
+            let mut statement = crate::database::schema::membership::dsl::membership
+                .order(get_order())
+                .select(Membership::as_select())
+                .into_boxed();
 
-        pub fn by_num_identity(
-            connection: &mut SqliteConnection,
-            membership_number: &str,
-            identity: &str,
-        ) -> Result<Vec<dto::membership::Membership>> {
-            let results = super::by_num_identity(connection, membership_number, identity, None)?;
-            convert_to_dto(results)
-        }
+            if let Some(membership_num) = member_to_look_up.membership_num() {
+                statement =
+                    statement.filter(normalized_membership_number.eq(normalize(membership_num)));
+            }
+            if let Some(searched_last_name) = member_to_look_up.last_name() {
+                statement =
+                    statement.filter(normalized_last_name.eq(normalize(searched_last_name)));
+            }
+            if let Some(searched_first_name) = member_to_look_up.first_name() {
+                statement =
+                    statement.filter(normalized_first_name.eq(normalize(searched_first_name)));
+            }
 
-        pub fn by_num_last_name_first_name(
-            connection: &mut SqliteConnection,
-            membership_number: &str,
-            last_name: &str,
-            first_name: &str,
-        ) -> Result<Vec<dto::membership::Membership>> {
-            let results = super::by_num_last_name_first_name(
-                connection,
-                membership_number,
-                last_name,
-                first_name,
-                None,
-            )?;
-            convert_to_dto(results)
-        }
-
-        pub fn by_identity(
-            connection: &mut SqliteConnection,
-            identity: &str,
-        ) -> Result<Vec<dto::membership::Membership>> {
-            let results = super::by_identity(connection, identity, None)?;
-            convert_to_dto(results)
-        }
-
-        pub fn by_last_name_first_name(
-            connection: &mut SqliteConnection,
-            last_name: &str,
-            first_name: &str,
-        ) -> Result<Vec<dto::membership::Membership>> {
-            let results = super::by_last_name_first_name(connection, last_name, first_name, None)?;
+            let results = statement.load(connection)?;
 
             convert_to_dto(results)
         }
 
-        fn convert_to_dto(results: Vec<Membership>) -> Result<Vec<dto::membership::Membership>> {
+        fn convert_to_dto(
+            results: Vec<Membership>,
+        ) -> Result<BTreeSet<dto::membership::Membership>> {
             Ok({
-                let mut memberships = vec![];
+                let mut memberships = BTreeSet::new();
 
                 for membership in results {
-                    memberships.push(dto::membership::Membership::try_from(membership)?);
+                    memberships.insert(dto::membership::Membership::try_from(membership)?);
                 }
 
                 memberships
@@ -355,7 +342,7 @@ pub(crate) mod find {
 #[cfg(test)]
 mod tests {
     use crate::database::schema::membership::*;
-    use crate::membership::indexed_memberships::tests::{jon_doe, jonette_snow};
+    use crate::membership::tests::{jon_doe, jonette_snow};
     use crate::tools::normalize;
     use diesel::prelude::*;
 
@@ -452,7 +439,7 @@ mod tests {
         use crate::database::dao::membership::insert_all;
         use crate::database::model::membership::Membership;
         use crate::database::with_temp_database;
-        use crate::membership::indexed_memberships::tests::{jon_doe, jonette_snow};
+        use crate::membership::tests::{jon_doe, jonette_snow};
         use chrono::Utc;
         use diesel::{QueryDsl, RunQueryDsl, SelectableHelper};
 
@@ -521,9 +508,7 @@ mod tests {
         use crate::database::dao::membership::tests::populate_db;
         use crate::database::model::membership::Membership;
         use crate::database::with_temp_database;
-        use crate::membership::indexed_memberships::tests::{
-            jon_doe_previous_membership, other_jon_doe,
-        };
+        use crate::membership::tests::{jon_doe_previous_membership, other_jon_doe};
         use diesel::{QueryDsl, RunQueryDsl, SelectableHelper};
 
         #[test]
@@ -563,612 +548,264 @@ mod tests {
 
     mod find {
         mod all {
-            mod by_num {
-                use crate::database::dao::membership::find::all::by_num;
+            mod by_member_to_look_up {
+                use crate::database::dao::membership::find::all::by_member_to_lookup;
                 use crate::database::dao::membership::insert_all;
                 use crate::database::with_temp_database;
-                use chrono::{Months, Utc};
-                use dto::membership::Membership;
+                use crate::membership::tests::{
+                    jon_doe, jon_doe_previous_membership, jonette_snow, other_jon_doe,
+                };
+                use dto::member_to_look_up::MemberToLookUp;
+                use std::collections::BTreeSet;
 
                 #[test]
-                fn find_the_only_one() {
+                fn by_num_last_name_first_name() {
                     with_temp_database(|pool| {
-                        let num = "123456".to_owned();
-                        let membership = dto::membership::Membership::new(
-                            "Doe".to_owned(),
-                            "Jon".to_owned(),
-                            "M".to_owned(),
-                            None,
-                            None,
-                            num.clone(),
-                            "address@test.com".to_owned(),
-                            true,
-                            Utc::now().date_naive(),
-                            false,
-                            "club".to_owned(),
-                            "A12345".to_owned(),
-                        );
-
-                        let mut connection = pool.get().unwrap();
-
-                        insert_all(&mut connection, &[membership.clone()]).unwrap();
-
-                        let result = by_num(&mut connection, &num).unwrap();
-                        assert_eq!(vec![membership], result);
-                    });
-                }
-
-                #[test]
-                fn find_both() {
-                    with_temp_database(|pool| {
-                        let num = "123456".to_owned();
-                        let membership = dto::membership::Membership::new(
-                            "Doe".to_owned(),
-                            "Jon".to_owned(),
-                            "M".to_owned(),
-                            None,
-                            None,
-                            num.clone(),
-                            "address@test.com".to_owned(),
-                            true,
-                            Utc::now().date_naive(),
-                            false,
-                            "club".to_owned(),
-                            "A12345".to_owned(),
-                        );
-
-                        let old_membership = dto::membership::Membership::new(
-                            "Doe".to_owned(),
-                            "Jon".to_owned(),
-                            "M".to_owned(),
-                            None,
-                            None,
-                            num.clone(),
-                            "address@test.com".to_owned(),
-                            true,
-                            Utc::now()
-                                .date_naive()
-                                .checked_sub_months(Months::new(12))
-                                .unwrap(),
-                            false,
-                            "club".to_owned(),
-                            "A12345".to_owned(),
-                        );
-
                         let mut connection = pool.get().unwrap();
 
                         insert_all(
                             &mut connection,
-                            &[membership.clone(), old_membership.clone()],
+                            &[
+                                jon_doe(),
+                                jon_doe_previous_membership(),
+                                other_jon_doe(),
+                                jonette_snow(),
+                            ],
                         )
                         .unwrap();
 
-                        let result = by_num(&mut connection, &num).unwrap();
-                        assert_eq!(vec![membership.clone(), old_membership.clone()], result);
-                    });
-                }
-
-                #[test]
-                fn none_matching() {
-                    with_temp_database(|pool| {
-                        let num = "123456".to_owned();
-                        let mut connection = pool.get().unwrap();
-
-                        insert_all(&mut connection, &[]).unwrap();
-
-                        let result = by_num(&mut connection, &num).unwrap();
-                        assert_eq!(Vec::<Membership>::new(), result);
-                    });
-                }
-            }
-
-            mod by_num_identity {
-                use crate::database::dao::membership::find::all::by_num_identity;
-                use crate::database::dao::membership::insert_all;
-                use crate::database::with_temp_database;
-                use chrono::{Months, Utc};
-                use dto::membership::Membership;
-
-                #[test]
-                fn find_the_only_one() {
-                    with_temp_database(|pool| {
-                        let num = "123456".to_owned();
-                        let first_name = "Jon".to_owned();
-                        let last_name = "Doe".to_owned();
-                        let identity = format!("{}{}", &first_name, &last_name);
-                        let membership = dto::membership::Membership::new(
-                            last_name,
-                            first_name,
-                            "M".to_owned(),
-                            None,
-                            None,
-                            num.clone(),
-                            "address@test.com".to_owned(),
-                            true,
-                            Utc::now().date_naive(),
-                            false,
-                            "club".to_owned(),
-                            "A12345".to_owned(),
+                        let member_to_look_up = MemberToLookUp::new(
+                            Some(jon_doe().membership_number().to_owned()),
+                            Some(jon_doe().name().to_owned()),
+                            Some(jon_doe().first_name().to_owned()),
                         );
-
-                        let mut connection = pool.get().unwrap();
-
-                        insert_all(&mut connection, &[membership.clone()]).unwrap();
-
-                        let result = by_num_identity(&mut connection, &num, &identity).unwrap();
-                        assert_eq!(vec![membership], result);
-                    });
-                }
-
-                #[test]
-                fn find_the_only_one_by_reversed_identity() {
-                    with_temp_database(|pool| {
-                        let num = "123456".to_owned();
-                        let first_name = "Jon".to_owned();
-                        let last_name = "Doe".to_owned();
-                        let identity = format!("{}{}", &last_name, &first_name);
-                        let membership = dto::membership::Membership::new(
-                            last_name,
-                            first_name,
-                            "M".to_owned(),
-                            None,
-                            None,
-                            num.clone(),
-                            "address@test.com".to_owned(),
-                            true,
-                            Utc::now().date_naive(),
-                            false,
-                            "club".to_owned(),
-                            "A12345".to_owned(),
-                        );
-
-                        let mut connection = pool.get().unwrap();
-
-                        insert_all(&mut connection, &[membership.clone()]).unwrap();
-
-                        let result = by_num_identity(&mut connection, &num, &identity).unwrap();
-                        assert_eq!(vec![membership], result);
-                    });
-                }
-
-                #[test]
-                fn find_all() {
-                    with_temp_database(|pool| {
-                        let num = "123456".to_owned();
-                        let first_name = "Jon".to_owned();
-                        let last_name = "Doe".to_owned();
-                        let identity = format!("{}{}", &first_name, &last_name);
-                        let membership = dto::membership::Membership::new(
-                            first_name.clone(),
-                            last_name.clone(),
-                            "M".to_owned(),
-                            None,
-                            None,
-                            num.clone(),
-                            "address@test.com".to_owned(),
-                            true,
-                            Utc::now().date_naive(),
-                            false,
-                            "club".to_owned(),
-                            "A12345".to_owned(),
-                        );
-
-                        let old_membership = dto::membership::Membership::new(
-                            first_name.clone(),
-                            last_name.clone(),
-                            "M".to_owned(),
-                            None,
-                            None,
-                            num.clone(),
-                            "address@test.com".to_owned(),
-                            true,
-                            Utc::now()
-                                .date_naive()
-                                .checked_sub_months(Months::new(12))
-                                .unwrap(),
-                            false,
-                            "club".to_owned(),
-                            "A12345".to_owned(),
-                        );
-
-                        let mut connection = pool.get().unwrap();
-
-                        insert_all(
-                            &mut connection,
-                            &[membership.clone(), old_membership.clone()],
-                        )
-                        .unwrap();
-
-                        let result = by_num_identity(&mut connection, &num, &identity).unwrap();
-                        assert_eq!(vec![membership, old_membership], result);
-                    });
-                }
-
-                #[test]
-                fn none_matching() {
-                    with_temp_database(|pool| {
-                        let num = "123456".to_owned();
-                        let first_name = "Jon".to_owned();
-                        let last_name = "Doe".to_owned();
-                        let identity = format!("{}{}", &first_name, &last_name);
-                        let mut connection = pool.get().unwrap();
-
-                        insert_all(&mut connection, &[]).unwrap();
-
-                        let result = by_num_identity(&mut connection, &num, &identity).unwrap();
-                        assert_eq!(Vec::<Membership>::new(), result);
-                    });
-                }
-            }
-
-            mod by_num_last_name_first_name {
-                use crate::database::dao::membership::find::all::by_num_last_name_first_name;
-                use crate::database::dao::membership::insert_all;
-                use crate::database::with_temp_database;
-                use chrono::{Months, Utc};
-                use dto::membership::Membership;
-
-                #[test]
-                fn find_the_only_one() {
-                    with_temp_database(|pool| {
-                        let num = "123456".to_owned();
-                        let first_name = "Jon".to_owned();
-                        let last_name = "Doe".to_owned();
-                        let membership = dto::membership::Membership::new(
-                            last_name.clone(),
-                            first_name.clone(),
-                            "M".to_owned(),
-                            None,
-                            None,
-                            num.clone(),
-                            "address@test.com".to_owned(),
-                            true,
-                            Utc::now().date_naive(),
-                            false,
-                            "club".to_owned(),
-                            "A12345".to_owned(),
-                        );
-
-                        let mut connection = pool.get().unwrap();
-
-                        insert_all(&mut connection, &[membership.clone()]).unwrap();
-
-                        let result = by_num_last_name_first_name(
-                            &mut connection,
-                            &num,
-                            &last_name,
-                            &first_name,
-                        )
-                        .unwrap();
-                        assert_eq!(vec![membership], result);
-                    });
-                }
-
-                #[test]
-                fn find_all() {
-                    with_temp_database(|pool| {
-                        let num = "123456".to_owned();
-                        let first_name = "Jon".to_owned();
-                        let last_name = "Doe".to_owned();
-                        let membership = dto::membership::Membership::new(
-                            last_name.clone(),
-                            first_name.clone(),
-                            "M".to_owned(),
-                            None,
-                            None,
-                            num.clone(),
-                            "address@test.com".to_owned(),
-                            true,
-                            Utc::now().date_naive(),
-                            false,
-                            "club".to_owned(),
-                            "A12345".to_owned(),
-                        );
-
-                        let old_membership = dto::membership::Membership::new(
-                            last_name.clone(),
-                            first_name.clone(),
-                            "M".to_owned(),
-                            None,
-                            None,
-                            num.clone(),
-                            "address@test.com".to_owned(),
-                            true,
-                            Utc::now()
-                                .date_naive()
-                                .checked_sub_months(Months::new(12))
-                                .unwrap(),
-                            false,
-                            "club".to_owned(),
-                            "A12345".to_owned(),
-                        );
-
-                        let mut connection = pool.get().unwrap();
-
-                        insert_all(
-                            &mut connection,
-                            &[membership.clone(), old_membership.clone()],
-                        )
-                        .unwrap();
-
-                        let result = by_num_last_name_first_name(
-                            &mut connection,
-                            &num,
-                            &last_name,
-                            &first_name,
-                        )
-                        .unwrap();
-                        assert_eq!(vec![membership, old_membership], result);
-                    });
-                }
-
-                #[test]
-                fn none_matching() {
-                    with_temp_database(|pool| {
-                        let num = "123456".to_owned();
-                        let first_name = "Jon".to_owned();
-                        let last_name = "Doe".to_owned();
-                        let mut connection = pool.get().unwrap();
-
-                        insert_all(&mut connection, &[]).unwrap();
-
-                        let result = by_num_last_name_first_name(
-                            &mut connection,
-                            &num,
-                            &last_name,
-                            &first_name,
-                        )
-                        .unwrap();
-                        assert_eq!(Vec::<Membership>::new(), result);
-                    });
-                }
-            }
-
-            mod by_identity {
-                use crate::database::dao::membership::find::all::by_identity;
-                use crate::database::dao::membership::insert_all;
-                use crate::database::with_temp_database;
-                use chrono::{Months, Utc};
-                use dto::membership::Membership;
-
-                #[test]
-                fn find_the_only_one() {
-                    with_temp_database(|pool| {
-                        let num = "123456".to_owned();
-                        let first_name = "Jon".to_owned();
-                        let last_name = "Doe".to_owned();
-                        let identity = format!("{}{}", &first_name, &last_name);
-                        let membership = dto::membership::Membership::new(
-                            last_name,
-                            first_name,
-                            "M".to_owned(),
-                            None,
-                            None,
-                            num,
-                            "address@test.com".to_owned(),
-                            true,
-                            Utc::now().date_naive(),
-                            false,
-                            "club".to_owned(),
-                            "A12345".to_owned(),
-                        );
-
-                        let mut connection = pool.get().unwrap();
-
-                        insert_all(&mut connection, &[membership.clone()]).unwrap();
-
-                        let result = by_identity(&mut connection, &identity).unwrap();
-                        assert_eq!(vec![membership], result);
-                    });
-                }
-
-                #[test]
-                fn find_the_only_one_by_reversed_identity() {
-                    with_temp_database(|pool| {
-                        let num = "123456".to_owned();
-                        let first_name = "Jon".to_owned();
-                        let last_name = "Doe".to_owned();
-                        let identity = format!("{}{}", &last_name, &first_name);
-                        let membership = dto::membership::Membership::new(
-                            last_name,
-                            first_name,
-                            "M".to_owned(),
-                            None,
-                            None,
-                            num,
-                            "address@test.com".to_owned(),
-                            true,
-                            Utc::now().date_naive(),
-                            false,
-                            "club".to_owned(),
-                            "A12345".to_owned(),
-                        );
-
-                        let mut connection = pool.get().unwrap();
-
-                        insert_all(&mut connection, &[membership.clone()]).unwrap();
-
-                        let result = by_identity(&mut connection, &identity).unwrap();
-                        assert_eq!(vec![membership], result);
-                    });
-                }
-
-                #[test]
-                fn find_all() {
-                    with_temp_database(|pool| {
-                        let num = "123456".to_owned();
-                        let first_name = "Jon".to_owned();
-                        let last_name = "Doe".to_owned();
-                        let identity = format!("{}{}", &first_name, &last_name);
-                        let membership = dto::membership::Membership::new(
-                            last_name.clone(),
-                            first_name.clone(),
-                            "M".to_owned(),
-                            None,
-                            None,
-                            num.clone(),
-                            "address@test.com".to_owned(),
-                            true,
-                            Utc::now().date_naive(),
-                            false,
-                            "club".to_owned(),
-                            "A12345".to_owned(),
-                        );
-
-                        let old_membership = dto::membership::Membership::new(
-                            last_name.clone(),
-                            first_name.clone(),
-                            "M".to_owned(),
-                            None,
-                            None,
-                            num,
-                            "address@test.com".to_owned(),
-                            true,
-                            Utc::now()
-                                .date_naive()
-                                .checked_sub_months(Months::new(12))
-                                .unwrap(),
-                            false,
-                            "club".to_owned(),
-                            "A12345".to_owned(),
-                        );
-
-                        let mut connection = pool.get().unwrap();
-
-                        insert_all(
-                            &mut connection,
-                            &[membership.clone(), old_membership.clone()],
-                        )
-                        .unwrap();
-
-                        let result = by_identity(&mut connection, &identity).unwrap();
-                        assert_eq!(vec![membership, old_membership], result);
-                    });
-                }
-
-                #[test]
-                fn none_matching() {
-                    with_temp_database(|pool| {
-                        let first_name = "Jon".to_owned();
-                        let last_name = "Doe".to_owned();
-                        let identity = format!("{}{}", &first_name, &last_name);
-                        let mut connection = pool.get().unwrap();
-
-                        insert_all(&mut connection, &[]).unwrap();
-
-                        let result = by_identity(&mut connection, &identity).unwrap();
-                        assert_eq!(Vec::<Membership>::new(), result);
-                    });
-                }
-            }
-
-            mod by_last_name_first_name {
-                use crate::database::dao::membership::find::all::by_last_name_first_name;
-                use crate::database::dao::membership::insert_all;
-                use crate::database::with_temp_database;
-                use chrono::{Months, Utc};
-                use dto::membership::Membership;
-
-                #[test]
-                fn find_the_only_one() {
-                    with_temp_database(|pool| {
-                        let num = "123456".to_owned();
-                        let first_name = "Jon".to_owned();
-                        let last_name = "Doe".to_owned();
-                        let membership = dto::membership::Membership::new(
-                            last_name.clone(),
-                            first_name.clone(),
-                            "M".to_owned(),
-                            None,
-                            None,
-                            num,
-                            "address@test.com".to_owned(),
-                            true,
-                            Utc::now().date_naive(),
-                            false,
-                            "club".to_owned(),
-                            "A12345".to_owned(),
-                        );
-
-                        let mut connection = pool.get().unwrap();
-
-                        insert_all(&mut connection, &[membership.clone()]).unwrap();
-
                         let result =
-                            by_last_name_first_name(&mut connection, &last_name, &first_name)
-                                .unwrap();
-                        assert_eq!(vec![membership], result);
-                    });
+                            by_member_to_lookup(&mut connection, &member_to_look_up).unwrap();
+                        assert_eq!(
+                            BTreeSet::from([jon_doe(), jon_doe_previous_membership()]),
+                            result
+                        );
+                    })
                 }
 
                 #[test]
-                fn find_all() {
+                fn by_num_last_name() {
                     with_temp_database(|pool| {
-                        let num = "123456".to_owned();
-                        let first_name = "Jon".to_owned();
-                        let last_name = "Doe".to_owned();
-                        let membership = dto::membership::Membership::new(
-                            last_name.clone(),
-                            first_name.clone(),
-                            "M".to_owned(),
-                            None,
-                            None,
-                            num.clone(),
-                            "address@test.com".to_owned(),
-                            true,
-                            Utc::now().date_naive(),
-                            false,
-                            "club".to_owned(),
-                            "A12345".to_owned(),
-                        );
-
-                        let old_membership = dto::membership::Membership::new(
-                            last_name.clone(),
-                            first_name.clone(),
-                            "M".to_owned(),
-                            None,
-                            None,
-                            num,
-                            "address@test.com".to_owned(),
-                            true,
-                            Utc::now()
-                                .date_naive()
-                                .checked_sub_months(Months::new(12))
-                                .unwrap(),
-                            false,
-                            "club".to_owned(),
-                            "A12345".to_owned(),
-                        );
-
                         let mut connection = pool.get().unwrap();
 
                         insert_all(
                             &mut connection,
-                            &[membership.clone(), old_membership.clone()],
+                            &[
+                                jon_doe(),
+                                jon_doe_previous_membership(),
+                                other_jon_doe(),
+                                jonette_snow(),
+                            ],
                         )
                         .unwrap();
 
+                        let member_to_look_up = MemberToLookUp::new(
+                            Some(jon_doe().membership_number().to_owned()),
+                            Some(jon_doe().name().to_owned()),
+                            None,
+                        );
                         let result =
-                            by_last_name_first_name(&mut connection, &last_name, &first_name)
-                                .unwrap();
-                        assert_eq!(vec![membership, old_membership], result);
-                    });
+                            by_member_to_lookup(&mut connection, &member_to_look_up).unwrap();
+                        assert_eq!(
+                            BTreeSet::from([jon_doe(), jon_doe_previous_membership()]),
+                            result
+                        );
+                    })
                 }
 
                 #[test]
-                fn none_matching() {
+                fn by_num_first_name() {
                     with_temp_database(|pool| {
-                        let first_name = "Jon".to_owned();
-                        let last_name = "Doe".to_owned();
                         let mut connection = pool.get().unwrap();
 
-                        insert_all(&mut connection, &[]).unwrap();
+                        insert_all(
+                            &mut connection,
+                            &[
+                                jon_doe(),
+                                jon_doe_previous_membership(),
+                                other_jon_doe(),
+                                jonette_snow(),
+                            ],
+                        )
+                        .unwrap();
 
+                        let member_to_look_up = MemberToLookUp::new(
+                            Some(jon_doe().membership_number().to_owned()),
+                            None,
+                            Some(jon_doe().first_name().to_owned()),
+                        );
                         let result =
-                            by_last_name_first_name(&mut connection, &last_name, &first_name)
-                                .unwrap();
-                        assert_eq!(Vec::<Membership>::new(), result);
-                    });
+                            by_member_to_lookup(&mut connection, &member_to_look_up).unwrap();
+                        assert_eq!(
+                            BTreeSet::from([jon_doe(), jon_doe_previous_membership()]),
+                            result
+                        );
+                    })
+                }
+
+                #[test]
+                fn by_last_name_first_name() {
+                    with_temp_database(|pool| {
+                        let mut connection = pool.get().unwrap();
+
+                        insert_all(
+                            &mut connection,
+                            &[
+                                jon_doe(),
+                                jon_doe_previous_membership(),
+                                other_jon_doe(),
+                                jonette_snow(),
+                            ],
+                        )
+                        .unwrap();
+
+                        let member_to_look_up = MemberToLookUp::new(
+                            None,
+                            Some(jon_doe().name().to_owned()),
+                            Some(jon_doe().first_name().to_owned()),
+                        );
+                        let result =
+                            by_member_to_lookup(&mut connection, &member_to_look_up).unwrap();
+                        assert_eq!(
+                            BTreeSet::from([
+                                jon_doe(),
+                                jon_doe_previous_membership(),
+                                other_jon_doe()
+                            ]),
+                            result
+                        );
+                    })
+                }
+
+                #[test]
+                fn by_num() {
+                    with_temp_database(|pool| {
+                        let mut connection = pool.get().unwrap();
+
+                        insert_all(
+                            &mut connection,
+                            &[
+                                jon_doe(),
+                                jon_doe_previous_membership(),
+                                other_jon_doe(),
+                                jonette_snow(),
+                            ],
+                        )
+                        .unwrap();
+
+                        let member_to_look_up = MemberToLookUp::new(
+                            Some(jon_doe().membership_number().to_owned()),
+                            None,
+                            None,
+                        );
+                        let result =
+                            by_member_to_lookup(&mut connection, &member_to_look_up).unwrap();
+                        assert_eq!(
+                            BTreeSet::from([jon_doe(), jon_doe_previous_membership()]),
+                            result
+                        );
+                    })
+                }
+
+                #[test]
+                fn by_last_name() {
+                    with_temp_database(|pool| {
+                        let mut connection = pool.get().unwrap();
+
+                        insert_all(
+                            &mut connection,
+                            &[
+                                jon_doe(),
+                                jon_doe_previous_membership(),
+                                other_jon_doe(),
+                                jonette_snow(),
+                            ],
+                        )
+                        .unwrap();
+
+                        let member_to_look_up =
+                            MemberToLookUp::new(None, Some(jon_doe().name().to_owned()), None);
+                        let result =
+                            by_member_to_lookup(&mut connection, &member_to_look_up).unwrap();
+                        assert_eq!(
+                            BTreeSet::from([
+                                jon_doe(),
+                                jon_doe_previous_membership(),
+                                other_jon_doe()
+                            ]),
+                            result
+                        );
+                    })
+                }
+
+                #[test]
+                fn by_first_name() {
+                    with_temp_database(|pool| {
+                        let mut connection = pool.get().unwrap();
+
+                        insert_all(
+                            &mut connection,
+                            &[
+                                jon_doe(),
+                                jon_doe_previous_membership(),
+                                other_jon_doe(),
+                                jonette_snow(),
+                            ],
+                        )
+                        .unwrap();
+
+                        let member_to_look_up = MemberToLookUp::new(
+                            None,
+                            None,
+                            Some(jon_doe().first_name().to_owned()),
+                        );
+                        let result =
+                            by_member_to_lookup(&mut connection, &member_to_look_up).unwrap();
+                        assert_eq!(
+                            BTreeSet::from([
+                                jon_doe(),
+                                jon_doe_previous_membership(),
+                                other_jon_doe()
+                            ]),
+                            result
+                        );
+                    })
+                }
+
+                #[test]
+                fn no_criterion() {
+                    with_temp_database(|pool| {
+                        let mut connection = pool.get().unwrap();
+
+                        insert_all(
+                            &mut connection,
+                            &[
+                                jon_doe(),
+                                jon_doe_previous_membership(),
+                                other_jon_doe(),
+                                jonette_snow(),
+                            ],
+                        )
+                        .unwrap();
+
+                        let member_to_look_up = MemberToLookUp::new(None, None, None);
+                        let result =
+                            by_member_to_lookup(&mut connection, &member_to_look_up).unwrap();
+                        assert_eq!(
+                            BTreeSet::from([
+                                jon_doe(),
+                                jon_doe_previous_membership(),
+                                other_jon_doe(),
+                                jonette_snow()
+                            ]),
+                            result
+                        );
+                    })
                 }
             }
         }

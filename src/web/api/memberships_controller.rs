@@ -1,8 +1,6 @@
-use crate::database::dao;
 use crate::fileo::credentials::FileoCredentials;
 use crate::membership;
 use crate::membership::check::check_members;
-use crate::membership::indexed_memberships::IndexedMemberships;
 use crate::tools::email::send_email;
 use crate::tools::{log_error_and_return, log_message_and_return};
 use crate::uda::credentials::UdaCredentials;
@@ -107,11 +105,8 @@ pub async fn look_member_up(
     let mut connection = pool
         .get()
         .map_err(log_error_and_return(Status::InternalServerError))?;
-    let memberships = dao::membership::retrieve_memberships(&mut connection)
+    let memberships = membership::look_up::look_member_up(&mut connection, &member_to_look_up)
         .map_err(log_error_and_return(Status::InternalServerError))?;
-    let indexed_memberships = IndexedMemberships::from(memberships);
-
-    let memberships = membership::look_up::look_member_up(&indexed_memberships, &member_to_look_up);
 
     Ok(json!(memberships).to_string())
 }
@@ -241,7 +236,7 @@ mod tests {
     mod look_member_up {
         use crate::database::{dao, with_temp_database};
         use crate::fileo::authentication::AUTHENTICATION_COOKIE;
-        use crate::membership::indexed_memberships::tests::{
+        use crate::membership::tests::{
             jon_doe, jon_doe_previous_membership, jonette_snow, other_jon_doe,
         };
         use crate::web::api::memberships_controller::look_member_up;
