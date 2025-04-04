@@ -19,7 +19,6 @@ impl LastUpdate {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn date(&self) -> Result<NaiveDateTime, DatabaseError> {
         NaiveDateTime::parse_from_str(&self.date, "%Y-%m-%d %H:%M:%S%.f")
             .map_err(DatabaseError::from)
