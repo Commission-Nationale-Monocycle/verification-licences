@@ -1,11 +1,9 @@
-use crate::database::dao::last_update::{UpdatableElement, get_last_update};
 use crate::database::dao::membership::replace_memberships;
 use crate::error::ApplicationError;
 use crate::fileo::authentication::AUTHENTICATION_COOKIE;
 use crate::fileo::credentials::FileoCredentials;
 use crate::fileo::download::{download_memberships_list, login_to_fileo};
 use crate::membership::config::MembershipsProviderConfig;
-use crate::membership::indexed_memberships::IndexedMemberships;
 use crate::tools::web::build_client;
 use crate::tools::{log_error_and_return, log_message_and_return};
 use crate::web::credentials_storage::CredentialsStorage;
@@ -16,7 +14,6 @@ use rocket::State;
 use rocket::http::{Cookie, CookieJar, Status};
 use rocket::serde::json::Json;
 use rocket::time::Duration;
-use std::ffi::OsString;
 use std::sync::Mutex;
 use uuid::Uuid;
 

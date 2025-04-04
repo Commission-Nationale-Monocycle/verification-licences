@@ -1,18 +1,15 @@
 use crate::database::dao;
 use crate::database::dao::last_update::UpdatableElement;
 use crate::fileo::credentials::FileoCredentials;
-use crate::membership::indexed_memberships::IndexedMemberships;
-use crate::membership::memberships::Memberships;
 use crate::tools::log_error_and_return;
 use diesel::SqliteConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
-use dto::membership::Membership;
 use dto::uda_instance::InstancesList;
 use rocket::http::Status;
 use rocket::response::Redirect;
 use rocket::{Request, State};
 use rocket_dyn_templates::{Template, context};
-use std::sync::{Mutex, MutexGuard};
+use std::sync::Mutex;
 
 #[get("/")]
 pub async fn index() -> Template {

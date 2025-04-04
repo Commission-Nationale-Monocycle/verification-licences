@@ -17,7 +17,6 @@ use dto::uda_member::UdaMember;
 use rocket::State;
 use rocket::http::Status;
 use rocket::serde::json::{Json, json};
-use std::sync::Mutex;
 
 /// Check members coming from a CSV file.
 /// Return the result as JSON-encoded string,
