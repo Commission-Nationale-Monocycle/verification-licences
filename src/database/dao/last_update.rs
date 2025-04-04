@@ -75,10 +75,6 @@ mod tests {
     use chrono::NaiveDateTime;
     use diesel::prelude::*;
 
-    fn establish_connection() -> SqliteConnection {
-        crate::database::establish_connection().unwrap()
-    }
-
     fn test_update_element(
         connection: &mut SqliteConnection,
         updatable_element: &UpdatableElement,
@@ -103,14 +99,14 @@ mod tests {
     }
 
     mod get_last_update {
-        use crate::database::dao::last_update::tests::{establish_connection, test_update_element};
+        use crate::database::dao::last_update::tests::test_update_element;
         use crate::database::dao::last_update::{UpdatableElement, get_last_update};
         use crate::database::with_temp_database;
 
         #[test]
         fn none() {
-            with_temp_database(|| {
-                let mut connection = establish_connection();
+            with_temp_database(|pool| {
+                let mut connection = pool.get().unwrap();
 
                 assert_eq!(
                     None,
@@ -125,8 +121,8 @@ mod tests {
 
         #[test]
         fn some_after_update() {
-            with_temp_database(|| {
-                let mut connection = establish_connection();
+            with_temp_database(|pool| {
+                let mut connection = pool.get().unwrap();
 
                 let time = test_update_element(&mut connection, &UpdatableElement::Memberships);
                 assert_eq!(
@@ -144,13 +140,13 @@ mod tests {
 
     mod update {
         use crate::database::dao::last_update::UpdatableElement;
-        use crate::database::dao::last_update::tests::{establish_connection, test_update_element};
+        use crate::database::dao::last_update::tests::test_update_element;
         use crate::database::with_temp_database;
 
         #[test]
         fn success_first_update() {
-            with_temp_database(|| {
-                let mut connection = establish_connection();
+            with_temp_database(|pool| {
+                let mut connection = pool.get().unwrap();
                 test_update_element(&mut connection, &UpdatableElement::Memberships);
                 test_update_element(&mut connection, &UpdatableElement::UdaInstances);
             })
@@ -158,8 +154,8 @@ mod tests {
 
         #[test]
         fn success_second_update() {
-            with_temp_database(|| {
-                let mut connection = establish_connection();
+            with_temp_database(|pool| {
+                let mut connection = pool.get().unwrap();
 
                 test_update_element(&mut connection, &UpdatableElement::Memberships);
                 test_update_element(&mut connection, &UpdatableElement::Memberships);

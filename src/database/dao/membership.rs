@@ -221,10 +221,6 @@ mod tests {
     use crate::tools::normalize;
     use diesel::prelude::*;
 
-    fn establish_connection() -> SqliteConnection {
-        crate::database::establish_connection().unwrap()
-    }
-
     fn populate_db(connection: &mut SqliteConnection) -> Vec<dto::membership::Membership> {
         let expected_memberships = vec![jon_doe(), jonette_snow()];
         let memberships = expected_memberships
@@ -271,13 +267,13 @@ mod tests {
 
     mod retrieve_memberships {
         use crate::database::dao::membership::retrieve_memberships;
-        use crate::database::dao::membership::tests::{establish_connection, populate_db};
+        use crate::database::dao::membership::tests::populate_db;
         use crate::database::with_temp_database;
 
         #[test]
         fn success() {
-            with_temp_database(|| {
-                let mut connection = establish_connection();
+            with_temp_database(|pool| {
+                let mut connection = pool.get().unwrap();
                 let expected_memberships = populate_db(&mut connection);
 
                 let result = retrieve_memberships(&mut connection).unwrap();
@@ -288,13 +284,13 @@ mod tests {
 
     mod delete_all {
         use crate::database::dao::membership::delete_all;
-        use crate::database::dao::membership::tests::{establish_connection, populate_db};
+        use crate::database::dao::membership::tests::populate_db;
         use crate::database::with_temp_database;
 
         #[test]
         fn success() {
-            with_temp_database(|| {
-                let mut connection = establish_connection();
+            with_temp_database(|pool| {
+                let mut connection = pool.get().unwrap();
                 let expected_memberships = populate_db(&mut connection);
 
                 let result = delete_all(&mut connection).unwrap();
@@ -304,8 +300,8 @@ mod tests {
 
         #[test]
         fn success_when_already_empty() {
-            with_temp_database(|| {
-                let mut connection = establish_connection();
+            with_temp_database(|pool| {
+                let mut connection = pool.get().unwrap();
 
                 let result = delete_all(&mut connection).unwrap();
                 assert_eq!(0, result);
@@ -316,7 +312,6 @@ mod tests {
     mod insert_all {
         use crate::database::dao::last_update::{UpdatableElement, get_last_update};
         use crate::database::dao::membership::insert_all;
-        use crate::database::dao::membership::tests::establish_connection;
         use crate::database::model::membership::Membership;
         use crate::database::with_temp_database;
         use crate::membership::indexed_memberships::tests::{jon_doe, jonette_snow};
@@ -324,8 +319,8 @@ mod tests {
         use diesel::{QueryDsl, RunQueryDsl, SelectableHelper};
 
         fn test_insert(expected_memberships: &[dto::membership::Membership]) {
-            with_temp_database(|| {
-                let mut connection = establish_connection();
+            with_temp_database(|pool| {
+                let mut connection = pool.get().unwrap();
 
                 let result = insert_all(&mut connection, expected_memberships).unwrap();
                 assert_eq!(expected_memberships.len(), result);
@@ -385,7 +380,6 @@ mod tests {
     mod replace_memberships {
         use crate::database::dao::last_update::{UpdatableElement, get_last_update};
         use crate::database::dao::membership::replace_memberships;
-        use crate::database::dao::membership::tests::establish_connection;
         use crate::database::dao::membership::tests::populate_db;
         use crate::database::model::membership::Membership;
         use crate::database::with_temp_database;
@@ -396,8 +390,8 @@ mod tests {
 
         #[test]
         fn success() {
-            with_temp_database(|| {
-                let mut connection = establish_connection();
+            with_temp_database(|pool| {
+                let mut connection = pool.get().unwrap();
                 let initial_memberships = populate_db(&mut connection);
                 let expected_memberships = vec![jon_doe_previous_membership(), other_jon_doe()];
 
@@ -433,13 +427,12 @@ mod tests {
         mod by_num {
             use crate::database::dao::membership::find::by_num;
             use crate::database::dao::membership::insert_all;
-            use crate::database::dao::membership::tests::establish_connection;
             use crate::database::with_temp_database;
             use chrono::{Months, Utc};
 
             #[test]
             fn find_the_only_one() {
-                with_temp_database(|| {
+                with_temp_database(|pool| {
                     let num = "123456".to_owned();
                     let membership = dto::membership::Membership::new(
                         "Doe".to_owned(),
@@ -456,7 +449,7 @@ mod tests {
                         "A12345".to_owned(),
                     );
 
-                    let mut connection = establish_connection();
+                    let mut connection = pool.get().unwrap();
 
                     insert_all(&mut connection, &[membership.clone()]).unwrap();
 
@@ -467,7 +460,7 @@ mod tests {
 
             #[test]
             fn find_the_last_one() {
-                with_temp_database(|| {
+                with_temp_database(|pool| {
                     let num = "123456".to_owned();
                     let membership = dto::membership::Membership::new(
                         "Doe".to_owned(),
@@ -502,7 +495,7 @@ mod tests {
                         "A12345".to_owned(),
                     );
 
-                    let mut connection = establish_connection();
+                    let mut connection = pool.get().unwrap();
 
                     insert_all(&mut connection, &[membership.clone(), old_membership]).unwrap();
 
@@ -513,9 +506,9 @@ mod tests {
 
             #[test]
             fn none_matching() {
-                with_temp_database(|| {
+                with_temp_database(|pool| {
                     let num = "123456".to_owned();
-                    let mut connection = establish_connection();
+                    let mut connection = pool.get().unwrap();
 
                     insert_all(&mut connection, &[]).unwrap();
 
@@ -528,13 +521,12 @@ mod tests {
         mod by_num_identity {
             use crate::database::dao::membership::find::by_num_identity;
             use crate::database::dao::membership::insert_all;
-            use crate::database::dao::membership::tests::establish_connection;
             use crate::database::with_temp_database;
             use chrono::{Months, Utc};
 
             #[test]
             fn find_the_only_one() {
-                with_temp_database(|| {
+                with_temp_database(|pool| {
                     let num = "123456".to_owned();
                     let first_name = "Jon".to_owned();
                     let last_name = "Doe".to_owned();
@@ -554,7 +546,7 @@ mod tests {
                         "A12345".to_owned(),
                     );
 
-                    let mut connection = establish_connection();
+                    let mut connection = pool.get().unwrap();
 
                     insert_all(&mut connection, &[membership.clone()]).unwrap();
 
@@ -567,7 +559,7 @@ mod tests {
 
             #[test]
             fn find_the_only_one_by_reversed_identity() {
-                with_temp_database(|| {
+                with_temp_database(|pool| {
                     let num = "123456".to_owned();
                     let first_name = "Jon".to_owned();
                     let last_name = "Doe".to_owned();
@@ -587,7 +579,7 @@ mod tests {
                         "A12345".to_owned(),
                     );
 
-                    let mut connection = establish_connection();
+                    let mut connection = pool.get().unwrap();
 
                     insert_all(&mut connection, &[membership.clone()]).unwrap();
 
@@ -600,7 +592,7 @@ mod tests {
 
             #[test]
             fn find_the_last_one() {
-                with_temp_database(|| {
+                with_temp_database(|pool| {
                     let num = "123456".to_owned();
                     let first_name = "Jon".to_owned();
                     let last_name = "Doe".to_owned();
@@ -638,7 +630,7 @@ mod tests {
                         "A12345".to_owned(),
                     );
 
-                    let mut connection = establish_connection();
+                    let mut connection = pool.get().unwrap();
 
                     insert_all(&mut connection, &[membership.clone(), old_membership]).unwrap();
 
@@ -651,12 +643,12 @@ mod tests {
 
             #[test]
             fn none_matching() {
-                with_temp_database(|| {
+                with_temp_database(|pool| {
                     let num = "123456".to_owned();
                     let first_name = "Jon".to_owned();
                     let last_name = "Doe".to_owned();
                     let identity = format!("{}{}", &first_name, &last_name);
-                    let mut connection = establish_connection();
+                    let mut connection = pool.get().unwrap();
 
                     insert_all(&mut connection, &[]).unwrap();
 
@@ -669,13 +661,12 @@ mod tests {
         mod by_num_last_name_first_name {
             use crate::database::dao::membership::find::by_num_last_name_first_name;
             use crate::database::dao::membership::insert_all;
-            use crate::database::dao::membership::tests::establish_connection;
             use crate::database::with_temp_database;
             use chrono::{Months, Utc};
 
             #[test]
             fn find_the_only_one() {
-                with_temp_database(|| {
+                with_temp_database(|pool| {
                     let num = "123456".to_owned();
                     let first_name = "Jon".to_owned();
                     let last_name = "Doe".to_owned();
@@ -694,7 +685,7 @@ mod tests {
                         "A12345".to_owned(),
                     );
 
-                    let mut connection = establish_connection();
+                    let mut connection = pool.get().unwrap();
 
                     insert_all(&mut connection, &[membership.clone()]).unwrap();
 
@@ -708,7 +699,7 @@ mod tests {
 
             #[test]
             fn find_the_last_one() {
-                with_temp_database(|| {
+                with_temp_database(|pool| {
                     let num = "123456".to_owned();
                     let first_name = "Jon".to_owned();
                     let last_name = "Doe".to_owned();
@@ -745,7 +736,7 @@ mod tests {
                         "A12345".to_owned(),
                     );
 
-                    let mut connection = establish_connection();
+                    let mut connection = pool.get().unwrap();
 
                     insert_all(&mut connection, &[membership.clone(), old_membership]).unwrap();
 
@@ -759,11 +750,11 @@ mod tests {
 
             #[test]
             fn none_matching() {
-                with_temp_database(|| {
+                with_temp_database(|pool| {
                     let num = "123456".to_owned();
                     let first_name = "Jon".to_owned();
                     let last_name = "Doe".to_owned();
-                    let mut connection = establish_connection();
+                    let mut connection = pool.get().unwrap();
 
                     insert_all(&mut connection, &[]).unwrap();
 
@@ -778,13 +769,12 @@ mod tests {
         mod by_identity {
             use crate::database::dao::membership::find::by_identity;
             use crate::database::dao::membership::insert_all;
-            use crate::database::dao::membership::tests::establish_connection;
             use crate::database::with_temp_database;
             use chrono::{Months, Utc};
 
             #[test]
             fn find_the_only_one() {
-                with_temp_database(|| {
+                with_temp_database(|pool| {
                     let num = "123456".to_owned();
                     let first_name = "Jon".to_owned();
                     let last_name = "Doe".to_owned();
@@ -804,7 +794,7 @@ mod tests {
                         "A12345".to_owned(),
                     );
 
-                    let mut connection = establish_connection();
+                    let mut connection = pool.get().unwrap();
 
                     insert_all(&mut connection, &[membership.clone()]).unwrap();
 
@@ -815,7 +805,7 @@ mod tests {
 
             #[test]
             fn find_the_only_one_by_reversed_identity() {
-                with_temp_database(|| {
+                with_temp_database(|pool| {
                     let num = "123456".to_owned();
                     let first_name = "Jon".to_owned();
                     let last_name = "Doe".to_owned();
@@ -835,7 +825,7 @@ mod tests {
                         "A12345".to_owned(),
                     );
 
-                    let mut connection = establish_connection();
+                    let mut connection = pool.get().unwrap();
 
                     insert_all(&mut connection, &[membership.clone()]).unwrap();
 
@@ -846,7 +836,7 @@ mod tests {
 
             #[test]
             fn find_the_last_one() {
-                with_temp_database(|| {
+                with_temp_database(|pool| {
                     let num = "123456".to_owned();
                     let first_name = "Jon".to_owned();
                     let last_name = "Doe".to_owned();
@@ -884,7 +874,7 @@ mod tests {
                         "A12345".to_owned(),
                     );
 
-                    let mut connection = establish_connection();
+                    let mut connection = pool.get().unwrap();
 
                     insert_all(&mut connection, &[membership.clone(), old_membership]).unwrap();
 
@@ -895,11 +885,11 @@ mod tests {
 
             #[test]
             fn none_matching() {
-                with_temp_database(|| {
+                with_temp_database(|pool| {
                     let first_name = "Jon".to_owned();
                     let last_name = "Doe".to_owned();
                     let identity = format!("{}{}", &first_name, &last_name);
-                    let mut connection = establish_connection();
+                    let mut connection = pool.get().unwrap();
 
                     insert_all(&mut connection, &[]).unwrap();
 
@@ -912,13 +902,12 @@ mod tests {
         mod by_last_name_first_name {
             use crate::database::dao::membership::find::by_last_name_first_name;
             use crate::database::dao::membership::insert_all;
-            use crate::database::dao::membership::tests::establish_connection;
             use crate::database::with_temp_database;
             use chrono::{Months, Utc};
 
             #[test]
             fn find_the_only_one() {
-                with_temp_database(|| {
+                with_temp_database(|pool| {
                     let num = "123456".to_owned();
                     let first_name = "Jon".to_owned();
                     let last_name = "Doe".to_owned();
@@ -937,7 +926,7 @@ mod tests {
                         "A12345".to_owned(),
                     );
 
-                    let mut connection = establish_connection();
+                    let mut connection = pool.get().unwrap();
 
                     insert_all(&mut connection, &[membership.clone()]).unwrap();
 
@@ -950,7 +939,7 @@ mod tests {
 
             #[test]
             fn find_the_last_one() {
-                with_temp_database(|| {
+                with_temp_database(|pool| {
                     let num = "123456".to_owned();
                     let first_name = "Jon".to_owned();
                     let last_name = "Doe".to_owned();
@@ -987,7 +976,7 @@ mod tests {
                         "A12345".to_owned(),
                     );
 
-                    let mut connection = establish_connection();
+                    let mut connection = pool.get().unwrap();
 
                     insert_all(&mut connection, &[membership.clone(), old_membership]).unwrap();
 
@@ -1000,10 +989,10 @@ mod tests {
 
             #[test]
             fn none_matching() {
-                with_temp_database(|| {
+                with_temp_database(|pool| {
                     let first_name = "Jon".to_owned();
                     let last_name = "Doe".to_owned();
-                    let mut connection = establish_connection();
+                    let mut connection = pool.get().unwrap();
 
                     insert_all(&mut connection, &[]).unwrap();
 

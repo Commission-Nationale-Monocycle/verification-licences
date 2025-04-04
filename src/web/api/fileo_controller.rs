@@ -1,6 +1,5 @@
 use crate::database::dao::last_update::{UpdatableElement, get_last_update};
 use crate::database::dao::membership::replace_memberships;
-use crate::database::establish_connection;
 use crate::error::ApplicationError;
 use crate::fileo::authentication::AUTHENTICATION_COOKIE;
 use crate::fileo::credentials::FileoCredentials;
@@ -13,6 +12,8 @@ use crate::tools::{log_error_and_return, log_message_and_return};
 use crate::web::api::memberships_state::MembershipsState;
 use crate::web::credentials_storage::CredentialsStorage;
 use crate::web::error::WebError;
+use diesel::SqliteConnection;
+use diesel::r2d2::{ConnectionManager, Pool};
 use rocket::State;
 use rocket::http::{Cookie, CookieJar, Status};
 use rocket::serde::json::Json;
@@ -62,6 +63,7 @@ pub async fn login(
 pub async fn download_memberships(
     memberships_provider_config: &State<MembershipsProviderConfig>,
     memberships_state: &State<Mutex<MembershipsState>>,
+    pool: &State<Pool<ConnectionManager<SqliteConnection>>>,
     credentials: FileoCredentials,
 ) -> Result<Status, Status> {
     let memberships = download_memberships_list(memberships_provider_config, &credentials)
@@ -71,8 +73,9 @@ pub async fn download_memberships(
             Status::InternalServerError,
         ))?;
 
-    let mut connection =
-        establish_connection().map_err(log_error_and_return(Status::InternalServerError))?;
+    let mut connection = pool
+        .get()
+        .map_err(log_error_and_return(Status::InternalServerError))?;
     replace_memberships(&mut connection, &memberships)
         .map_err(log_error_and_return(Status::InternalServerError))?;
     let last_update = get_last_update(&mut connection, &UpdatableElement::Memberships)
@@ -320,6 +323,8 @@ mod tests {
         };
         use crate::web::api::memberships_state::MembershipsState;
         use crate::web::credentials_storage::CredentialsStorage;
+        use diesel::SqliteConnection;
+        use diesel::r2d2::{ConnectionManager, Pool};
         use dto::membership::tests::{get_expected_membership, get_membership_as_csv};
         use encoding::all::ISO_8859_1;
         use encoding::{EncoderTrap, Encoding};
@@ -333,7 +338,7 @@ mod tests {
 
         #[test]
         fn should_download_members() {
-            async fn test() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
                 let mock_server = MockServer::start().await;
 
                 let config = create_memberships_provider_test_config(&mock_server.uri());
@@ -386,6 +391,7 @@ mod tests {
                     .manage(config)
                     .manage(memberships_state_mutex)
                     .manage(credentials_storage_mutex)
+                    .manage(pool)
                     .mount("/", routes![download_memberships]);
                 let client = Client::tracked(rocket).await.unwrap();
 
@@ -400,24 +406,31 @@ mod tests {
                 let members = membership_state.memberships();
                 assert_eq!(&get_expected_membership(), members.first().unwrap());
             }
-            with_temp_database(|| Runtime::new().unwrap().block_on(test()));
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
 
-        #[async_test]
-        async fn should_not_download_members_when_error() {
-            let mock_server = MockServer::start().await;
+        #[test]
+        fn should_not_download_members_when_error() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
+                let mock_server = MockServer::start().await;
 
-            let config = create_memberships_provider_test_config(&mock_server.uri());
+                let config = create_memberships_provider_test_config(&mock_server.uri());
 
-            let config_state = State::from(&config);
-            let memberships_state_mutex =
-                Mutex::new(MembershipsState::new(None, IndexedMemberships::default()));
-            let memberships_state = State::from(&memberships_state_mutex);
-            let credentials =
-                FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
+                let config_state = State::from(&config);
+                let memberships_state_mutex =
+                    Mutex::new(MembershipsState::new(None, IndexedMemberships::default()));
+                let memberships_state = State::from(&memberships_state_mutex);
+                let credentials =
+                    FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
+                let pool_state = State::from(&pool);
 
-            let result = download_memberships(config_state, memberships_state, credentials).await;
-            assert_eq!(Status::InternalServerError, result.unwrap_err());
+                let result =
+                    download_memberships(config_state, memberships_state, pool_state, credentials)
+                        .await;
+                assert_eq!(Status::InternalServerError, result.unwrap_err());
+            }
+
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
     }
 }

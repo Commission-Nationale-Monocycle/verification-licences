@@ -1,13 +1,13 @@
-use crate::database::error::DatabaseError::{ConnectionFailed, MissingDatabaseUrl};
+use crate::database::error::DatabaseError;
+use crate::database::error::DatabaseError::MissingDatabaseUrl;
 use crate::database::migrations::run_migrations;
-use crate::error::Result;
 use crate::tools::env_args::retrieve_expected_arg_value;
 #[cfg(test)]
 use crate::tools::env_args::with_env_args;
-use crate::tools::log_error_and_return;
 #[cfg(test)]
 use crate::tools::test::tests::temp_dir;
-use diesel::{Connection, SqliteConnection};
+use diesel::SqliteConnection;
+use diesel::r2d2::{ConnectionManager, Pool};
 
 pub(super) mod dao;
 pub(crate) mod error;
@@ -15,17 +15,19 @@ mod migrations;
 mod model;
 mod schema;
 
-pub fn init_db() -> Result<()> {
-    let mut connection = establish_connection()?;
-    Ok(run_migrations(&mut connection)?)
-}
+pub type Result<T, E = DatabaseError> = std::result::Result<T, E>;
 
-/// Establish a connection to the database whose URL is passed as an argument to the app (`--database-url`).
-pub fn establish_connection() -> Result<SqliteConnection> {
+pub(crate) fn init_connection_pool() -> Result<Pool<ConnectionManager<SqliteConnection>>> {
     let database_url = retrieve_expected_arg_value("--database-url", MissingDatabaseUrl)?;
-    let connection = SqliteConnection::establish(&database_url)
-        .map_err(log_error_and_return(ConnectionFailed))?;
-    Ok(connection)
+    let manager = ConnectionManager::<SqliteConnection>::new(database_url);
+    let pool = Pool::builder()
+        .build(manager)
+        .map_err(|error| DatabaseError::R2d2(error.to_string()))?;
+    let mut connection = pool
+        .get()
+        .map_err(|error| DatabaseError::R2d2(error.to_string()))?;
+    run_migrations(&mut connection)?;
+    Ok(pool)
 }
 
 #[allow(clippy::test_attr_in_doctest)]
@@ -36,7 +38,7 @@ pub fn establish_connection() -> Result<SqliteConnection> {
 /// ```rust
 /// #[test]
 /// fn test() {
-///     with_temp_database(|| {
+///     with_temp_database(|pool| {
 ///          let mut connection = establish_connection();
 ///          // Do something with this connection
 ///     });
@@ -50,12 +52,12 @@ pub fn establish_connection() -> Result<SqliteConnection> {
 ///     async fn async_test() {
 ///         // Do something asynchronously
 ///     }
-///     with_temp_database(|| Runtime::new().unwrap().block_on(async_test()));
+///     with_temp_database(|pool| Runtime::new().unwrap().block_on(async_test()));
 /// }
 /// ```
 pub(crate) fn with_temp_database<F, T>(function: F) -> T
 where
-    F: FnOnce() -> T,
+    F: FnOnce(Pool<ConnectionManager<SqliteConnection>>) -> T,
 {
     with_env_args(
         vec![format!(
@@ -63,8 +65,8 @@ where
             temp_dir().join("database.db").to_str().unwrap()
         )],
         || {
-            init_db().unwrap();
-            function()
+            let pool = init_connection_pool().unwrap();
+            function(pool)
         },
     )
 }
