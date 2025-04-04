@@ -1,8 +1,11 @@
+use crate::database::dao;
+use crate::database::dao::last_update::UpdatableElement;
 use crate::fileo::credentials::FileoCredentials;
 use crate::membership::indexed_memberships::IndexedMemberships;
 use crate::membership::memberships::Memberships;
 use crate::tools::log_error_and_return;
-use crate::web::api::memberships_state::MembershipsState;
+use diesel::SqliteConnection;
+use diesel::r2d2::{ConnectionManager, Pool};
 use dto::membership::Membership;
 use dto::uda_instance::InstancesList;
 use rocket::http::Status;
@@ -33,15 +36,10 @@ pub async fn fileo_login() -> Template {
 
 #[get("/memberships/update")]
 pub async fn update_memberships(
-    memberships_state: &State<Mutex<MembershipsState>>,
+    pool: &State<Pool<ConnectionManager<SqliteConnection>>>,
     _credentials: FileoCredentials,
 ) -> Result<Template, Status> {
-    let memberships = unwrap_memberships_state(memberships_state)?;
-    let file_details = memberships.file_details();
-    let last_update = match file_details {
-        None => "Jamais".to_owned(),
-        Some(file_details) => file_details.update_date().format("%d/%m/%Y").to_string(),
-    };
+    let last_update = retrieve_last_update(pool)?;
     Ok(Template::render(
         "member/update-memberships",
         context! {
@@ -58,16 +56,14 @@ pub async fn update_memberships_unauthenticated() -> Redirect {
 
 #[get("/memberships")]
 pub async fn list_memberships(
-    memberships_state: &State<Mutex<MembershipsState>>,
+    pool: &State<Pool<ConnectionManager<SqliteConnection>>>,
     _credentials: FileoCredentials,
 ) -> Result<Template, Status> {
-    let memberships = unwrap_memberships_state(memberships_state)?;
-    let memberships: &IndexedMemberships = memberships.memberships();
-    let memberships: Vec<&Membership> = memberships
-        .memberships_by_num()
-        .values()
-        .filter_map(Memberships::find_last_membership)
-        .collect();
+    let mut connection = pool
+        .get()
+        .map_err(log_error_and_return(Status::InternalServerError))?;
+    let memberships = dao::membership::retrieve_memberships(&mut connection)
+        .map_err(log_error_and_return(Status::InternalServerError))?;
 
     Ok(Template::render(
         "fileo/memberships",
@@ -100,15 +96,10 @@ pub async fn look_membership_up_unauthenticated() -> Redirect {
 
 #[get("/csv/check")]
 pub async fn check_members_from_csv(
-    memberships_state: &State<Mutex<MembershipsState>>,
+    pool: &State<Pool<ConnectionManager<SqliteConnection>>>,
     _credentials: FileoCredentials,
 ) -> Result<Template, Status> {
-    let memberships = unwrap_memberships_state(memberships_state)?;
-    let file_details = memberships.file_details();
-    let last_update = match file_details {
-        None => "Jamais".to_owned(),
-        Some(file_details) => file_details.update_date().format("%d/%m/%Y").to_string(),
-    };
+    let last_update = retrieve_last_update(pool)?;
     Ok(Template::render(
         "fileo/check",
         context! {
@@ -162,16 +153,20 @@ pub async fn not_found(req: &Request<'_>) -> Template {
     )
 }
 
-fn unwrap_memberships_state(
-    memberships_state: &State<Mutex<MembershipsState>>,
-) -> Result<MutexGuard<MembershipsState>, Status> {
-    let lock_result = memberships_state.lock();
-    if let Err(error) = lock_result {
-        log_error_and_return(Err(Status::InternalServerError))(error)
-    } else {
-        let memberships_state = lock_result.unwrap();
-        Ok(memberships_state)
-    }
+fn retrieve_last_update(
+    pool: &State<Pool<ConnectionManager<SqliteConnection>>>,
+) -> Result<String, Status> {
+    let mut connection = pool
+        .get()
+        .map_err(log_error_and_return(Status::InternalServerError))?;
+    let last_update =
+        dao::last_update::get_last_update(&mut connection, &UpdatableElement::Memberships)
+            .map_err(log_error_and_return(Status::InternalServerError))?;
+    let last_update = match last_update {
+        None => "Jamais".to_owned(),
+        Some(last_update) => last_update.format("%d/%m/%Y").to_string(),
+    };
+    Ok(last_update)
 }
 
 #[cfg(test)]
@@ -197,191 +192,194 @@ mod tests {
     }
 
     mod list_memberships {
+        use crate::database::with_temp_database;
         use crate::fileo::authentication::AUTHENTICATION_COOKIE;
         use crate::fileo::credentials::FileoCredentials;
-        use crate::membership::indexed_memberships::IndexedMemberships;
-        use crate::web::api::memberships_state::MembershipsState;
         use crate::web::credentials_storage::CredentialsStorage;
         use crate::web::frontend::frontend_controller::{
             list_memberships, list_memberships_unauthenticated,
         };
+        use diesel::SqliteConnection;
+        use diesel::r2d2::{ConnectionManager, Pool};
         use rocket::http::{Cookie, Status};
         use rocket::local::asynchronous::Client;
+        use rocket::tokio::runtime::Runtime;
         use rocket_dyn_templates::Template;
         use std::sync::Mutex;
 
-        #[async_test]
-        async fn should_render_membership_list() {
-            let credentials =
-                FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
-            let mut credentials_storage = CredentialsStorage::default();
-            let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
-            credentials_storage.store(uuid.clone(), credentials);
-            let credentials_storage_mutex = Mutex::new(credentials_storage);
+        #[test]
+        fn should_render_membership_list() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
+                let credentials =
+                    FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
+                let mut credentials_storage = CredentialsStorage::default();
+                let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
+                credentials_storage.store(uuid.clone(), credentials);
+                let credentials_storage_mutex = Mutex::new(credentials_storage);
 
-            let members_sate_mutex =
-                Mutex::new(MembershipsState::new(None, IndexedMemberships::default()));
+                let rocket = rocket::build()
+                    .mount(
+                        "/",
+                        routes![list_memberships, list_memberships_unauthenticated],
+                    )
+                    .manage(pool)
+                    .manage(credentials_storage_mutex)
+                    .attach(Template::fairing());
 
-            let rocket = rocket::build()
-                .mount(
-                    "/",
-                    routes![list_memberships, list_memberships_unauthenticated],
-                )
-                .manage(members_sate_mutex)
-                .manage(credentials_storage_mutex)
-                .attach(Template::fairing());
+                let client = Client::tracked(rocket).await.unwrap();
+                let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
 
-            let client = Client::tracked(rocket).await.unwrap();
-            let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
+                let request = client.get("/memberships").cookie(cookie.clone());
 
-            let request = client.get("/memberships").cookie(cookie.clone());
-
-            let response = request.dispatch().await;
-            assert_eq!(Status::Ok, response.status());
+                let response = request.dispatch().await;
+                assert_eq!(Status::Ok, response.status());
+            }
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
 
-        #[async_test]
-        async fn should_not_render_membership_list_when_unauthenticated() {
-            let members_sate_mutex =
-                Mutex::new(MembershipsState::new(None, IndexedMemberships::default()));
+        #[test]
+        fn should_not_render_membership_list_when_unauthenticated() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
+                let rocket = rocket::build()
+                    .mount(
+                        "/",
+                        routes![list_memberships, list_memberships_unauthenticated],
+                    )
+                    .manage(pool)
+                    .attach(Template::fairing());
 
-            let rocket = rocket::build()
-                .mount(
-                    "/",
-                    routes![list_memberships, list_memberships_unauthenticated],
-                )
-                .manage(members_sate_mutex)
-                .attach(Template::fairing());
+                let client = Client::tracked(rocket).await.unwrap();
+                let request = client.get("/memberships");
 
-            let client = Client::tracked(rocket).await.unwrap();
-            let request = client.get("/memberships");
+                let response = request.dispatch().await;
+                assert_eq!(Status::SeeOther, response.status());
+                assert_eq!(
+                    "/fileo/login?page=/memberships",
+                    response.headers().get_one("location").unwrap()
+                );
+            }
 
-            let response = request.dispatch().await;
-            assert_eq!(Status::SeeOther, response.status());
-            assert_eq!(
-                "/fileo/login?page=/memberships",
-                response.headers().get_one("location").unwrap()
-            );
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
     }
 
     mod check_members_from_csv {
+        use crate::database::{dao, with_temp_database};
         use crate::fileo::authentication::AUTHENTICATION_COOKIE;
         use crate::fileo::credentials::FileoCredentials;
-        use crate::membership::file_details::FileDetails;
-        use crate::membership::indexed_memberships::IndexedMemberships;
-        use crate::web::api::memberships_state::MembershipsState;
         use crate::web::credentials_storage::CredentialsStorage;
         use crate::web::frontend::frontend_controller::{
             check_members_from_csv, check_members_from_csv_unauthenticated,
         };
-        use chrono::Utc;
+        use diesel::SqliteConnection;
+        use diesel::r2d2::{ConnectionManager, Pool};
         use rocket::http::{Cookie, Status};
         use rocket::local::asynchronous::Client;
+        use rocket::tokio::runtime::Runtime;
         use rocket_dyn_templates::Template;
-        use std::ffi::OsString;
         use std::sync::Mutex;
 
-        #[async_test]
-        async fn success() {
-            let credentials =
-                FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
-            let mut credentials_storage = CredentialsStorage::default();
-            let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
-            credentials_storage.store(uuid.clone(), credentials);
-            let credentials_storage_mutex = Mutex::new(credentials_storage);
+        #[test]
+        fn success() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
+                let credentials =
+                    FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
+                let mut credentials_storage = CredentialsStorage::default();
+                let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
+                credentials_storage.store(uuid.clone(), credentials);
+                let credentials_storage_mutex = Mutex::new(credentials_storage);
 
-            let memberships_state = Mutex::new(MembershipsState::new(
-                Some(FileDetails::new(
-                    Utc::now().date_naive(),
-                    OsString::from(""),
-                )),
-                IndexedMemberships::default(),
-            ));
+                let mut connection = pool.get().unwrap();
+                dao::membership::replace_memberships(&mut connection, &[]).unwrap(); // Updating last update date
 
-            let rocket = rocket::build()
-                .mount(
-                    "/",
-                    routes![
-                        check_members_from_csv,
-                        check_members_from_csv_unauthenticated
-                    ],
-                )
-                .manage(memberships_state)
-                .manage(credentials_storage_mutex)
-                .attach(Template::fairing());
+                let rocket = rocket::build()
+                    .mount(
+                        "/",
+                        routes![
+                            check_members_from_csv,
+                            check_members_from_csv_unauthenticated
+                        ],
+                    )
+                    .manage(pool)
+                    .manage(credentials_storage_mutex)
+                    .attach(Template::fairing());
 
-            let client = Client::tracked(rocket).await.unwrap();
-            let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
+                let client = Client::tracked(rocket).await.unwrap();
+                let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
 
-            let request = client.get("/csv/check").cookie(cookie.clone());
+                let request = client.get("/csv/check").cookie(cookie.clone());
 
-            let response = request.dispatch().await;
-            assert_eq!(Status::Ok, response.status());
-            let body = response.into_string().await.unwrap();
-            assert!(!body.contains("Jamais"));
+                let response = request.dispatch().await;
+                assert_eq!(Status::Ok, response.status());
+                let body = response.into_string().await.unwrap();
+                assert!(!body.contains("Jamais"));
+            }
+
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
 
-        #[async_test]
-        async fn success_when_no_file() {
-            let credentials =
-                FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
-            let mut credentials_storage = CredentialsStorage::default();
-            let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
-            credentials_storage.store(uuid.clone(), credentials);
-            let credentials_storage_mutex = Mutex::new(credentials_storage);
+        #[test]
+        fn success_when_never_updated() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
+                let credentials =
+                    FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
+                let mut credentials_storage = CredentialsStorage::default();
+                let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
+                credentials_storage.store(uuid.clone(), credentials);
+                let credentials_storage_mutex = Mutex::new(credentials_storage);
 
-            let memberships_sate_mutex =
-                Mutex::new(MembershipsState::new(None, IndexedMemberships::default()));
+                let rocket = rocket::build()
+                    .mount(
+                        "/",
+                        routes![
+                            check_members_from_csv,
+                            check_members_from_csv_unauthenticated
+                        ],
+                    )
+                    .manage(pool)
+                    .manage(credentials_storage_mutex)
+                    .attach(Template::fairing());
 
-            let rocket = rocket::build()
-                .mount(
-                    "/",
-                    routes![
-                        check_members_from_csv,
-                        check_members_from_csv_unauthenticated
-                    ],
-                )
-                .manage(memberships_sate_mutex)
-                .manage(credentials_storage_mutex)
-                .attach(Template::fairing());
+                let client = Client::tracked(rocket).await.unwrap();
+                let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
 
-            let client = Client::tracked(rocket).await.unwrap();
-            let cookie = Cookie::new(AUTHENTICATION_COOKIE, uuid);
+                let request = client.get("/csv/check").cookie(cookie.clone());
 
-            let request = client.get("/csv/check").cookie(cookie.clone());
+                let response = request.dispatch().await;
+                assert_eq!(Status::Ok, response.status());
+                let body = response.into_string().await.unwrap();
+                assert!(body.contains("Jamais"));
+            }
 
-            let response = request.dispatch().await;
-            assert_eq!(Status::Ok, response.status());
-            let body = response.into_string().await.unwrap();
-            assert!(body.contains("Jamais"));
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
 
-        #[async_test]
-        async fn fail_when_unauthenticated() {
-            let members_sate_mutex =
-                Mutex::new(MembershipsState::new(None, IndexedMemberships::default()));
+        #[test]
+        fn fail_when_unauthenticated() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
+                let rocket = rocket::build()
+                    .mount(
+                        "/",
+                        routes![
+                            check_members_from_csv,
+                            check_members_from_csv_unauthenticated
+                        ],
+                    )
+                    .manage(pool)
+                    .attach(Template::fairing());
 
-            let rocket = rocket::build()
-                .mount(
-                    "/",
-                    routes![
-                        check_members_from_csv,
-                        check_members_from_csv_unauthenticated
-                    ],
-                )
-                .manage(members_sate_mutex)
-                .attach(Template::fairing());
+                let client = Client::tracked(rocket).await.unwrap();
+                let request = client.get("/csv/check");
 
-            let client = Client::tracked(rocket).await.unwrap();
-            let request = client.get("/csv/check");
+                let response = request.dispatch().await;
+                assert_eq!(Status::SeeOther, response.status());
+                assert_eq!(
+                    "/fileo/login?page=/csv/check",
+                    response.headers().get_one("location").unwrap()
+                );
+            }
 
-            let response = request.dispatch().await;
-            assert_eq!(Status::SeeOther, response.status());
-            assert_eq!(
-                "/fileo/login?page=/csv/check",
-                response.headers().get_one("location").unwrap()
-            );
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
     }
 }

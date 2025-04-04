@@ -1,10 +1,11 @@
+use crate::database::dao;
 use crate::fileo::credentials::FileoCredentials;
 use crate::membership;
 use crate::membership::check::check_members;
+use crate::membership::indexed_memberships::IndexedMemberships;
 use crate::tools::email::send_email;
 use crate::tools::{log_error_and_return, log_message_and_return};
 use crate::uda::credentials::UdaCredentials;
-use crate::web::api::memberships_state::MembershipsState;
 use diesel::SqliteConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
 use dto::checked_member::CheckedMember;
@@ -90,7 +91,7 @@ pub async fn notify_members(
     data = "<member_to_look_up>"
 )]
 pub async fn look_member_up(
-    memberships_state: &State<Mutex<MembershipsState>>,
+    pool: &State<Pool<ConnectionManager<SqliteConnection>>>,
     member_to_look_up: Json<MemberToLookUp>,
     _credentials: FileoCredentials,
 ) -> Result<String, Status> {
@@ -104,13 +105,14 @@ pub async fn look_member_up(
         return Err(Status::BadRequest);
     }
 
-    let memberships_state = memberships_state.lock().map_err(log_message_and_return(
-        "Couldn't acquire lock",
-        Status::InternalServerError,
-    ))?;
+    let mut connection = pool
+        .get()
+        .map_err(log_error_and_return(Status::InternalServerError))?;
+    let memberships = dao::membership::retrieve_memberships(&mut connection)
+        .map_err(log_error_and_return(Status::InternalServerError))?;
+    let indexed_memberships = IndexedMemberships::from(memberships);
 
-    let memberships =
-        membership::look_up::look_member_up(memberships_state.memberships(), &member_to_look_up);
+    let memberships = membership::look_up::look_member_up(&indexed_memberships, &member_to_look_up);
 
     Ok(json!(memberships).to_string())
 }
@@ -238,99 +240,107 @@ mod tests {
     }
 
     mod look_member_up {
+        use crate::database::{dao, with_temp_database};
         use crate::fileo::authentication::AUTHENTICATION_COOKIE;
-        use crate::membership::indexed_memberships::IndexedMemberships;
         use crate::membership::indexed_memberships::tests::{
             jon_doe, jon_doe_previous_membership, jonette_snow, other_jon_doe,
         };
         use crate::web::api::memberships_controller::look_member_up;
         use crate::web::api::memberships_controller::tests::initialize_fileo_login;
-        use crate::web::api::memberships_state::MembershipsState;
+        use diesel::SqliteConnection;
+        use diesel::r2d2::{ConnectionManager, Pool};
         use dto::member_to_look_up::MemberToLookUp;
         use dto::membership::Membership;
         use rocket::http::hyper::header::CONTENT_TYPE;
         use rocket::http::{ContentType, Header, Status};
         use rocket::local::asynchronous::Client;
         use rocket::serde::json::json;
-        use std::sync::Mutex;
+        use rocket::tokio::runtime::Runtime;
 
-        #[async_test]
-        async fn success() {
-            let (fileo_uuid, fileo_credentials_storage_mutex) = initialize_fileo_login();
+        #[test]
+        fn success() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
+                let (fileo_uuid, fileo_credentials_storage_mutex) = initialize_fileo_login();
 
-            let memberships_state = MembershipsState::new(
-                None,
-                IndexedMemberships::from(vec![
-                    jon_doe(),
-                    jon_doe_previous_membership(),
-                    jonette_snow(),
-                    other_jon_doe(),
-                ]),
-            );
-            let memberships_state = Mutex::new(memberships_state);
+                let mut connection = pool.get().unwrap();
+                dao::membership::replace_memberships(
+                    &mut connection,
+                    &[
+                        jon_doe(),
+                        jon_doe_previous_membership(),
+                        jonette_snow(),
+                        other_jon_doe(),
+                    ],
+                )
+                .unwrap();
 
-            let rocket = rocket::build()
-                .manage(fileo_credentials_storage_mutex)
-                .manage(memberships_state)
-                .mount("/", routes![look_member_up]);
+                let rocket = rocket::build()
+                    .manage(fileo_credentials_storage_mutex)
+                    .manage(pool)
+                    .mount("/", routes![look_member_up]);
 
-            let client = Client::tracked(rocket).await.unwrap();
+                let client = Client::tracked(rocket).await.unwrap();
 
-            let member_to_look_up =
-                MemberToLookUp::new(Some(jon_doe().membership_number().to_owned()), None, None);
-            let request = client
-                .post("/members/lookup")
-                .cookie((AUTHENTICATION_COOKIE, fileo_uuid))
-                .body(json!(member_to_look_up).to_string().as_bytes())
-                .header(Header::new(
-                    CONTENT_TYPE.to_string(),
-                    ContentType::JSON.to_string(),
-                ));
+                let member_to_look_up =
+                    MemberToLookUp::new(Some(jon_doe().membership_number().to_owned()), None, None);
+                let request = client
+                    .post("/members/lookup")
+                    .cookie((AUTHENTICATION_COOKIE, fileo_uuid))
+                    .body(json!(member_to_look_up).to_string().as_bytes())
+                    .header(Header::new(
+                        CONTENT_TYPE.to_string(),
+                        ContentType::JSON.to_string(),
+                    ));
 
-            let response = request.dispatch().await;
-            assert_eq!(Status::Ok, response.status());
+                let response = request.dispatch().await;
+                assert_eq!(Status::Ok, response.status());
 
-            let matching_memberships: Vec<Membership> = response.into_json().await.unwrap();
-            assert_eq!(
-                vec![jon_doe_previous_membership(), jon_doe()],
-                matching_memberships
-            )
+                let matching_memberships: Vec<Membership> = response.into_json().await.unwrap();
+                assert_eq!(
+                    vec![jon_doe_previous_membership(), jon_doe()],
+                    matching_memberships
+                )
+            }
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
 
-        #[async_test]
-        async fn bad_request() {
-            let (fileo_uuid, fileo_credentials_storage_mutex) = initialize_fileo_login();
+        #[test]
+        fn bad_request() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
+                let (fileo_uuid, fileo_credentials_storage_mutex) = initialize_fileo_login();
+                let mut connection = pool.get().unwrap();
+                dao::membership::replace_memberships(
+                    &mut connection,
+                    &[
+                        jon_doe(),
+                        jon_doe_previous_membership(),
+                        jonette_snow(),
+                        other_jon_doe(),
+                    ],
+                )
+                .unwrap();
 
-            let memberships_state = MembershipsState::new(
-                None,
-                IndexedMemberships::from(vec![
-                    jon_doe(),
-                    jon_doe_previous_membership(),
-                    jonette_snow(),
-                    other_jon_doe(),
-                ]),
-            );
-            let memberships_state = Mutex::new(memberships_state);
+                let rocket = rocket::build()
+                    .manage(fileo_credentials_storage_mutex)
+                    .manage(pool)
+                    .mount("/", routes![look_member_up]);
 
-            let rocket = rocket::build()
-                .manage(fileo_credentials_storage_mutex)
-                .manage(memberships_state)
-                .mount("/", routes![look_member_up]);
+                let client = Client::tracked(rocket).await.unwrap();
 
-            let client = Client::tracked(rocket).await.unwrap();
+                let member_to_look_up = MemberToLookUp::new(None, None, None);
+                let request = client
+                    .post("/members/lookup")
+                    .cookie((AUTHENTICATION_COOKIE, fileo_uuid))
+                    .body(json!(member_to_look_up).to_string().as_bytes())
+                    .header(Header::new(
+                        CONTENT_TYPE.to_string(),
+                        ContentType::JSON.to_string(),
+                    ));
 
-            let member_to_look_up = MemberToLookUp::new(None, None, None);
-            let request = client
-                .post("/members/lookup")
-                .cookie((AUTHENTICATION_COOKIE, fileo_uuid))
-                .body(json!(member_to_look_up).to_string().as_bytes())
-                .header(Header::new(
-                    CONTENT_TYPE.to_string(),
-                    ContentType::JSON.to_string(),
-                ));
-
-            let response = request.dispatch().await;
-            assert_eq!(Status::BadRequest, response.status());
+                let response = request.dispatch().await;
+                assert_eq!(Status::BadRequest, response.status());
+            }
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
     }
 }

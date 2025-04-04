@@ -5,11 +5,9 @@ use crate::fileo::authentication::AUTHENTICATION_COOKIE;
 use crate::fileo::credentials::FileoCredentials;
 use crate::fileo::download::{download_memberships_list, login_to_fileo};
 use crate::membership::config::MembershipsProviderConfig;
-use crate::membership::file_details::FileDetails;
 use crate::membership::indexed_memberships::IndexedMemberships;
 use crate::tools::web::build_client;
 use crate::tools::{log_error_and_return, log_message_and_return};
-use crate::web::api::memberships_state::MembershipsState;
 use crate::web::credentials_storage::CredentialsStorage;
 use crate::web::error::WebError;
 use diesel::SqliteConnection;
@@ -62,7 +60,6 @@ pub async fn login(
 #[get("/fileo/memberships", format = "text/plain-text")]
 pub async fn download_memberships(
     memberships_provider_config: &State<MembershipsProviderConfig>,
-    memberships_state: &State<Mutex<MembershipsState>>,
     pool: &State<Pool<ConnectionManager<SqliteConnection>>>,
     credentials: FileoCredentials,
 ) -> Result<Status, Status> {
@@ -78,22 +75,6 @@ pub async fn download_memberships(
         .map_err(log_error_and_return(Status::InternalServerError))?;
     replace_memberships(&mut connection, &memberships)
         .map_err(log_error_and_return(Status::InternalServerError))?;
-    let last_update = get_last_update(&mut connection, &UpdatableElement::Memberships)
-        .map_err(log_error_and_return(Status::InternalServerError))?
-        .ok_or_else(|| {
-            error!("Memberships last update should be known at this point.");
-            Status::InternalServerError
-        })?;
-
-    let memberships = IndexedMemberships::from(memberships);
-    let mut memberships_state = memberships_state.lock().map_err(log_message_and_return(
-        "Couldn't acquire lock",
-        Status::InternalServerError,
-    ))?;
-
-    let file_details = FileDetails::new(last_update.date(), OsString::new());
-    memberships_state.set_file_details(file_details);
-    memberships_state.set_memberships(memberships);
 
     Ok(Status::NoContent)
 }
@@ -101,9 +82,7 @@ pub async fn download_memberships(
 #[cfg(test)]
 mod tests {
     use crate::membership::config::MembershipsProviderConfig;
-    use crate::web::api::memberships_state::MembershipsState;
     use regex::Regex;
-    use std::sync::Mutex;
     use wiremock::matchers::{body_string_contains, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -112,10 +91,6 @@ mod tests {
             uri.to_owned(),
             Regex::new(&format!("{}/download\\.csv", uri)).unwrap(),
         )
-    }
-
-    fn create_member_state_mutex() -> Mutex<MembershipsState> {
-        Mutex::new(MembershipsState::default())
     }
 
     async fn setup_login(mock_server: &MockServer) {
@@ -130,198 +105,212 @@ mod tests {
     }
 
     mod login {
+        use crate::database::with_temp_database;
         use crate::fileo::authentication::AUTHENTICATION_COOKIE;
         use crate::fileo::credentials::FileoCredentials;
         use crate::web::api::fileo_controller::login;
         use crate::web::api::fileo_controller::tests::{
-            create_member_state_mutex, create_memberships_provider_test_config, setup_login,
+            create_memberships_provider_test_config, setup_login,
         };
         use crate::web::credentials_storage::CredentialsStorage;
+        use diesel::SqliteConnection;
+        use diesel::r2d2::{ConnectionManager, Pool};
         use reqwest::header::CONTENT_TYPE;
         use rocket::http::{ContentType, Header, Status};
         use rocket::local::asynchronous::Client;
         use rocket::serde::json::json;
+        use rocket::tokio::runtime::Runtime;
         use std::sync::Mutex;
         use wiremock::matchers::{body_string_contains, method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
-        #[async_test]
-        async fn success() {
-            let mock_server = MockServer::start().await;
-            setup_login(&mock_server).await;
+        #[test]
+        fn success() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
+                let mock_server = MockServer::start().await;
+                setup_login(&mock_server).await;
 
-            let config = create_memberships_provider_test_config(&mock_server.uri());
+                let config = create_memberships_provider_test_config(&mock_server.uri());
 
-            let credentials =
-                FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
-            let credentials_storage_mutex =
-                Mutex::new(CredentialsStorage::<FileoCredentials>::default());
+                let credentials =
+                    FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
+                let credentials_storage_mutex =
+                    Mutex::new(CredentialsStorage::<FileoCredentials>::default());
 
-            let rocket = rocket::build()
-                .manage(config)
-                .manage(credentials_storage_mutex)
-                .manage(create_member_state_mutex())
-                .mount("/", routes![login]);
-            let client = Client::tracked(rocket).await.unwrap();
-            let credentials_as_json = json!(credentials).to_string();
-            let request = client
-                .post("/fileo/login")
-                .body(credentials_as_json.as_bytes())
-                .header(Header::new(
-                    CONTENT_TYPE.to_string(),
-                    ContentType::JSON.to_string(),
-                ));
+                let rocket = rocket::build()
+                    .manage(config)
+                    .manage(credentials_storage_mutex)
+                    .manage(pool)
+                    .mount("/", routes![login]);
+                let client = Client::tracked(rocket).await.unwrap();
+                let credentials_as_json = json!(credentials).to_string();
+                let request = client
+                    .post("/fileo/login")
+                    .body(credentials_as_json.as_bytes())
+                    .header(Header::new(
+                        CONTENT_TYPE.to_string(),
+                        ContentType::JSON.to_string(),
+                    ));
 
-            let response = request.dispatch().await;
-            assert_eq!(Status::Ok, response.status());
-            assert!(
-                response
-                    .cookies()
-                    .get_private(AUTHENTICATION_COOKIE)
-                    .is_some()
-            );
+                let response = request.dispatch().await;
+                assert_eq!(Status::Ok, response.status());
+                assert!(
+                    response
+                        .cookies()
+                        .get_private(AUTHENTICATION_COOKIE)
+                        .is_some()
+                );
+            }
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
 
-        #[async_test]
-        async fn fail_when_unauthorized() {
-            let mock_server = MockServer::start().await;
-            Mock::given(method("POST"))
-                .and(path("/page.php"))
-                .and(body_string_contains("Action=connect_user"))
-                .respond_with(ResponseTemplate::new(401))
-                .mount(&mock_server)
-                .await;
+        #[test]
+        fn fail_when_unauthorized() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
+                let mock_server = MockServer::start().await;
+                Mock::given(method("POST"))
+                    .and(path("/page.php"))
+                    .and(body_string_contains("Action=connect_user"))
+                    .respond_with(ResponseTemplate::new(401))
+                    .mount(&mock_server)
+                    .await;
 
-            let config = create_memberships_provider_test_config(&mock_server.uri());
+                let config = create_memberships_provider_test_config(&mock_server.uri());
 
-            let credentials =
-                FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
-            let credentials_storage_mutex =
-                Mutex::new(CredentialsStorage::<FileoCredentials>::default());
+                let credentials =
+                    FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
+                let credentials_storage_mutex =
+                    Mutex::new(CredentialsStorage::<FileoCredentials>::default());
 
-            let rocket = rocket::build()
-                .manage(config)
-                .manage(credentials_storage_mutex)
-                .manage(create_member_state_mutex())
-                .mount("/", routes![login]);
-            let client = Client::tracked(rocket).await.unwrap();
-            let credentials_as_json = json!(credentials).to_string();
-            let request = client
-                .post("/fileo/login")
-                .body(credentials_as_json.as_bytes())
-                .header(Header::new(
-                    CONTENT_TYPE.to_string(),
-                    ContentType::JSON.to_string(),
-                ));
+                let rocket = rocket::build()
+                    .manage(config)
+                    .manage(credentials_storage_mutex)
+                    .manage(pool)
+                    .mount("/", routes![login]);
+                let client = Client::tracked(rocket).await.unwrap();
+                let credentials_as_json = json!(credentials).to_string();
+                let request = client
+                    .post("/fileo/login")
+                    .body(credentials_as_json.as_bytes())
+                    .header(Header::new(
+                        CONTENT_TYPE.to_string(),
+                        ContentType::JSON.to_string(),
+                    ));
 
-            let response = request.dispatch().await;
-            assert_eq!(Status::BadGateway, response.status());
-            assert!(
-                response
-                    .cookies()
-                    .get_private(AUTHENTICATION_COOKIE)
-                    .is_none()
-            );
+                let response = request.dispatch().await;
+                assert_eq!(Status::BadGateway, response.status());
+                assert!(
+                    response
+                        .cookies()
+                        .get_private(AUTHENTICATION_COOKIE)
+                        .is_none()
+                );
+            }
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
 
-        #[async_test]
-        async fn fail_when_forbidden() {
-            let mock_server = MockServer::start().await;
-            Mock::given(method("POST"))
-                .and(path("/page.php"))
-                .and(body_string_contains("Action=connect_user"))
-                .respond_with(
-                    ResponseTemplate::new(200)
-                        .set_body_string("Profil Club - The Best Unicycle Club Ever"),
-                )
-                .mount(&mock_server)
-                .await;
+        #[test]
+        fn fail_when_forbidden() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
+                let mock_server = MockServer::start().await;
+                Mock::given(method("POST"))
+                    .and(path("/page.php"))
+                    .and(body_string_contains("Action=connect_user"))
+                    .respond_with(
+                        ResponseTemplate::new(200)
+                            .set_body_string("Profil Club - The Best Unicycle Club Ever"),
+                    )
+                    .mount(&mock_server)
+                    .await;
 
-            let config = create_memberships_provider_test_config(&mock_server.uri());
+                let config = create_memberships_provider_test_config(&mock_server.uri());
 
-            let credentials =
-                FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
-            let credentials_storage_mutex =
-                Mutex::new(CredentialsStorage::<FileoCredentials>::default());
+                let credentials =
+                    FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
+                let credentials_storage_mutex =
+                    Mutex::new(CredentialsStorage::<FileoCredentials>::default());
 
-            let rocket = rocket::build()
-                .manage(config)
-                .manage(credentials_storage_mutex)
-                .manage(create_member_state_mutex())
-                .mount("/", routes![login]);
-            let client = Client::tracked(rocket).await.unwrap();
-            let credentials_as_json = json!(credentials).to_string();
-            let request = client
-                .post("/fileo/login")
-                .body(credentials_as_json.as_bytes())
-                .header(Header::new(
-                    CONTENT_TYPE.to_string(),
-                    ContentType::JSON.to_string(),
-                ));
+                let rocket = rocket::build()
+                    .manage(config)
+                    .manage(credentials_storage_mutex)
+                    .manage(pool)
+                    .mount("/", routes![login]);
+                let client = Client::tracked(rocket).await.unwrap();
+                let credentials_as_json = json!(credentials).to_string();
+                let request = client
+                    .post("/fileo/login")
+                    .body(credentials_as_json.as_bytes())
+                    .header(Header::new(
+                        CONTENT_TYPE.to_string(),
+                        ContentType::JSON.to_string(),
+                    ));
 
-            let response = request.dispatch().await;
-            assert_eq!(Status::Forbidden, response.status());
-            assert!(
-                response
-                    .cookies()
-                    .get_private(AUTHENTICATION_COOKIE)
-                    .is_none()
-            );
+                let response = request.dispatch().await;
+                assert_eq!(Status::Forbidden, response.status());
+                assert!(
+                    response
+                        .cookies()
+                        .get_private(AUTHENTICATION_COOKIE)
+                        .is_none()
+                );
+            }
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
 
-        #[async_test]
-        async fn fail_when_bad_gateway() {
-            let mock_server = MockServer::start().await;
-            Mock::given(method("POST"))
-                .and(path("/page.php"))
-                .and(body_string_contains("Action=connect_user"))
-                .respond_with(ResponseTemplate::new(500))
-                .mount(&mock_server)
-                .await;
+        #[test]
+        fn fail_when_bad_gateway() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
+                let mock_server = MockServer::start().await;
+                Mock::given(method("POST"))
+                    .and(path("/page.php"))
+                    .and(body_string_contains("Action=connect_user"))
+                    .respond_with(ResponseTemplate::new(500))
+                    .mount(&mock_server)
+                    .await;
 
-            let config = create_memberships_provider_test_config(&mock_server.uri());
+                let config = create_memberships_provider_test_config(&mock_server.uri());
 
-            let credentials =
-                FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
-            let credentials_storage_mutex =
-                Mutex::new(CredentialsStorage::<FileoCredentials>::default());
+                let credentials =
+                    FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
+                let credentials_storage_mutex =
+                    Mutex::new(CredentialsStorage::<FileoCredentials>::default());
 
-            let rocket = rocket::build()
-                .manage(config)
-                .manage(credentials_storage_mutex)
-                .manage(create_member_state_mutex())
-                .mount("/", routes![login]);
-            let client = Client::tracked(rocket).await.unwrap();
-            let credentials_as_json = json!(credentials).to_string();
-            let request = client
-                .post("/fileo/login")
-                .body(credentials_as_json.as_bytes())
-                .header(Header::new(
-                    CONTENT_TYPE.to_string(),
-                    ContentType::JSON.to_string(),
-                ));
+                let rocket = rocket::build()
+                    .manage(config)
+                    .manage(credentials_storage_mutex)
+                    .manage(pool)
+                    .mount("/", routes![login]);
+                let client = Client::tracked(rocket).await.unwrap();
+                let credentials_as_json = json!(credentials).to_string();
+                let request = client
+                    .post("/fileo/login")
+                    .body(credentials_as_json.as_bytes())
+                    .header(Header::new(
+                        CONTENT_TYPE.to_string(),
+                        ContentType::JSON.to_string(),
+                    ));
 
-            let response = request.dispatch().await;
-            assert_eq!(Status::BadGateway, response.status());
-            assert!(
-                response
-                    .cookies()
-                    .get_private(AUTHENTICATION_COOKIE)
-                    .is_none()
-            );
+                let response = request.dispatch().await;
+                assert_eq!(Status::BadGateway, response.status());
+                assert!(
+                    response
+                        .cookies()
+                        .get_private(AUTHENTICATION_COOKIE)
+                        .is_none()
+                );
+            }
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
     }
 
     mod download_members {
-        use crate::database::with_temp_database;
+        use crate::database::{dao, with_temp_database};
         use crate::fileo::authentication::AUTHENTICATION_COOKIE;
         use crate::fileo::credentials::FileoCredentials;
-        use crate::membership::indexed_memberships::IndexedMemberships;
         use crate::web::api::fileo_controller::download_memberships;
         use crate::web::api::fileo_controller::tests::{
             create_memberships_provider_test_config, setup_login,
         };
-        use crate::web::api::memberships_state::MembershipsState;
         use crate::web::credentials_storage::CredentialsStorage;
         use diesel::SqliteConnection;
         use diesel::r2d2::{ConnectionManager, Pool};
@@ -378,8 +367,6 @@ mod tests {
                     .mount(&mock_server)
                     .await;
 
-                let memberships_state_mutex =
-                    Mutex::new(MembershipsState::new(None, IndexedMemberships::default()));
                 let credentials =
                     FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
                 let mut credentials_storage = CredentialsStorage::default();
@@ -389,7 +376,6 @@ mod tests {
 
                 let rocket = rocket::build()
                     .manage(config)
-                    .manage(memberships_state_mutex)
                     .manage(credentials_storage_mutex)
                     .manage(pool)
                     .mount("/", routes![download_memberships]);
@@ -401,10 +387,14 @@ mod tests {
 
                 assert_eq!(Status::NoContent, response.status());
 
-                let membership_state = client.rocket().state::<Mutex<MembershipsState>>().unwrap();
-                let membership_state = membership_state.lock().unwrap();
-                let members = membership_state.memberships();
-                assert_eq!(&get_expected_membership(), members.first().unwrap());
+                let mut connection = client
+                    .rocket()
+                    .state::<Pool<ConnectionManager<SqliteConnection>>>()
+                    .unwrap()
+                    .get()
+                    .unwrap();
+                let membership = dao::membership::retrieve_memberships(&mut connection).unwrap();
+                assert_eq!(&get_expected_membership(), membership.first().unwrap());
             }
             with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
@@ -417,16 +407,11 @@ mod tests {
                 let config = create_memberships_provider_test_config(&mock_server.uri());
 
                 let config_state = State::from(&config);
-                let memberships_state_mutex =
-                    Mutex::new(MembershipsState::new(None, IndexedMemberships::default()));
-                let memberships_state = State::from(&memberships_state_mutex);
                 let credentials =
                     FileoCredentials::new("test_login".to_owned(), "test_password".to_owned());
                 let pool_state = State::from(&pool);
 
-                let result =
-                    download_memberships(config_state, memberships_state, pool_state, credentials)
-                        .await;
+                let result = download_memberships(config_state, pool_state, credentials).await;
                 assert_eq!(Status::InternalServerError, result.unwrap_err());
             }
 
