@@ -112,14 +112,12 @@ mod tests {
         Membership::new(
             "2".to_owned(),
             "".to_owned(),
-            "".to_owned(),
-            None,
             None,
             "".to_owned(),
+            None,
             "".to_owned(),
-            false,
             Default::default(),
-            false,
+            Default::default(),
             "".to_owned(),
             "".to_owned(),
         )
@@ -129,14 +127,12 @@ mod tests {
         Membership::new(
             "1".to_owned(),
             "".to_owned(),
-            "".to_owned(),
-            None,
             None,
             "".to_owned(),
+            None,
             "".to_owned(),
-            false,
             Default::default(),
-            false,
+            Default::default(),
             "".to_owned(),
             "".to_owned(),
         )
@@ -241,24 +237,25 @@ mod tests {
         use crate::checked_member::{CheckResult, CheckedMember};
         use crate::membership::Membership;
         use crate::membership_status::MemberStatus::{Expired, Unknown, UpToDate};
-        use chrono::{Days, Utc};
+        use chrono::{Days, Months, Utc};
 
         #[test]
         fn should_be_up_to_date() {
             let membership = Membership::new(
                 "1".to_owned(),
                 "".to_owned(),
-                "".to_owned(),
-                None,
                 None,
                 "".to_owned(),
+                None,
                 "".to_owned(),
-                false,
+                Utc::now()
+                    .date_naive()
+                    .checked_sub_months(Months::new(12))
+                    .unwrap(),
                 Utc::now()
                     .date_naive()
                     .checked_add_days(Days::new(10))
                     .unwrap(),
-                false,
                 "".to_owned(),
                 "".to_owned(),
             );
@@ -273,17 +270,18 @@ mod tests {
             let membership = Membership::new(
                 "1".to_owned(),
                 "".to_owned(),
-                "".to_owned(),
-                None,
                 None,
                 "".to_owned(),
+                None,
                 "".to_owned(),
-                false,
+                Utc::now()
+                    .date_naive()
+                    .checked_sub_months(Months::new(12))
+                    .unwrap(),
                 Utc::now()
                     .date_naive()
                     .checked_sub_days(Days::new(10))
                     .unwrap(),
-                false,
                 "".to_owned(),
                 "".to_owned(),
             );
