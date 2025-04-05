@@ -5,16 +5,14 @@ use std::cmp::Ordering;
 
 #[derive(Debug, Serialize, Deserialize, Getters, PartialEq, Eq, Hash, Clone)]
 pub struct Membership {
+    membership_number: String,
     name: String,
     first_name: String,
-    gender: String,
     birthdate: Option<NaiveDate>,
-    age: Option<u8>,
-    membership_number: String,
+    cell_number: Option<String>,
     email_address: String,
-    payed: bool,
+    start_date: NaiveDate,
     end_date: NaiveDate,
-    expired: bool,
     club: String,
     structure_code: String,
 }
@@ -24,28 +22,24 @@ impl Membership {
     pub fn new(
         name: String,
         first_name: String,
-        gender: String,
         birthdate: Option<NaiveDate>,
-        age: Option<u8>,
         membership_number: String,
+        cell_number: Option<String>,
         email_address: String,
-        payed: bool,
+        start_date: NaiveDate,
         end_date: NaiveDate,
-        expired: bool,
         club: String,
         structure_code: String,
     ) -> Self {
         Self {
+            membership_number,
             name,
             first_name,
-            gender,
             birthdate,
-            age,
-            membership_number,
+            cell_number,
             email_address,
-            payed,
+            start_date,
             end_date,
-            expired,
             club,
             structure_code,
         }
@@ -71,6 +65,7 @@ impl Ord for Membership {
 #[cfg(any(test, feature = "test"))]
 pub mod tests {
     use super::*;
+    use chrono::Months;
     use parameterized::{ide, parameterized};
 
     ide!();
@@ -80,23 +75,20 @@ pub mod tests {
             Membership {
                 name: "".to_string(),
                 first_name: "".to_string(),
-                gender: "".to_string(),
                 birthdate: None,
-                age: None,
+                cell_number: None,
                 membership_number: "".to_string(),
                 email_address: "".to_string(),
-                payed: false,
+                start_date: end_date.checked_sub_months(Months::new(12)).unwrap(),
                 end_date,
-                expired: false,
                 club: "".to_string(),
                 structure_code: "".to_string(),
             }
         }
     }
 
-    const HEADER: &str = "Nom d'usage;Prénom;Sexe;Date de Naissance;Age;Numéro d'adhérent;Email;Réglé;Date Fin d'adhésion;Adherent expiré;Nom de structure;Code de structure";
-    const MEMBERSHIP_AS_CSV: &str =
-        "Doe;Jon;H;01-02-1980;45;123456;email@address.com;Oui;30-09-2025;Non;My club;Z01234";
+    const HEADER: &str = "Nom d'usage;Prénom;Date de Naissance;Numéro d'adhérent;Téléphone portable;Email;Date Début d'adhésion;Date Fin d'adhésion;Nom de structure;Code de structure";
+    const MEMBERSHIP_AS_CSV: &str = "Doe;Jon;01-02-1980;123456;+33 6 12 34 56 78;email@address.com;30-09-2024;30-09-2025;My club;Z01234";
     pub const MEMBER_NAME: &str = "Doe";
     pub const MEMBER_FIRST_NAME: &str = "Jon";
     pub const MEMBERSHIP_NUMBER: &str = "123456";
@@ -107,14 +99,12 @@ pub mod tests {
         Membership {
             name: "Doe".to_string(),
             first_name: "Jon".to_string(),
-            gender: "H".to_string(),
             birthdate: NaiveDate::from_ymd_opt(1980, 2, 1),
-            age: Some(45),
             membership_number: MEMBERSHIP_NUMBER.to_string(),
+            cell_number: Some("+33 6 12 34 56 78".to_string()),
             email_address: "email@address.com".to_string(),
-            payed: true,
+            start_date: NaiveDate::from_ymd_opt(2024, 9, 30).unwrap(),
             end_date: NaiveDate::from_ymd_opt(2025, 9, 30).unwrap(),
-            expired: false,
             club: "My club".to_string(),
             structure_code: "Z01234".to_string(),
         }

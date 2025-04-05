@@ -207,14 +207,15 @@ fn prepare_request_for_retrieving_download_link(client: &Client, domain: &str) -
         ("export_radio_format", "2"),
         ("option_checkbox_champs[nom]", "nom"),
         ("option_checkbox_champs[prenom]", "prenom"),
-        ("option_checkbox_champs[sexe]", "sexe"),
         ("option_checkbox_champs[dateNaissance]", "dateNaissance"),
-        ("option_checkbox_champs[age]", "age"),
         ("option_checkbox_champs[numeroLicence]", "numeroLicence"),
+        ("option_checkbox_champs[telPortable]", "telPortable"),
         ("option_checkbox_champs[email]", "email"),
-        ("option_checkbox_champs[isAdhesionRegle]", "isAdhesionRegle"),
+        (
+            "option_checkbox_champs[dateAdhesionDebut]",
+            "dateAdhesionDebut",
+        ),
         ("option_checkbox_champs[dateAdhesionFin]", "dateAdhesionFin"),
-        ("option_checkbox_champs[expire]", "expire"),
         ("option_checkbox_champs[instanceNom]", "instanceNom"),
         ("option_checkbox_champs[instanceCode]", "instanceCode"),
         ("generation", "2"),
@@ -667,7 +668,7 @@ mod tests {
         let client = build_client().unwrap();
         let domain = "http://localhost:27001";
 
-        let expected_body = "requestForm=formExport&export_radio_format=2&option_checkbox_champs[nom]=nom&option_checkbox_champs[prenom]=prenom&option_checkbox_champs[sexe]=sexe&option_checkbox_champs[dateNaissance]=dateNaissance&option_checkbox_champs[age]=age&option_checkbox_champs[numeroLicence]=numeroLicence&option_checkbox_champs[email]=email&option_checkbox_champs[isAdhesionRegle]=isAdhesionRegle&option_checkbox_champs[dateAdhesionFin]=dateAdhesionFin&option_checkbox_champs[expire]=expire&option_checkbox_champs[instanceNom]=instanceNom&option_checkbox_champs[instanceCode]=instanceCode&generation=2";
+        let expected_body = "requestForm=formExport&export_radio_format=2&option_checkbox_champs[nom]=nom&option_checkbox_champs[prenom]=prenom&option_checkbox_champs[dateNaissance]=dateNaissance&option_checkbox_champs[numeroLicence]=numeroLicence&option_checkbox_champs[telPortable]=telPortable&option_checkbox_champs[email]=email&option_checkbox_champs[dateAdhesionDebut]=dateAdhesionDebut&option_checkbox_champs[dateAdhesionFin]=dateAdhesionFin&option_checkbox_champs[instanceNom]=instanceNom&option_checkbox_champs[instanceCode]=instanceCode&generation=2";
 
         let result = prepare_request_for_retrieving_download_link(&client, domain);
 

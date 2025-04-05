@@ -42,14 +42,12 @@ fn insert_all(
             (
                 last_name.eq(membership.name().clone()),
                 first_name.eq(membership.first_name().clone()),
-                gender.eq(membership.gender().clone()),
                 birthdate.eq(membership.birthdate().map(|b| b.to_string())),
-                age.eq(membership.age().map(|a| a as i32)),
                 membership_number.eq(membership.membership_number().clone()),
+                cell_number.eq(membership.cell_number().clone()),
                 email_address.eq(membership.email_address().clone()),
-                payed.eq(*membership.payed()),
+                start_date.eq(membership.start_date().to_string()),
                 end_date.eq(membership.end_date().to_string()),
-                expired.eq(*membership.expired()),
                 club.eq(membership.club().clone()),
                 structure_code.eq(membership.structure_code().clone()),
                 normalized_membership_number.eq(normalize(membership.membership_number())),
@@ -354,14 +352,12 @@ mod tests {
                 (
                     last_name.eq(membership.name().clone()),
                     first_name.eq(membership.first_name().clone()),
-                    gender.eq(membership.gender().clone()),
                     birthdate.eq(membership.birthdate().map(|b| b.to_string())),
-                    age.eq(membership.age().map(|a| a as i32)),
                     membership_number.eq(membership.membership_number().clone()),
+                    cell_number.eq(membership.cell_number().clone()),
                     email_address.eq(membership.email_address().clone()),
-                    payed.eq(*membership.payed()),
+                    start_date.eq(membership.start_date().to_string()),
                     end_date.eq(membership.end_date().to_string()),
-                    expired.eq(*membership.expired()),
                     club.eq(membership.club().clone()),
                     structure_code.eq(membership.structure_code().clone()),
                     normalized_membership_number.eq(normalize(membership.membership_number())),
@@ -439,7 +435,7 @@ mod tests {
         use crate::database::model::membership::Membership;
         use crate::database::with_temp_database;
         use crate::membership::tests::{jon_doe, jonette_snow};
-        use chrono::Utc;
+        use chrono::{Months, Utc};
         use diesel::{QueryDsl, RunQueryDsl, SelectableHelper};
 
         fn test_insert(expected_memberships: &[dto::membership::Membership]) {
@@ -484,14 +480,15 @@ mod tests {
                     dto::membership::Membership::new(
                         i.to_string(),
                         i.to_string(),
-                        i.to_string(),
-                        None,
                         None,
                         i.to_string(),
+                        None,
                         i.to_string(),
-                        true,
+                        Utc::now()
+                            .date_naive()
+                            .checked_sub_months(Months::new(12))
+                            .unwrap(),
                         Utc::now().date_naive(),
-                        false,
                         i.to_string(),
                         i.to_string(),
                     )
@@ -823,14 +820,12 @@ mod tests {
                         let membership = dto::membership::Membership::new(
                             "Doe".to_owned(),
                             "Jon".to_owned(),
-                            "M".to_owned(),
-                            None,
                             None,
                             num.clone(),
+                            None,
                             "address@test.com".to_owned(),
-                            true,
                             Utc::now().date_naive(),
-                            false,
+                            Utc::now().date_naive(),
                             "club".to_owned(),
                             "A12345".to_owned(),
                         );
@@ -851,14 +846,12 @@ mod tests {
                         let membership = dto::membership::Membership::new(
                             "Doe".to_owned(),
                             "Jon".to_owned(),
-                            "M".to_owned(),
-                            None,
                             None,
                             num.clone(),
+                            None,
                             "address@test.com".to_owned(),
-                            true,
                             Utc::now().date_naive(),
-                            false,
+                            Utc::now().date_naive(),
                             "club".to_owned(),
                             "A12345".to_owned(),
                         );
@@ -866,17 +859,18 @@ mod tests {
                         let old_membership = dto::membership::Membership::new(
                             "Doe".to_owned(),
                             "Jon".to_owned(),
-                            "M".to_owned(),
-                            None,
                             None,
                             num.clone(),
+                            None,
                             "address@test.com".to_owned(),
-                            true,
                             Utc::now()
                                 .date_naive()
                                 .checked_sub_months(Months::new(12))
                                 .unwrap(),
-                            false,
+                            Utc::now()
+                                .date_naive()
+                                .checked_sub_months(Months::new(12))
+                                .unwrap(),
                             "club".to_owned(),
                             "A12345".to_owned(),
                         );
@@ -920,14 +914,12 @@ mod tests {
                         let membership = dto::membership::Membership::new(
                             last_name,
                             first_name,
-                            "M".to_owned(),
-                            None,
                             None,
                             num.clone(),
+                            None,
                             "address@test.com".to_owned(),
-                            true,
                             Utc::now().date_naive(),
-                            false,
+                            Utc::now().date_naive(),
                             "club".to_owned(),
                             "A12345".to_owned(),
                         );
@@ -953,14 +945,12 @@ mod tests {
                         let membership = dto::membership::Membership::new(
                             last_name,
                             first_name,
-                            "M".to_owned(),
-                            None,
                             None,
                             num.clone(),
+                            None,
                             "address@test.com".to_owned(),
-                            true,
                             Utc::now().date_naive(),
-                            false,
+                            Utc::now().date_naive(),
                             "club".to_owned(),
                             "A12345".to_owned(),
                         );
@@ -986,14 +976,12 @@ mod tests {
                         let membership = dto::membership::Membership::new(
                             first_name.clone(),
                             last_name.clone(),
-                            "M".to_owned(),
-                            None,
                             None,
                             num.clone(),
+                            None,
                             "address@test.com".to_owned(),
-                            true,
                             Utc::now().date_naive(),
-                            false,
+                            Utc::now().date_naive(),
                             "club".to_owned(),
                             "A12345".to_owned(),
                         );
@@ -1001,17 +989,18 @@ mod tests {
                         let old_membership = dto::membership::Membership::new(
                             first_name.clone(),
                             last_name.clone(),
-                            "M".to_owned(),
-                            None,
                             None,
                             num.clone(),
+                            None,
                             "address@test.com".to_owned(),
-                            true,
                             Utc::now()
                                 .date_naive()
                                 .checked_sub_months(Months::new(12))
                                 .unwrap(),
-                            false,
+                            Utc::now()
+                                .date_naive()
+                                .checked_sub_months(Months::new(12))
+                                .unwrap(),
                             "club".to_owned(),
                             "A12345".to_owned(),
                         );
@@ -1059,14 +1048,12 @@ mod tests {
                         let membership = dto::membership::Membership::new(
                             last_name.clone(),
                             first_name.clone(),
-                            "M".to_owned(),
-                            None,
                             None,
                             num.clone(),
+                            None,
                             "address@test.com".to_owned(),
-                            true,
                             Utc::now().date_naive(),
-                            false,
+                            Utc::now().date_naive(),
                             "club".to_owned(),
                             "A12345".to_owned(),
                         );
@@ -1096,14 +1083,12 @@ mod tests {
                         let membership = dto::membership::Membership::new(
                             last_name.clone(),
                             first_name.clone(),
-                            "M".to_owned(),
-                            None,
                             None,
                             num.clone(),
+                            None,
                             "address@test.com".to_owned(),
-                            true,
                             Utc::now().date_naive(),
-                            false,
+                            Utc::now().date_naive(),
                             "club".to_owned(),
                             "A12345".to_owned(),
                         );
@@ -1111,17 +1096,18 @@ mod tests {
                         let old_membership = dto::membership::Membership::new(
                             last_name.clone(),
                             first_name.clone(),
-                            "M".to_owned(),
-                            None,
                             None,
                             num.clone(),
+                            None,
                             "address@test.com".to_owned(),
-                            true,
                             Utc::now()
                                 .date_naive()
                                 .checked_sub_months(Months::new(12))
                                 .unwrap(),
-                            false,
+                            Utc::now()
+                                .date_naive()
+                                .checked_sub_months(Months::new(12))
+                                .unwrap(),
                             "club".to_owned(),
                             "A12345".to_owned(),
                         );
@@ -1180,14 +1166,12 @@ mod tests {
                         let membership = dto::membership::Membership::new(
                             last_name,
                             first_name,
-                            "M".to_owned(),
-                            None,
                             None,
                             num,
+                            None,
                             "address@test.com".to_owned(),
-                            true,
                             Utc::now().date_naive(),
-                            false,
+                            Utc::now().date_naive(),
                             "club".to_owned(),
                             "A12345".to_owned(),
                         );
@@ -1211,14 +1195,12 @@ mod tests {
                         let membership = dto::membership::Membership::new(
                             last_name,
                             first_name,
-                            "M".to_owned(),
-                            None,
                             None,
                             num,
+                            None,
                             "address@test.com".to_owned(),
-                            true,
                             Utc::now().date_naive(),
-                            false,
+                            Utc::now().date_naive(),
                             "club".to_owned(),
                             "A12345".to_owned(),
                         );
@@ -1242,14 +1224,12 @@ mod tests {
                         let membership = dto::membership::Membership::new(
                             last_name.clone(),
                             first_name.clone(),
-                            "M".to_owned(),
-                            None,
                             None,
                             num.clone(),
+                            None,
                             "address@test.com".to_owned(),
-                            true,
                             Utc::now().date_naive(),
-                            false,
+                            Utc::now().date_naive(),
                             "club".to_owned(),
                             "A12345".to_owned(),
                         );
@@ -1257,17 +1237,18 @@ mod tests {
                         let old_membership = dto::membership::Membership::new(
                             last_name.clone(),
                             first_name.clone(),
-                            "M".to_owned(),
-                            None,
                             None,
                             num,
+                            None,
                             "address@test.com".to_owned(),
-                            true,
                             Utc::now()
                                 .date_naive()
                                 .checked_sub_months(Months::new(12))
                                 .unwrap(),
-                            false,
+                            Utc::now()
+                                .date_naive()
+                                .checked_sub_months(Months::new(12))
+                                .unwrap(),
                             "club".to_owned(),
                             "A12345".to_owned(),
                         );
@@ -1312,14 +1293,12 @@ mod tests {
                         let membership = dto::membership::Membership::new(
                             last_name.clone(),
                             first_name.clone(),
-                            "M".to_owned(),
-                            None,
                             None,
                             num,
+                            None,
                             "address@test.com".to_owned(),
-                            true,
                             Utc::now().date_naive(),
-                            false,
+                            Utc::now().date_naive(),
                             "club".to_owned(),
                             "A12345".to_owned(),
                         );
@@ -1345,14 +1324,12 @@ mod tests {
                         let membership = dto::membership::Membership::new(
                             last_name.clone(),
                             first_name.clone(),
-                            "M".to_owned(),
-                            None,
                             None,
                             num.clone(),
+                            None,
                             "address@test.com".to_owned(),
-                            true,
                             Utc::now().date_naive(),
-                            false,
+                            Utc::now().date_naive(),
                             "club".to_owned(),
                             "A12345".to_owned(),
                         );
@@ -1360,17 +1337,18 @@ mod tests {
                         let old_membership = dto::membership::Membership::new(
                             last_name.clone(),
                             first_name.clone(),
-                            "M".to_owned(),
-                            None,
                             None,
                             num,
+                            None,
                             "address@test.com".to_owned(),
-                            true,
                             Utc::now()
                                 .date_naive()
                                 .checked_sub_months(Months::new(12))
                                 .unwrap(),
-                            false,
+                            Utc::now()
+                                .date_naive()
+                                .checked_sub_months(Months::new(12))
+                                .unwrap(),
                             "club".to_owned(),
                             "A12345".to_owned(),
                         );
