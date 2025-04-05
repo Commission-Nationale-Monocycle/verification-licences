@@ -30,4 +30,13 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(last_update, membership,);
+diesel::table! {
+    uda_instance (id) {
+        id -> Integer,
+        slug -> Text,
+        name -> Text,
+        url -> Text,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(last_update, membership, uda_instance,);

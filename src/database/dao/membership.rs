@@ -96,7 +96,6 @@ pub fn replace_memberships(
     Ok((deleted_count, inserted_count))
 }
 
-#[allow(dead_code)]
 pub(crate) mod find {
     use super::super::Result;
     use crate::database::model::membership::Membership;
