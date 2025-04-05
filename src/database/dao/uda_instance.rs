@@ -4,7 +4,6 @@ use crate::database::model::uda_instance::UdaInstance;
 use crate::database::schema::uda_instance::{name, slug, url};
 use diesel::prelude::*;
 
-#[allow(dead_code)]
 pub fn retrieve_all(connection: &mut SqliteConnection) -> Result<Vec<dto::uda_instance::Instance>> {
     let results = crate::database::schema::uda_instance::dsl::uda_instance
         .select(UdaInstance::as_select())
@@ -46,7 +45,6 @@ fn insert_all(
     Ok(count)
 }
 
-#[allow(dead_code)]
 pub fn replace_all(
     connection: &mut SqliteConnection,
     uda_instances: &[dto::uda_instance::Instance],

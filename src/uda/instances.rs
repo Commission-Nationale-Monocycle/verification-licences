@@ -1,15 +1,20 @@
+use crate::database;
+use crate::database::error::DatabaseError;
 use crate::error::ApplicationError::Web;
 use crate::error::Result;
 use crate::tools::log_error_and_return;
 use crate::uda::configuration::Configuration;
 use crate::uda::error::UdaError;
 use crate::web::error::WebError::{CantReadPageContent, ConnectionFailed};
+use diesel::SqliteConnection;
+use diesel::r2d2::{ConnectionManager, Pool};
 use dto::uda_instance::Instance;
 use reqwest::Client;
 use scraper::{ElementRef, Html, Selector};
 
 /// Retrieve a list of all UDA instances.
 pub async fn retrieve_uda_instances(
+    pool: &Pool<ConnectionManager<SqliteConnection>>,
     client: &Client,
     configuration: &Configuration,
 ) -> Result<Vec<Instance>> {
@@ -28,7 +33,12 @@ pub async fn retrieve_uda_instances(
         .await
         .map_err(log_error_and_return(Web(CantReadPageContent)))?;
 
-    get_uda_instances_from_html(&body)
+    let instances = get_uda_instances_from_html(&body)?;
+
+    let mut connection = pool.get().map_err(DatabaseError::from)?;
+    database::dao::uda_instance::replace_all(&mut connection, &instances)?;
+
+    Ok(instances)
 }
 
 fn get_uda_instances_from_html(body: &str) -> Result<Vec<Instance>> {
@@ -88,78 +98,93 @@ pub(crate) mod tests {
     }
 
     mod retrieve_uda_instances {
+        use crate::database::with_temp_database;
         use crate::error::ApplicationError::Web;
         use crate::tools::web::build_client;
         use crate::uda::configuration::Configuration;
         use crate::uda::instances::retrieve_uda_instances;
         use crate::uda::instances::tests::{BODY, get_expected_instances};
         use crate::web::error::WebError::{CantReadPageContent, ConnectionFailed};
+        use diesel::SqliteConnection;
+        use diesel::r2d2::ConnectionManager;
+        use r2d2::Pool;
         use reqwest::header::LOCATION;
+        use rocket::tokio::runtime::Runtime;
         use wiremock::matchers::{method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
-        #[async_test]
-        async fn success() {
-            let mock_server = MockServer::start().await;
+        #[test]
+        fn success() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
+                let mock_server = MockServer::start().await;
 
-            Mock::given(method("GET"))
-                .and(path("tenants"))
-                .respond_with(ResponseTemplate::new(200).set_body_string(BODY))
-                .mount(&mock_server)
-                .await;
+                Mock::given(method("GET"))
+                    .and(path("tenants"))
+                    .respond_with(ResponseTemplate::new(200).set_body_string(BODY))
+                    .mount(&mock_server)
+                    .await;
 
-            let client = build_client().unwrap();
-            let instances_list_url = format!("{}/tenants?locale=en", mock_server.uri());
-            let configuration = Configuration::new(instances_list_url);
-            let instances = retrieve_uda_instances(&client, &configuration)
-                .await
-                .unwrap();
+                let client = build_client().unwrap();
+                let instances_list_url = format!("{}/tenants?locale=en", mock_server.uri());
+                let configuration = Configuration::new(instances_list_url);
+                let instances = retrieve_uda_instances(&pool, &client, &configuration)
+                    .await
+                    .unwrap();
 
-            assert_eq!(get_expected_instances(), instances);
+                assert_eq!(get_expected_instances(), instances);
+            }
+
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
 
-        #[async_test]
-        async fn fail_when_connection_failed() {
-            let mock_server = MockServer::start().await;
+        #[test]
+        fn fail_when_connection_failed() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
+                let mock_server = MockServer::start().await;
 
-            Mock::given(method("GET"))
-                .and(path("tenants"))
-                .respond_with(
-                    ResponseTemplate::new(301).append_header(LOCATION, "/tenants?locale=en"),
-                )
-                .mount(&mock_server)
-                .await;
+                Mock::given(method("GET"))
+                    .and(path("tenants"))
+                    .respond_with(
+                        ResponseTemplate::new(301).append_header(LOCATION, "/tenants?locale=en"),
+                    )
+                    .mount(&mock_server)
+                    .await;
 
-            let client = build_client().unwrap();
-            let instances_list_url = format!("{}/tenants?locale=en", mock_server.uri());
-            let configuration = Configuration::new(instances_list_url);
-            let error = retrieve_uda_instances(&client, &configuration)
-                .await
-                .unwrap_err();
+                let client = build_client().unwrap();
+                let instances_list_url = format!("{}/tenants?locale=en", mock_server.uri());
+                let configuration = Configuration::new(instances_list_url);
+                let error = retrieve_uda_instances(&pool, &client, &configuration)
+                    .await
+                    .unwrap_err();
 
-            println!("{error:?}");
+                println!("{error:?}");
 
-            assert!(matches!(error, Web(ConnectionFailed)));
+                assert!(matches!(error, Web(ConnectionFailed)));
+            }
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
 
-        #[async_test]
-        async fn fail_when_cant_read_page_content() {
-            let mock_server = MockServer::start().await;
+        #[test]
+        fn fail_when_cant_read_page_content() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
+                let mock_server = MockServer::start().await;
 
-            Mock::given(method("GET"))
-                .and(path("tenants"))
-                .respond_with(ResponseTemplate::new(500))
-                .mount(&mock_server)
-                .await;
+                Mock::given(method("GET"))
+                    .and(path("tenants"))
+                    .respond_with(ResponseTemplate::new(500))
+                    .mount(&mock_server)
+                    .await;
 
-            let client = build_client().unwrap();
-            let instances_list_url = format!("{}/tenants?locale=en", mock_server.uri());
-            let configuration = Configuration::new(instances_list_url);
-            let error = retrieve_uda_instances(&client, &configuration)
-                .await
-                .unwrap_err();
+                let client = build_client().unwrap();
+                let instances_list_url = format!("{}/tenants?locale=en", mock_server.uri());
+                let configuration = Configuration::new(instances_list_url);
+                let error = retrieve_uda_instances(&pool, &client, &configuration)
+                    .await
+                    .unwrap_err();
 
-            assert!(matches!(error, Web(CantReadPageContent)));
+                assert!(matches!(error, Web(CantReadPageContent)));
+            }
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
     }
 

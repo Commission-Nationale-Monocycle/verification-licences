@@ -1,3 +1,5 @@
+use crate::database::dao::last_update::UpdatableElement::UdaInstances;
+use crate::database::dao::last_update::get_last_update;
 use crate::error::ApplicationError;
 use crate::error::ApplicationError::Web;
 use crate::tools::web::build_client;
@@ -11,14 +13,16 @@ use crate::uda::login::authenticate_into_uda;
 use crate::uda::retrieve_members::retrieve_members;
 use crate::web::credentials_storage::CredentialsStorage;
 use crate::web::error::WebError::{ConnectionFailed, LackOfPermissions};
+use diesel::SqliteConnection;
+use diesel::r2d2::ConnectionManager;
 use dto::uda_instance::InstancesList;
+use r2d2::Pool;
 use reqwest::Client;
 use rocket::State;
 use rocket::form::validate::Contains;
 use rocket::http::{Cookie, CookieJar, Status};
 use rocket::serde::json::{Json, Value, json};
 use rocket::time::Duration;
-use std::ops::Deref;
 use std::sync::Mutex;
 use uuid::Uuid;
 
@@ -123,20 +127,21 @@ pub async fn confirm_members(
 /// - i.e. the date this endpoint is called.
 #[get("/uda/instances")]
 pub async fn list_instances(
+    pool: &State<Pool<ConnectionManager<SqliteConnection>>>,
     configuration: &State<Configuration>,
-    instances_list: &State<Mutex<InstancesList>>,
 ) -> Result<Value, Status> {
     let client = build_client().map_err(log_error_and_return(Status::InternalServerError))?;
-    let instances = retrieve_uda_instances(&client, configuration.inner())
+    let instances = retrieve_uda_instances(pool, &client, configuration.inner())
         .await
         .map_err(log_error_and_return(Status::BadGateway))?;
-
-    let mut mutex_guard = instances_list
-        .lock()
+    let mut connection = pool
+        .get()
         .map_err(log_error_and_return(Status::InternalServerError))?;
-    mutex_guard.set_instances(instances);
+    let last_updated = get_last_update(&mut connection, &UdaInstances)
+        .map_err(log_error_and_return(Status::InternalServerError))?
+        .map(|naive_date_time| naive_date_time.date());
 
-    Ok(json!(mutex_guard.deref()))
+    Ok(json!(InstancesList::new(instances, last_updated)))
 }
 
 async fn authenticate(client: &Client, credentials: &UdaCredentials) -> Result<(), Status> {
@@ -449,77 +454,80 @@ mod tests {
     }
 
     mod list_instances {
+        use crate::database::with_temp_database;
         use crate::uda::configuration::Configuration;
         use crate::uda::instances::tests::{BODY, get_expected_instances};
         use crate::web::api::uda_controller::list_instances;
+        use diesel::SqliteConnection;
+        use diesel::r2d2::ConnectionManager;
         use dto::uda_instance::Instance;
         use dto::uda_instance::InstancesList;
+        use r2d2::Pool;
         use rocket::http::Status;
         use rocket::local::asynchronous::Client;
-        use std::ops::Deref;
-        use std::sync::Mutex;
+        use rocket::tokio::runtime::Runtime;
         use wiremock::matchers::{method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
-        #[async_test]
-        async fn success() {
-            let mock_server = MockServer::start().await;
-            Mock::given(method("GET"))
-                .and(path("tenants"))
-                .respond_with(ResponseTemplate::new(200).set_body_string(BODY))
-                .mount(&mock_server)
-                .await;
+        #[test]
+        fn success() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
+                let mock_server = MockServer::start().await;
+                Mock::given(method("GET"))
+                    .and(path("tenants"))
+                    .respond_with(ResponseTemplate::new(200).set_body_string(BODY))
+                    .mount(&mock_server)
+                    .await;
+                let mut connection = pool.get().unwrap();
 
-            let configuration =
-                Configuration::new(format!("{}/tenants?locale=en", mock_server.uri()));
-            let instances_state = InstancesList::default();
-            let rocket = rocket::build()
-                .manage(configuration)
-                .manage(Mutex::new(instances_state))
-                .mount("/", routes![list_instances]);
+                let configuration =
+                    Configuration::new(format!("{}/tenants?locale=en", mock_server.uri()));
+                let rocket = rocket::build()
+                    .manage(pool)
+                    .manage(configuration)
+                    .mount("/", routes![list_instances]);
 
-            let client = Client::tracked(rocket).await.unwrap();
-            let request = client.get("/uda/instances");
+                let client = Client::tracked(rocket).await.unwrap();
+                let request = client.get("/uda/instances");
 
-            let instances_list: InstancesList = request.dispatch().await.into_json().await.unwrap();
-            assert_eq!(&get_expected_instances(), instances_list.instances());
-            let instances_state = client
-                .rocket()
-                .state::<Mutex<InstancesList>>()
-                .unwrap()
-                .lock()
-                .unwrap();
-            assert_eq!(instances_state.deref(), &instances_list);
+                let instances_list: InstancesList =
+                    request.dispatch().await.into_json().await.unwrap();
+                assert_eq!(&get_expected_instances(), instances_list.instances());
+                let instances =
+                    crate::database::dao::uda_instance::retrieve_all(&mut connection).unwrap();
+                assert_eq!(&instances, instances_list.instances());
+            }
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
 
-        #[async_test]
-        async fn fail_when_bad_gateway() {
-            let mock_server = MockServer::start().await;
-            Mock::given(method("GET"))
-                .and(path("tenants"))
-                .respond_with(ResponseTemplate::new(502))
-                .mount(&mock_server)
-                .await;
+        #[test]
+        fn fail_when_bad_gateway() {
+            async fn test(pool: Pool<ConnectionManager<SqliteConnection>>) {
+                let mock_server = MockServer::start().await;
+                Mock::given(method("GET"))
+                    .and(path("tenants"))
+                    .respond_with(ResponseTemplate::new(502))
+                    .mount(&mock_server)
+                    .await;
 
-            let configuration =
-                Configuration::new(format!("{}/tenants?locale=en", mock_server.uri()));
-            let rocket = rocket::build()
-                .manage(configuration)
-                .manage(Mutex::new(InstancesList::default()))
-                .mount("/", routes![list_instances]);
+                let mut connection = pool.get().unwrap();
+                let configuration =
+                    Configuration::new(format!("{}/tenants?locale=en", mock_server.uri()));
+                let rocket = rocket::build()
+                    .manage(pool)
+                    .manage(configuration)
+                    .mount("/", routes![list_instances]);
 
-            let client = Client::tracked(rocket).await.unwrap();
-            let request = client.get("/uda/instances");
+                let client = Client::tracked(rocket).await.unwrap();
+                let request = client.get("/uda/instances");
 
-            let status = request.dispatch().await.status();
-            assert_eq!(Status::BadGateway, status);
-            let instances_state = client
-                .rocket()
-                .state::<Mutex<InstancesList>>()
-                .unwrap()
-                .lock()
-                .unwrap();
-            assert_eq!(instances_state.instances(), &Vec::<Instance>::new());
+                let status = request.dispatch().await.status();
+                assert_eq!(Status::BadGateway, status);
+                let instances =
+                    crate::database::dao::uda_instance::retrieve_all(&mut connection).unwrap();
+                assert_eq!(Vec::<Instance>::new(), instances);
+            }
+            with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
         }
     }
 

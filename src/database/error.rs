@@ -34,3 +34,9 @@ impl From<ParseError> for DatabaseError {
         ConversionError(value.to_string())
     }
 }
+
+impl From<r2d2::Error> for DatabaseError {
+    fn from(value: r2d2::Error) -> Self {
+        UnderlyingDatabase(value.to_string())
+    }
+}
