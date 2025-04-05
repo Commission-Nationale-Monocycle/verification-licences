@@ -10,14 +10,12 @@ pub(crate) struct Membership {
     id: i32,
     last_name: String,
     first_name: String,
-    gender: String,
     birthdate: Option<String>,
-    age: Option<i32>,
     membership_number: String,
+    cell_number: Option<String>,
     email_address: String,
-    payed: bool,
+    start_date: String,
     end_date: String,
-    expired: bool,
     club: String,
     structure_code: String,
     normalized_membership_number: String,
@@ -35,18 +33,17 @@ impl TryFrom<Membership> for dto::membership::Membership {
             Some(birthdate) => Some(NaiveDate::from_str(&birthdate)?),
             None => None,
         };
+        let start_date = NaiveDate::from_str(&value.start_date)?;
         let end_date = NaiveDate::from_str(&value.end_date)?;
         Ok(dto::membership::Membership::new(
             value.last_name,
             value.first_name,
-            value.gender,
             birthdate,
-            value.age.map(|age| age as u8),
             value.membership_number,
+            value.cell_number,
             value.email_address,
-            value.payed,
+            start_date,
             end_date,
-            value.expired,
             value.club,
             value.structure_code,
         ))

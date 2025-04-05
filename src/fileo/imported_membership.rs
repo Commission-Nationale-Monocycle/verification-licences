@@ -12,31 +12,30 @@ pub struct ImportedMembership {
     name: String,
     #[serde(alias = "Prénom")]
     first_name: String,
-    #[serde(alias = "Sexe")]
-    gender: String,
     #[serde(
         alias = "Date de Naissance",
         deserialize_with = "date_format::deserialize_optional"
     )]
     birthdate: Option<NaiveDate>,
-    #[serde(alias = "Age")]
-    age: Option<u8>,
     #[serde(alias = "Numéro d'adhérent")]
     membership_number: String,
+    #[serde(
+        alias = "Téléphone portable",
+        deserialize_with = "optional_string_format::deserialize"
+    )]
+    cell_num: Option<String>,
     #[serde(alias = "Email")]
     email_address: String,
-    #[serde(alias = "Réglé", deserialize_with = "bool_format::deserialize")]
-    payed: bool,
+    #[serde(
+        alias = "Date Début d'adhésion",
+        deserialize_with = "date_format::deserialize_required"
+    )]
+    start_date: NaiveDate,
     #[serde(
         alias = "Date Fin d'adhésion",
         deserialize_with = "date_format::deserialize_required"
     )]
     end_date: NaiveDate,
-    #[serde(
-        alias = "Adherent expiré",
-        deserialize_with = "bool_format::deserialize"
-    )]
-    expired: bool,
     #[serde(alias = "Nom de structure")]
     club: String,
     #[serde(alias = "Code de structure")]
@@ -48,14 +47,12 @@ impl From<ImportedMembership> for Membership {
         Membership::new(
             membership.name,
             membership.first_name,
-            membership.gender,
             membership.birthdate,
-            membership.age,
             membership.membership_number,
+            membership.cell_num,
             membership.email_address,
-            membership.payed,
+            membership.start_date,
             membership.end_date,
-            membership.expired,
             membership.club,
             membership.structure_code,
         )
@@ -91,21 +88,19 @@ mod date_format {
     }
 }
 
-mod bool_format {
-    use serde::{Deserialize, Deserializer, de};
+mod optional_string_format {
+    use serde::{Deserialize, Deserializer};
 
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<bool, D::Error>
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
     where
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        let result = match s.as_str() {
-            "Oui" => Ok(true),
-            "Non" => Ok(false),
-            _ => Err(de::Error::unknown_variant(&s, &["Oui", "Non"])),
-        };
-
-        result
+        if s.trim().is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(s.trim().to_owned()))
+        }
     }
 }
 
@@ -114,7 +109,6 @@ pub mod tests {
     use crate::fileo::imported_membership::ImportedMembership;
     use chrono::NaiveDate;
     use parameterized::ide;
-    use parameterized::parameterized;
     use rocket::serde::json;
 
     ide!();
@@ -124,18 +118,16 @@ pub mod tests {
         let membership = ImportedMembership {
             name: "Doe".to_owned(),
             first_name: "John".to_owned(),
-            gender: "M".to_string(),
             birthdate: NaiveDate::from_ymd_opt(2000, 10, 11),
-            age: Some(24_u8),
             membership_number: "42".to_string(),
+            cell_num: Some("+33 6 12 34 56 78".to_owned()),
             email_address: "john.doe@yopmail.com".to_owned(),
-            payed: true,
+            start_date: NaiveDate::from_ymd_opt(2024, 10, 11).unwrap(),
             end_date: NaiveDate::from_ymd_opt(2025, 10, 11).unwrap(),
-            expired: false,
             club: "Best Club".to_owned(),
             structure_code: "A12345".to_owned(),
         };
-        let json = r#"{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"11-10-2000","Age":24,"Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"Oui","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}"#;
+        let json = r#"{"Nom d'usage":"Doe","Prénom":"John","Date de Naissance":"11-10-2000","Numéro d'adhérent":"42","Téléphone portable":"+33 6 12 34 56 78","Email":"john.doe@yopmail.com","Date Début d'adhésion":"11-10-2024","Date Fin d'adhésion":"11-10-2025","Nom de structure":"Best Club","Code de structure":"A12345"}"#;
         let result = json::from_str(json);
 
         assert!(result.is_ok());
@@ -147,32 +139,19 @@ pub mod tests {
         let membership = ImportedMembership {
             name: "Doe".to_owned(),
             first_name: "John".to_owned(),
-            gender: "M".to_string(),
             birthdate: None,
-            age: None,
             membership_number: "42".to_string(),
+            cell_num: None,
             email_address: "john.doe@yopmail.com".to_owned(),
-            payed: true,
+            start_date: NaiveDate::from_ymd_opt(2024, 10, 11).unwrap(),
             end_date: NaiveDate::from_ymd_opt(2025, 10, 11).unwrap(),
-            expired: false,
             club: "Best Club".to_owned(),
             structure_code: "A12345".to_owned(),
         };
-        let json = r#"{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"","Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"Oui","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}"#;
+        let json = r#"{"Nom d'usage":"Doe","Prénom":"John","Date de Naissance":"","Numéro d'adhérent":"42","Téléphone portable":"","Email":"john.doe@yopmail.com","Date Début d'adhésion":"11-10-2024","Date Fin d'adhésion":"11-10-2025","Nom de structure":"Best Club","Code de structure":"A12345"}"#;
         let result = json::from_str(json);
 
         assert!(result.is_ok());
         assert_eq!(membership, result.unwrap())
-    }
-
-    #[parameterized(
-        payed = {"Oops", ""}
-    )]
-    fn should_not_deserialize_member_as_wrong_bool(payed: &str) {
-        let json = format!(
-            r#"{{"Nom d'usage":"Doe","Prénom":"John","Sexe":"M","Date de Naissance":"11-10-2000","Age":24,"Numéro d'adhérent":"42","Email":"john.doe@yopmail.com","Réglé":"{payed}","Date Fin d'adhésion":"11-10-2025","Adherent expiré":"Non","Nom de structure":"Best Club","Code de structure":"A12345"}}"#
-        );
-        let result: Result<ImportedMembership, _> = json::from_str(&json);
-        assert!(result.is_err());
     }
 }

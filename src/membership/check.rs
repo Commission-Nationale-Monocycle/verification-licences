@@ -335,28 +335,24 @@ mod tests {
                 let partial_matching_membership = Membership::new(
                     "Not the right name".to_owned(),
                     "Not the right first name either".to_owned(),
-                    matching_membership.gender().to_owned(),
                     matching_membership.birthdate().to_owned(),
-                    matching_membership.age().to_owned(),
                     matching_membership.membership_number().to_owned(),
+                    matching_membership.cell_number().to_owned(),
                     matching_membership.email_address().to_owned(),
-                    matching_membership.payed().to_owned(),
+                    matching_membership.start_date().to_owned(),
                     matching_membership.end_date().to_owned(),
-                    matching_membership.expired().to_owned(),
                     matching_membership.club().to_owned(),
                     matching_membership.structure_code().to_owned(),
                 );
                 let not_matching_membership = Membership::new(
                     "Not the right name".to_owned(),
                     "Not the right first name either".to_owned(),
-                    matching_membership.gender().to_owned(),
                     matching_membership.birthdate().to_owned(),
-                    matching_membership.age().to_owned(),
                     "Also wrong membership number".to_owned(),
+                    matching_membership.cell_number().to_owned(),
                     matching_membership.email_address().to_owned(),
-                    matching_membership.payed().to_owned(),
+                    matching_membership.start_date().to_owned(),
                     matching_membership.end_date().to_owned(),
-                    matching_membership.expired().to_owned(),
                     matching_membership.club().to_owned(),
                     matching_membership.structure_code().to_owned(),
                 );
@@ -392,18 +388,20 @@ mod tests {
                 let oldest_membership = Membership::new(
                     newest_membership.name().to_owned(),
                     newest_membership.first_name().to_owned(),
-                    newest_membership.gender().to_owned(),
                     newest_membership.birthdate().to_owned(),
-                    newest_membership.age().to_owned(),
                     newest_membership.membership_number().to_owned(),
+                    newest_membership.cell_number().to_owned(),
                     newest_membership.email_address().to_owned(),
-                    newest_membership.payed().to_owned(),
+                    newest_membership
+                        .end_date()
+                        .to_owned()
+                        .checked_sub_months(Months::new(24))
+                        .unwrap(),
                     newest_membership
                         .end_date()
                         .to_owned()
                         .checked_sub_months(Months::new(12))
                         .unwrap(),
-                    newest_membership.expired().to_owned(),
                     newest_membership.club().to_owned(),
                     newest_membership.structure_code().to_owned(),
                 );
