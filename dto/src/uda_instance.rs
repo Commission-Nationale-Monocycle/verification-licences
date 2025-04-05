@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, Utc};
+use chrono::NaiveDate;
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
 
@@ -22,8 +22,10 @@ pub struct InstancesList {
 }
 
 impl InstancesList {
-    pub fn set_instances(&mut self, instances: Vec<Instance>) {
-        self.instances = instances;
-        self.update_date = Some(Utc::now().date_naive());
+    pub fn new(instances: Vec<Instance>, update_date: Option<NaiveDate>) -> Self {
+        Self {
+            instances,
+            update_date,
+        }
     }
 }

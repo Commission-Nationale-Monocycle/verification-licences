@@ -1,15 +1,14 @@
 use crate::database::dao;
 use crate::database::dao::last_update::UpdatableElement;
+use crate::database::dao::last_update::UpdatableElement::UdaInstances;
 use crate::fileo::credentials::FileoCredentials;
 use crate::tools::log_error_and_return;
 use diesel::SqliteConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
-use dto::uda_instance::InstancesList;
 use rocket::http::Status;
 use rocket::response::Redirect;
 use rocket::{Request, State};
 use rocket_dyn_templates::{Template, context};
-use std::sync::Mutex;
 
 #[get("/")]
 pub async fn index() -> Template {
@@ -113,14 +112,18 @@ pub async fn check_members_from_csv_unauthenticated() -> Redirect {
 
 #[get("/uda/check")]
 pub async fn check_members_from_uda(
+    pool: &State<Pool<ConnectionManager<SqliteConnection>>>,
     _credentials: FileoCredentials, // Fileo credentials are required for importing from UDA as well
-    uda_instances_list: &State<Mutex<InstancesList>>,
 ) -> Result<Template, Status> {
-    let instances_list = uda_instances_list
-        .lock()
+    let mut connection = pool
+        .get()
+        .map_err(log_error_and_return(Status::InternalServerError))?;
+    let instances = dao::uda_instance::retrieve_all(&mut connection)
+        .map_err(log_error_and_return(Status::InternalServerError))?;
+    let last_updated = dao::last_update::get_last_update(&mut connection, &UdaInstances)
         .map_err(log_error_and_return(Status::InternalServerError))?;
 
-    let last_update = match instances_list.update_date() {
+    let last_update = match last_updated {
         None => "Jamais".to_owned(),
         Some(update_date) => update_date.format("%d/%m/%Y").to_string(),
     };
@@ -129,7 +132,7 @@ pub async fn check_members_from_uda(
         "uda/check",
         context! {
             title: "Vérifier les licences depuis un import UDA",
-            instances: instances_list.instances(),
+            instances: instances,
             last_update: last_update
         },
     ))
