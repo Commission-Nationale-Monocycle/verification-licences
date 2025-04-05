@@ -2,7 +2,7 @@ use chrono::{NaiveDate, Utc};
 use derive_getters::Getters;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Getters, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Getters, PartialEq, Serialize, Deserialize, Clone)]
 pub struct Instance {
     slug: String,
     name: String,

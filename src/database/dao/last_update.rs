@@ -8,7 +8,6 @@ use diesel::prelude::*;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug, PartialEq)]
-#[allow(dead_code)]
 pub enum UpdatableElement {
     Memberships,
     UdaInstances,
