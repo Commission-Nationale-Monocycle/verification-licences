@@ -3,6 +3,7 @@
         <div>Membre associé au numéro d'adhésion fourni</div>
         <div>Nom : <div class="membership-name"></div></div>
         <div>Prénom : <div class="membership-first-name"></div></div>
+        <div>Début de l'adhésion : <div class="membership-start-date"></div></div>
         <div>Fin de l'adhésion : <div class="membership-end-date"></div></div>
         <div>Club : <div class="membership-club"></div></div>
         <div>Adresse mail :
@@ -19,6 +20,7 @@
         <div>Membre associé au numéro d'adhésion fourni</div>
         <div>Nom : <div class="membership-name"></div></div>
         <div>Prénom : <div class="membership-first-name"></div></div>
+        <div>Début de l'adhésion : <div class="membership-start-date"></div></div>
         <div>Fin de l'adhésion : <div class="membership-end-date"></div></div>
         <div>Club : <div class="membership-club"></div></div>
         <div>Adresse mail :
