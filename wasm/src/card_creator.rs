@@ -100,6 +100,8 @@ fn create_membership_card(
                     .set_inner_html(membership.name());
                 query_selector_single_element(&card, ".membership-first-name")?
                     .set_inner_html(membership.first_name());
+                query_selector_single_element(&card, ".membership-start-date")?
+                    .set_inner_html(&membership.start_date().format("%d/%m/%Y").to_string());
                 query_selector_single_element(&card, ".membership-end-date")?
                     .set_inner_html(&membership.end_date().format("%d/%m/%Y").to_string());
                 let email_address_container =
@@ -130,6 +132,8 @@ pub fn create_known_membership_card(
     query_selector_single_element(&card, ".membership-name")?.set_inner_html(membership.name());
     query_selector_single_element(&card, ".membership-first-name")?
         .set_inner_html(membership.first_name());
+    query_selector_single_element(&card, ".membership-start-date")?
+        .set_inner_html(&membership.start_date().format("%d/%m/%Y").to_string());
     query_selector_single_element(&card, ".membership-end-date")?
         .set_inner_html(&membership.end_date().format("%d/%m/%Y").to_string());
     query_selector_single_element(&card, ".membership-club")?.set_inner_html(membership.club());
