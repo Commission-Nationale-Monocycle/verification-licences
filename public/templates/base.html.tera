@@ -9,12 +9,14 @@
   <body>
     {% include "nav" %}
 
-    <div id="article">
+    <main>
         {% block content %}{% endblock content %}
-    </div>
+    </main>
 
     {% include "alert" %}
     {% include "loader" %}
+
+    {% include "footer" %}
 
     <script src="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.js"></script>
     <script>
