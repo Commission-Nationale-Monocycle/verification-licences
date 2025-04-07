@@ -6,13 +6,36 @@
 
 @tailwind utilities;
 
+/* region Document structure */
 body {
-    @apply text-lg md:text-base text-gray-900 dark:bg-gray-900 dark:text-white
+    @apply text-lg md:text-base text-gray-900 dark:bg-gray-900 dark:text-white min-h-screen flex flex-col h-screen justify-between
 }
 
-#article {
-    @apply w-11/12 m-auto
+main {
+    @apply w-11/12 mx-auto mb-auto
 }
+
+footer {
+    @apply bg-white rounded-lg shadow-sm dark:bg-gray-800 w-full mx-auto mt-4
+}
+
+footer > div {
+    @apply p-4 md:flex md:items-center md:justify-between
+}
+
+footer > div > span {
+    @apply text-sm text-gray-500 sm:text-center dark:text-gray-400
+}
+
+#footer-list {
+    @apply flex flex-wrap items-center mt-3 text-sm font-medium text-gray-500 dark:text-gray-400 sm:mt-0
+}
+
+#footer-list svg {
+    @apply w-6 h-6 text-gray-800 dark:text-white
+}
+
+/* endregion */
 
 /* region alert */
 #alert {
@@ -335,7 +358,7 @@ button[disabled] {
     @apply max-w-lg md:max-w-4xl mx-auto text-3xl py-5
 }
 
-:is(ol, ul):not(#nav-list) {
+:is(ol, ul):not(#nav-list, #footer-list) {
     @apply list-disc list-inside
 }
 
