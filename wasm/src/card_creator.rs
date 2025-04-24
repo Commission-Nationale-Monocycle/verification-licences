@@ -96,6 +96,8 @@ fn create_membership_card(
     match &check_result {
         CheckResult::Match(membership) | CheckResult::PartialMatch(membership) => {
             if *status == MemberStatus::UpToDate || *status == MemberStatus::Expired {
+                query_selector_single_element(&card, ".membership-num")?
+                    .set_inner_html(membership.membership_number());
                 query_selector_single_element(&card, ".membership-name")?
                     .set_inner_html(membership.name());
                 query_selector_single_element(&card, ".membership-first-name")?
@@ -129,6 +131,8 @@ pub fn create_known_membership_card(
 
     let card = get_membership_template(document, &status)?;
 
+    query_selector_single_element(&card, ".membership-num")?
+        .set_inner_html(membership.membership_number());
     query_selector_single_element(&card, ".membership-name")?.set_inner_html(membership.name());
     query_selector_single_element(&card, ".membership-first-name")?
         .set_inner_html(membership.first_name());

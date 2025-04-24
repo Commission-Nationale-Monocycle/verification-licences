@@ -1,6 +1,7 @@
 <template id="membership-up-to-date">
     <div class="membership membership-up-to-date">
         <div>Membre associé au numéro d'adhésion fourni</div>
+        <div>Numéro d'adhésion : <div class="membership-num"></div></div>
         <div>Nom : <div class="membership-name"></div></div>
         <div>Prénom : <div class="membership-first-name"></div></div>
         <div>Début de l'adhésion : <div class="membership-start-date"></div></div>
@@ -18,6 +19,7 @@
 <template id="membership-expired">
     <div class="membership membership-expired">
         <div>Membre associé au numéro d'adhésion fourni</div>
+        <div>Numéro d'adhésion : <div class="membership-num"></div></div>
         <div>Nom : <div class="membership-name"></div></div>
         <div>Prénom : <div class="membership-first-name"></div></div>
         <div>Début de l'adhésion : <div class="membership-start-date"></div></div>
