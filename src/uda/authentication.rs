@@ -32,11 +32,12 @@ mod tests {
 
     #[async_test]
     async fn should_uda_request_succeed() {
-        let credentials = UdaCredentials::new(
+        let credentials: UdaCredentials = uda_connector::credentials::UdaCredentials::new(
             "https://convention.reg.unicycling-software.com".to_owned(),
             "test_login".to_owned(),
             "test_password".to_owned(),
-        );
+        )
+        .into();
         let mut credentials_storage = CredentialsStorage::default();
         let uuid = "0ea9a5fb-0f46-4057-902a-2552ed956bde".to_owned();
         credentials_storage.store(uuid.clone(), credentials.clone());

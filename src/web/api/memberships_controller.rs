@@ -131,11 +131,12 @@ mod tests {
     }
 
     fn initialize_uda_login() -> (String, Mutex<CredentialsStorage<UdaCredentials>>) {
-        let credentials = UdaCredentials::new(
+        let credentials: UdaCredentials = uda_connector::credentials::UdaCredentials::new(
             "https://test.reg.unicycling-software.com".to_owned(),
             "login@test.com".to_owned(),
             "password".to_owned(),
-        );
+        )
+        .into();
 
         let uuid = "e9af5e0f-c441-4bcd-bf22-31cc5b1f2f9e".to_owned();
         let mut storage = CredentialsStorage::<UdaCredentials>::default();

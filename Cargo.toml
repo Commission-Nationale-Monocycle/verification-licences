@@ -10,6 +10,7 @@ demo = ["dep:wiremock"]
 [dependencies]
 # Internal
 dto = { path = "dto" }
+uda-connector = "0.1.6"
 
 # Logs
 log = "0.4.26"
@@ -39,13 +40,13 @@ mail-send = { git = "https://github.com/maxence-cornaton/mail-send", version = "
 uuid = { version = "1.15.1", features = ["v4"] }
 wiremock = { version = "0.6.3", optional = true }   # Included only for demo purposes
 thiserror = "2.0.12"
-calamine = "0.26.1"
 cached = "0.55.1"
 diacritics = "0.2.2"
 
 [dev-dependencies]
 # Internal
 dto = { path = "dto", features = ["test"] }
+uda-connector = { version = "0.1.6", features = ["test"] }
 
 # Utils
 parameterized = "2.0.0"

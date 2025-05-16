@@ -1,8 +1,8 @@
 use crate::database::error::DatabaseError;
 use crate::fileo::error::FileoError;
-use crate::uda::error::UdaError;
 use crate::web::error::WebError;
 use thiserror::Error;
+use uda_connector::error::UdaError;
 
 pub type Result<T, E = ApplicationError> = std::result::Result<T, E>;
 
