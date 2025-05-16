@@ -14,7 +14,7 @@ pub async fn retrieve_uda_instances(
     configuration: &Configuration,
 ) -> Result<Vec<Instance>> {
     let instances = uda_connector::instances::retrieve_uda_instances(
-        &client,
+        client,
         configuration.instances_list_url().as_str(),
     )
     .await?;
