@@ -192,8 +192,12 @@ mod tests {
             let mock_server = MockServer::start().await;
             setup_authentication(&mock_server).await;
 
-            let credentials =
-                UdaCredentials::new(mock_server.uri(), "login".to_owned(), "password".to_owned());
+            let credentials: UdaCredentials = uda_connector::credentials::UdaCredentials::new(
+                mock_server.uri(),
+                "login".to_owned(),
+                "password".to_owned(),
+            )
+            .into();
             let credentials_storage_mutex =
                 Mutex::new(CredentialsStorage::<UdaCredentials>::default());
 
@@ -231,8 +235,12 @@ mod tests {
                 .mount(&mock_server)
                 .await;
 
-            let credentials =
-                UdaCredentials::new(mock_server.uri(), "login".to_owned(), "password".to_owned());
+            let credentials: UdaCredentials = uda_connector::credentials::UdaCredentials::new(
+                mock_server.uri(),
+                "login".to_owned(),
+                "password".to_owned(),
+            )
+            .into();
             let credentials_storage_mutex =
                 Mutex::new(CredentialsStorage::<UdaCredentials>::default());
 
@@ -283,8 +291,12 @@ mod tests {
                 .mount(&mock_server)
                 .await;
 
-            let credentials =
-                UdaCredentials::new(mock_server.uri(), "login".to_owned(), "password".to_owned());
+            let credentials: UdaCredentials = uda_connector::credentials::UdaCredentials::new(
+                mock_server.uri(),
+                "login".to_owned(),
+                "password".to_owned(),
+            )
+            .into();
             let credentials_storage_mutex =
                 Mutex::new(CredentialsStorage::<UdaCredentials>::default());
 
@@ -441,8 +453,12 @@ mod tests {
             let mock_server = MockServer::start().await;
             setup_authenticity_token(&mock_server).await;
 
-            let credentials =
-                UdaCredentials::new(mock_server.uri(), "login".to_owned(), "password".to_owned());
+            let credentials: UdaCredentials = uda_connector::credentials::UdaCredentials::new(
+                mock_server.uri(),
+                "login".to_owned(),
+                "password".to_owned(),
+            )
+            .into();
 
             let (status, value) = confirm_members(Json::from(vec![1, 2, 3]), credentials).await;
 
@@ -554,8 +570,12 @@ mod tests {
             let password = "password";
 
             let mock_server = MockServer::start().await;
-            let credentials =
-                UdaCredentials::new(mock_server.uri(), login.to_owned(), password.to_owned());
+            let credentials: UdaCredentials = uda_connector::credentials::UdaCredentials::new(
+                mock_server.uri(),
+                login.to_owned(),
+                password.to_owned(),
+            )
+            .into();
 
             let client = reqwest::Client::new();
             assert_eq!(
@@ -569,8 +589,12 @@ mod tests {
             let login = "login";
             let password = "password";
             let mock_server = MockServer::start().await;
-            let credentials =
-                UdaCredentials::new(mock_server.uri(), login.to_owned(), password.to_owned());
+            let credentials: UdaCredentials = uda_connector::credentials::UdaCredentials::new(
+                mock_server.uri(),
+                login.to_owned(),
+                password.to_owned(),
+            )
+            .into();
             let authenticity_token = setup_authenticity_token(&mock_server).await;
             let params = format!(
                 "user%5Bemail%5D={login}&user%5Bpassword%5D={password}&authenticity_token={authenticity_token}&utf8=%E2%9C%93"

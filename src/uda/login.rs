@@ -140,7 +140,12 @@ pub mod tests {
             .mount(mock_server)
             .await;
 
-        UdaCredentials::new(mock_server.uri(), login.to_owned(), password.to_owned())
+        uda_connector::credentials::UdaCredentials::new(
+            mock_server.uri(),
+            login.to_owned(),
+            password.to_owned(),
+        )
+        .into()
     }
 
     pub(crate) async fn setup_authenticity_token(mock_server: &MockServer) -> String {
@@ -180,8 +185,12 @@ pub mod tests {
         let password = "password";
 
         let mock_server = MockServer::start().await;
-        let credentials =
-            UdaCredentials::new(mock_server.uri(), login.to_owned(), password.to_owned());
+        let credentials: UdaCredentials = uda_connector::credentials::UdaCredentials::new(
+            mock_server.uri(),
+            login.to_owned(),
+            password.to_owned(),
+        )
+        .into();
 
         let client = Client::new();
         let error = authenticate_into_uda(

@@ -1,46 +1,29 @@
-use derive_getters::Getters;
-use rocket::serde::{Deserialize, Serialize};
-use std::fmt::{Debug, Formatter};
+use serde::{Deserialize, Serialize};
+use std::ops::{Deref, DerefMut};
 
-#[derive(Serialize, Deserialize, Getters, PartialEq, Clone, Default)]
+/// A simple wrapper around [uda_connector::credentials::UdaCredentials].
+/// This is required to implement traits on this struct.
+#[derive(Default, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub struct UdaCredentials {
-    /// Should be something like `https://cfm2019training.reg.unicycling-software.com`
-    /// Beware of not including anything after the TLD. Otherwise, it may not work.
-    #[getter(skip)]
-    uda_url: String,
-    login: String,
-    password: String,
+    credentials: uda_connector::credentials::UdaCredentials,
 }
 
-impl UdaCredentials {
-    #[cfg(not(feature = "demo"))]
-    pub fn uda_url(&self) -> &String {
-        &self.uda_url
-    }
+impl Deref for UdaCredentials {
+    type Target = uda_connector::credentials::UdaCredentials;
 
-    #[cfg(feature = "demo")]
-    pub fn uda_url(&self) -> &String {
-        crate::demo_mock_server::UDA_MOCK_SERVER_URI.get().unwrap()
+    fn deref(&self) -> &Self::Target {
+        &self.credentials
     }
 }
 
-impl Debug for UdaCredentials {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Uda Credentials {{uda={}, login={}, password=MASKED}}",
-            self.password, self.login
-        )
+impl DerefMut for UdaCredentials {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.credentials
     }
 }
 
-#[cfg(test)]
-impl UdaCredentials {
-    pub fn new(uda_url: String, login: String, password: String) -> Self {
-        Self {
-            uda_url,
-            login,
-            password,
-        }
+impl From<uda_connector::credentials::UdaCredentials> for UdaCredentials {
+    fn from(credentials: uda_connector::credentials::UdaCredentials) -> Self {
+        Self { credentials }
     }
 }
