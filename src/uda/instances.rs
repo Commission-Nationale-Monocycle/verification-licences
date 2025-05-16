@@ -15,7 +15,7 @@ pub async fn retrieve_uda_instances(
 ) -> Result<Vec<Instance>> {
     let instances = uda_connector::instances::retrieve_uda_instances(
         &client,
-        configuration.instances_list_url(),
+        configuration.instances_list_url().as_str(),
     )
     .await?;
 
@@ -29,7 +29,7 @@ pub async fn retrieve_uda_instances(
 pub(crate) mod tests {
     mod retrieve_uda_instances {
         use crate::database::with_temp_database;
-        use crate::error::ApplicationError::UdaConnector;
+        use crate::error::ApplicationError::Uda;
         use crate::tools::web::build_client;
         use crate::uda::instances::retrieve_uda_instances;
         use diesel::SqliteConnection;
@@ -90,7 +90,7 @@ pub(crate) mod tests {
 
                 assert!(matches!(
                     error,
-                    UdaConnector(uda_connector::error::UdaError::ConnectionFailed)
+                    Uda(uda_connector::error::UdaError::ConnectionFailed)
                 ));
             }
             with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
@@ -116,7 +116,7 @@ pub(crate) mod tests {
 
                 assert!(matches!(
                     error,
-                    UdaConnector(uda_connector::error::UdaError::CantReadPageContent)
+                    Uda(uda_connector::error::UdaError::CantReadPageContent)
                 ));
             }
             with_temp_database(|pool| Runtime::new().unwrap().block_on(test(pool)));
