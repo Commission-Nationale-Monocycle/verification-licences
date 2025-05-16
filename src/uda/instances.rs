@@ -1,11 +1,11 @@
 use crate::database;
 use crate::database::error::DatabaseError;
 use crate::error::Result;
-use crate::uda::configuration::Configuration;
 use diesel::SqliteConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
 use dto::uda_instance::Instance;
 use reqwest::Client;
+use uda_connector::configuration::Configuration;
 
 /// Retrieve a list of all UDA instances.
 pub async fn retrieve_uda_instances(
@@ -31,13 +31,13 @@ pub(crate) mod tests {
         use crate::database::with_temp_database;
         use crate::error::ApplicationError::UdaConnector;
         use crate::tools::web::build_client;
-        use crate::uda::configuration::Configuration;
         use crate::uda::instances::retrieve_uda_instances;
         use diesel::SqliteConnection;
         use diesel::r2d2::ConnectionManager;
         use r2d2::Pool;
         use reqwest::header::LOCATION;
         use rocket::tokio::runtime::Runtime;
+        use uda_connector::configuration::Configuration;
         use uda_connector::instances::{BODY, get_expected_instances};
         use wiremock::matchers::{method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};

@@ -5,7 +5,6 @@ use crate::error::ApplicationError::Web;
 use crate::tools::web::build_client;
 use crate::tools::{log_error, log_error_and_return};
 use crate::uda::authentication::AUTHENTICATION_COOKIE;
-use crate::uda::configuration::Configuration;
 use crate::uda::confirm_member::confirm_member;
 use crate::uda::credentials::UdaCredentials;
 use crate::uda::instances::retrieve_uda_instances;
@@ -22,6 +21,7 @@ use rocket::http::{Cookie, CookieJar, Status};
 use rocket::serde::json::{Json, Value, json};
 use rocket::time::Duration;
 use std::sync::Mutex;
+use uda_connector::configuration::Configuration;
 use uda_connector::error::UdaError::ConnectionFailed;
 use uda_connector::login::authenticate_into_uda;
 use uda_connector::retrieve_members::retrieve_members;
@@ -473,7 +473,6 @@ mod tests {
 
     mod list_instances {
         use crate::database::with_temp_database;
-        use crate::uda::configuration::Configuration;
         use crate::web::api::uda_controller::list_instances;
         use diesel::SqliteConnection;
         use diesel::r2d2::ConnectionManager;
@@ -483,6 +482,7 @@ mod tests {
         use rocket::http::Status;
         use rocket::local::asynchronous::Client;
         use rocket::tokio::runtime::Runtime;
+        use uda_connector::configuration::Configuration;
         use uda_connector::instances::{BODY, get_expected_instances};
         use wiremock::matchers::{method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};

@@ -61,8 +61,8 @@ fn get_download_link_regex() -> Regex {
 }
 
 #[cfg(not(feature = "demo"))]
-fn build_uda_configuration() -> crate::uda::configuration::Configuration {
-    crate::uda::configuration::Configuration::new(
+fn build_uda_configuration() -> uda_connector::configuration::Configuration {
+    uda_connector::configuration::Configuration::new(
         "https://reg.unicycling-software.com/tenants?locale=en".to_owned(),
     )
 }
@@ -81,12 +81,12 @@ fn get_download_link_regex() -> Regex {
 }
 
 #[cfg(feature = "demo")]
-fn build_uda_configuration() -> crate::uda::configuration::Configuration {
+fn build_uda_configuration() -> uda_connector::configuration::Configuration {
     let server_url = crate::demo_mock_server::UDA_MOCK_SERVER_URI
         .get()
         .unwrap()
         .clone();
     let url = format!("{server_url}/tenants?locale=en");
 
-    crate::uda::configuration::Configuration::new(url)
+    uda_connector::configuration::Configuration::new(url)
 }
