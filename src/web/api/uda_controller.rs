@@ -9,7 +9,6 @@ use crate::uda::configuration::Configuration;
 use crate::uda::confirm_member::confirm_member;
 use crate::uda::credentials::UdaCredentials;
 use crate::uda::instances::retrieve_uda_instances;
-use crate::uda::retrieve_members::retrieve_members;
 use crate::web::credentials_storage::CredentialsStorage;
 use crate::web::error::WebError::LackOfPermissions;
 use diesel::SqliteConnection;
@@ -25,6 +24,7 @@ use rocket::time::Duration;
 use std::sync::Mutex;
 use uda_connector::error::UdaError::ConnectionFailed;
 use uda_connector::login::authenticate_into_uda;
+use uda_connector::retrieve_members::retrieve_members;
 use uuid::Uuid;
 
 /// Try and log a user onto UDA app.
@@ -59,7 +59,7 @@ pub async fn retrieve_members_to_check(credentials: UdaCredentials) -> Result<St
     let url = credentials.uda_url();
     match retrieve_members(&client, url).await {
         Ok(members) => Ok(json!(members).to_string()),
-        Err(Web(LackOfPermissions)) => Err(Status::Unauthorized),
+        Err(uda_connector::error::UdaError::LackOfPermissions) => Err(Status::Unauthorized),
         Err(_) => Err(Status::BadGateway),
     }
 }
@@ -328,7 +328,6 @@ mod tests {
     mod retrieve_members_to_check {
         use crate::uda::authentication::AUTHENTICATION_COOKIE;
         use crate::uda::credentials::UdaCredentials;
-        use crate::uda::retrieve_members::tests::setup_member_retrieval;
         use crate::web::api::uda_controller::retrieve_members_to_check;
         use crate::web::credentials_storage::CredentialsStorage;
         use dto::uda_member::UdaMember;
@@ -336,6 +335,7 @@ mod tests {
         use rocket::local::asynchronous::Client;
         use std::sync::Mutex;
         use uda_connector::login::setup_authentication;
+        use uda_connector::retrieve_members::setup_member_retrieval;
         use wiremock::MockServer;
 
         #[async_test]

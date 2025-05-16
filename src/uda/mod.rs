@@ -4,4 +4,3 @@ pub mod confirm_member;
 pub(crate) mod credentials;
 pub mod error;
 pub mod instances;
-pub(crate) mod retrieve_members;
