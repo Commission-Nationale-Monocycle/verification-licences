@@ -10,7 +10,7 @@ demo = ["dep:wiremock"]
 [dependencies]
 # Internal
 dto = { path = "dto" }
-uda-connector = "0.1.4"
+uda-connector = "0.1.5"
 
 # Logs
 log = "0.4.26"
@@ -47,7 +47,7 @@ diacritics = "0.2.2"
 [dev-dependencies]
 # Internal
 dto = { path = "dto", features = ["test"] }
-uda-connector = { version = "0.1.4", features = ["test"] }
+uda-connector = { version = "0.1.5", features = ["test"] }
 
 # Utils
 parameterized = "2.0.0"
