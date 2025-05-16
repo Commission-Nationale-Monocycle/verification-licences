@@ -1,7 +1,6 @@
 use crate::error::{ApplicationError, Result};
 use crate::tools::{log_error_and_return, log_message_and_return};
 use crate::uda::error::UdaError::{MalformedXlsFile, OrganizationMembershipsAccessFailed};
-use crate::uda::imported_uda_member::ImportedUdaMember;
 use crate::web::error::WebError::LackOfPermissions;
 use calamine::{
     Data, RangeDeserializer, RangeDeserializerBuilder, Reader, Xls, open_workbook_from_rs,
@@ -9,6 +8,7 @@ use calamine::{
 use dto::uda_member::UdaMember;
 use reqwest::Client;
 use std::io::Cursor;
+use uda_connector::imported_uda_member::ImportedUdaMember;
 
 /// Retrieve members from UDA's organisation membership page.
 pub async fn retrieve_members(client: &Client, base_url: &str) -> Result<Vec<UdaMember>> {
@@ -196,11 +196,11 @@ pub mod tests {
     mod retrieve_imported_members_from_xls {
         use crate::error::ApplicationError::Uda;
         use crate::uda::error::UdaError;
-        use crate::uda::imported_uda_member::ImportedUdaMember;
         use crate::uda::retrieve_members::retrieve_imported_members_from_xls;
         use crate::uda::retrieve_members::tests::get_test_file_content;
         use UdaError::MalformedXlsFile;
         use std::io::Cursor;
+        use uda_connector::imported_uda_member::ImportedUdaMember;
 
         fn get_expected_imported_members() -> Vec<ImportedUdaMember> {
             vec![
