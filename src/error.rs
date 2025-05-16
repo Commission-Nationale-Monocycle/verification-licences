@@ -16,4 +16,6 @@ pub enum ApplicationError {
     Fileo(#[from] FileoError),
     #[error("Error while working with UDA.")]
     Uda(#[from] UdaError),
+    #[error("Error while working with UDA.")]
+    UdaConnector(#[from] uda_connector::error::UdaError),
 }

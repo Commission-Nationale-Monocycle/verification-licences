@@ -472,7 +472,6 @@ mod tests {
     mod list_instances {
         use crate::database::with_temp_database;
         use crate::uda::configuration::Configuration;
-        use crate::uda::instances::tests::{BODY, get_expected_instances};
         use crate::web::api::uda_controller::list_instances;
         use diesel::SqliteConnection;
         use diesel::r2d2::ConnectionManager;
@@ -482,6 +481,7 @@ mod tests {
         use rocket::http::Status;
         use rocket::local::asynchronous::Client;
         use rocket::tokio::runtime::Runtime;
+        use uda_connector::instances::{BODY, get_expected_instances};
         use wiremock::matchers::{method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
