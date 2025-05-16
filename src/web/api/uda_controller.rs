@@ -1,15 +1,11 @@
 use crate::database::dao::last_update::UpdatableElement::UdaInstances;
 use crate::database::dao::last_update::get_last_update;
-use crate::error::ApplicationError;
-use crate::error::ApplicationError::Web;
 use crate::tools::web::build_client;
 use crate::tools::{log_error, log_error_and_return};
 use crate::uda::authentication::AUTHENTICATION_COOKIE;
-use crate::uda::confirm_member::confirm_member;
 use crate::uda::credentials::UdaCredentials;
 use crate::uda::instances::retrieve_uda_instances;
 use crate::web::credentials_storage::CredentialsStorage;
-use crate::web::error::WebError::LackOfPermissions;
 use diesel::SqliteConnection;
 use diesel::r2d2::ConnectionManager;
 use dto::uda_instance::InstancesList;
@@ -22,6 +18,8 @@ use rocket::serde::json::{Json, Value, json};
 use rocket::time::Duration;
 use std::sync::Mutex;
 use uda_connector::configuration::Configuration;
+use uda_connector::confirm_member::confirm_member;
+use uda_connector::error::UdaError;
 use uda_connector::error::UdaError::ConnectionFailed;
 use uda_connector::login::authenticate_into_uda;
 use uda_connector::retrieve_members::retrieve_members;
@@ -59,7 +57,7 @@ pub async fn retrieve_members_to_check(credentials: UdaCredentials) -> Result<St
     let url = credentials.uda_url();
     match retrieve_members(&client, url).await {
         Ok(members) => Ok(json!(members).to_string()),
-        Err(uda_connector::error::UdaError::LackOfPermissions) => Err(Status::Unauthorized),
+        Err(UdaError::LackOfPermissions) => Err(Status::Unauthorized),
         Err(_) => Err(Status::BadGateway),
     }
 }
@@ -161,10 +159,10 @@ async fn authenticate(client: &Client, credentials: &UdaCredentials) -> Result<(
     }
 }
 
-fn from_vec_of_errors_to_status(errors: &[ApplicationError]) -> Status {
+fn from_vec_of_errors_to_status(errors: &[UdaError]) -> Status {
     if errors
         .iter()
-        .any(|error| matches!(*error, Web(LackOfPermissions)))
+        .any(|error| matches!(*error, UdaError::LackOfPermissions))
     {
         Status::Unauthorized
     } else {
@@ -407,12 +405,12 @@ mod tests {
     }
 
     mod confirm_members {
-        use crate::uda::confirm_member::tests::{setup_confirm_member, setup_csrf_token};
         use crate::uda::credentials::UdaCredentials;
         use crate::web::api::uda_controller::confirm_members;
         use rocket::http::Status;
         use rocket::serde::json::Json;
         use std::collections::HashMap;
+        use uda_connector::confirm_member::{setup_confirm_member, setup_csrf_token};
         use uda_connector::login::{setup_authentication, setup_authenticity_token};
         use wiremock::MockServer;
 
