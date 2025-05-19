@@ -350,6 +350,33 @@ button[disabled] {
 }
 /* endregion */
 
+/* region Lookup */
+#display-only-valid-memberships:has(input:checked) ~ #memberships .membership:not(.membership-valid) {
+    /* When the checkbox is checked, hide invalid memberships */
+    @apply hidden
+}
+
+#memberships.no-membership-found {
+    @apply hidden
+}
+
+#memberships.no-membership-found ~ #no-membership-found {
+    @apply block
+}
+
+#memberships.no-membership-found ~ #go-to-send-email-step {
+    @apply hidden
+}
+
+#display-only-valid-memberships:has(~ #memberships.no-membership-found) {
+    @apply hidden
+}
+
+#no-membership-found {
+    @apply hidden
+}
+/* endregion */
+
 :has(> .hide-parent-if-empty:empty) {
     @apply hidden
 }

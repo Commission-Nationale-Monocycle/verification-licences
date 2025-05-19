@@ -8,7 +8,8 @@ use crate::error::{DEFAULT_ERROR_MESSAGE, Error};
 use crate::json;
 use crate::user_interface::with_loading;
 use crate::utils::{
-    append_child, clear_element, get_element_by_id, get_element_by_id_dyn, get_value_from_element,
+    add_class, append_child, clear_element, get_element_by_id, get_element_by_id_dyn,
+    get_value_from_element, remove_class,
 };
 use crate::web::fetch;
 use dto::member_to_look_up::MemberToLookUp;
@@ -108,10 +109,15 @@ pub async fn lookup(document: &Document) {
 
 fn display_memberships(document: &Document, memberships: &[Membership]) -> Result<()> {
     let memberships_container = get_element_by_id(document, "memberships")?;
-    clear_element(&memberships_container);
-    for membership in memberships {
-        let card = create_known_membership_card(document, membership)?;
-        append_child(&memberships_container, &card)?;
+    if memberships.is_empty() {
+        add_class(&memberships_container, "no-membership-found");
+    } else {
+        clear_element(&memberships_container);
+        remove_class(&memberships_container, "no-membership-found");
+        for membership in memberships {
+            let card = create_known_membership_card(document, membership)?;
+            append_child(&memberships_container, &card)?;
+        }
     }
 
     Ok(())
