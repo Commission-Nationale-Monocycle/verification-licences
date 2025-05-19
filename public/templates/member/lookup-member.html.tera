@@ -23,7 +23,15 @@
         </div>
 
         <div class="step">
+            <div id="display-only-valid-memberships">
+                <label>
+                    Afficher uniquement les licences valides <input type="checkbox" checked>
+                </label>
+            </div>
             <div id="memberships" class="memberships">
+            </div>
+            <div id="no-membership-found">
+                Aucune licence n'a été trouvée.
             </div>
             <button type="button" id="go-to-send-email-step" onclick="app.go_to_notification_step(document)" disabled>Notifier les membres cochés</button>
         </div>

@@ -4,6 +4,7 @@ use crate::template::get_template;
 use crate::utils::{
     add_class, append_child, create_element, query_selector_single_element, set_attribute,
 };
+use chrono::Utc;
 use dto::checked_member::{CheckResult, CheckedMember};
 use dto::member_to_check::MemberToCheck;
 use dto::membership::Membership;
@@ -146,6 +147,11 @@ pub fn create_known_membership_card(
             .dyn_into::<HtmlAnchorElement>()?;
     email_address_container.set_inner_html(membership.email_address());
     email_address_container.set_href(&format!("mailto:{}", &membership.email_address()));
+
+    let today = Utc::now().date_naive();
+    if membership.start_date() <= &today && &today <= membership.end_date() {
+        add_class(&card, "membership-valid");
+    }
 
     Ok(card)
 }
