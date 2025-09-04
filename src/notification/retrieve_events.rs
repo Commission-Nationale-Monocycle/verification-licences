@@ -67,7 +67,7 @@ impl Ord for Event {
         self.event_year
             .cmp(&other.event_year)
             .then(self.event_month.cmp(&other.event_month))
-            .then(other.event_day.cmp(&other.event_day))
+            .then(self.event_day.cmp(&other.event_day))
     }
 }
 
