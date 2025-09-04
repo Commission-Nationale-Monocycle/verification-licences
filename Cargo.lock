@@ -382,7 +382,7 @@ dependencies = [
  "encoding_rs",
  "fast-float2",
  "log",
- "quick-xml",
+ "quick-xml 0.37.5",
  "serde",
  "zip",
 ]
@@ -2213,7 +2213,7 @@ dependencies = [
  "hickory-resolver",
  "mail-builder",
  "mail-parser",
- "quick-xml",
+ "quick-xml 0.37.5",
  "quick_cache",
  "ring",
  "rustls-pemfile 2.2.0",
@@ -2868,6 +2868,16 @@ checksum = "331e97a1af0bf59823e6eadffe373d7b27f485be8748f71471c662c1f269b7fb"
 dependencies = [
  "encoding_rs",
  "memchr",
+]
+
+[[package]]
+name = "quick-xml"
+version = "0.38.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42a232e7487fc2ef313d96dde7948e7a3c05101870d8985e4fd8d26aedd27b89"
+dependencies = [
+ "memchr",
+ "serde",
 ]
 
 [[package]]
@@ -4294,6 +4304,7 @@ dependencies = [
  "log",
  "mail-send",
  "parameterized",
+ "quick-xml 0.38.3",
  "r2d2",
  "rand 0.9.0",
  "regex",

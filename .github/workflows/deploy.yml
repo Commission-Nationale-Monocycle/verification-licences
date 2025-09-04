@@ -124,5 +124,5 @@ jobs:
           script: |
             cd ${{ secrets.REMOTE_TARGET }}
             chmod +x verification-licences
-            RUST_LOG=warn ROCKET_SECRET_KEY=${{ secrets.SECRET_KEY }} ROCKET_TLS_KEY=${{ secrets.TLS_PRIVATE_KEY_PATH }} ROCKET_TLS_CERTS=${{ secrets.TLS_CERT_PATH }} nohup ./verification-licences --email-sender-name=${{ secrets.EMAIL_SENDER_NAME }} --email-sender-address=${{ secrets.EMAIL_SENDER_ADDRESS }} --smtp-login=${{ secrets.SMTP_LOGIN }} --smtp-password=${{ secrets.SMTP_PASSWORD }} --database-url=${{ secrets.DATABASE_URL }} > logs.txt 2>&1 </dev/null &
+            RUST_LOG=warn ROCKET_SECRET_KEY=${{ secrets.SECRET_KEY }} ROCKET_TLS_KEY=${{ secrets.TLS_PRIVATE_KEY_PATH }} ROCKET_TLS_CERTS=${{ secrets.TLS_CERT_PATH }} nohup ./verification-licences --email-sender-name=${{ secrets.EMAIL_SENDER_NAME }} --email-sender-address=${{ secrets.EMAIL_SENDER_ADDRESS }} --smtp-login=${{ secrets.SMTP_LOGIN }} --smtp-password=${{ secrets.SMTP_PASSWORD }} --events-incoming-addresses=${{ secrets.EVENTS_INCOMING_ADDRESSES}} --database-url=${{ secrets.DATABASE_URL }} > logs.txt 2>&1 </dev/null &
             exit
