@@ -1,0 +1,14 @@
+Cher collaborateur, Chère collaboratrice,
+<br/><br/>
+Vous avez accepté la mission hautement sacrée de vérifier les licences pour les événements de monocycle en France. Vous avez de la chance, un nouvel événement est en approche !
+
+<ul>
+    <li>Nom de l'événement : {{ event_name }}</li>
+    <li>Date de début de l'événement : {{ event_start_date }}</li>
+    <li><a href="{{ event_link }}" target="_blank">Lien de l'événement</a></li>
+</ul>
+<br/>
+Si cet événement n'a pas lieu en France ou n'est pas soumis au contrôle des licences, vous pouvez ignorer ce mail.
+<br/><br/>
+Merci pour votre travail,
+La CNM

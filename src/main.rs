@@ -6,6 +6,7 @@ mod demo_mock_server;
 mod error;
 mod fileo;
 mod membership;
+mod notification;
 mod tools;
 mod uda;
 mod web;

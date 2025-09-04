@@ -1,5 +1,6 @@
 use crate::database::error::DatabaseError;
 use crate::fileo::error::FileoError;
+use crate::notification::error::NotificationError;
 use crate::web::error::WebError;
 use thiserror::Error;
 use uda_connector::error::UdaError;
@@ -16,4 +17,6 @@ pub enum ApplicationError {
     Fileo(#[from] FileoError),
     #[error("Error while working with UDA.")]
     Uda(#[from] UdaError),
+    #[error("Error while notifying of incoming events.")]
+    Notification(#[from] NotificationError),
 }

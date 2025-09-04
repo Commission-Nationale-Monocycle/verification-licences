@@ -6,6 +6,7 @@ use crate::tools::env_args::{retrieve_arg_value, retrieve_expected_arg_value};
 use crate::tools::log_message_and_return;
 use mail_send::SmtpClientBuilder;
 use mail_send::mail_builder::MessageBuilder;
+use thiserror::Error;
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -63,7 +64,8 @@ fn create_message<'a>(
         .to(reply_to_address)
         .bcc(Vec::from(recipients))
         .subject(subject)
-        .text_body(text_body))
+        .text_body(text_body)
+        .html_body(text_body))
 }
 
 // region Retrieve args
@@ -96,13 +98,19 @@ fn retrieve_reply_to() -> Option<String> {
 }
 // endregion
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Error)]
 pub enum Error {
+    #[error("Missing email sender name")]
     MissingEmailSenderName,
+    #[error("Missing email sender address")]
     MissingEmailSenderAddress,
+    #[error("Missing SMTP login")]
     MissingSmtpLogin,
+    #[error("Missing SMTP password")]
     MissingSmtpPassword,
+    #[error("Can't connect to SMTP server")]
     CantConnectToSmtpServer,
+    #[error("Can't send message")]
     CantSendMessage,
 }
 

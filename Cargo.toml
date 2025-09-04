@@ -42,6 +42,7 @@ wiremock = { version = "0.6.3", optional = true }   # Included only for demo pur
 thiserror = "2.0.12"
 cached = "0.55.1"
 diacritics = "0.2.2"
+quick-xml = { version = "0.38.3", features = ["serde", "serialize"] }
 
 [dev-dependencies]
 # Internal
