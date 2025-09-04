@@ -18,6 +18,7 @@ use std::cmp::Ordering;
 use std::collections::BTreeSet;
 #[cfg(test)]
 use std::fs;
+use std::string::String;
 use tera::{Context, Tera};
 
 #[cfg(not(test))]
@@ -119,7 +120,11 @@ fn retrieve_only_events_in_range(events: &[Event]) -> BTreeSet<&Event> {
 
 async fn notify_for_incoming_events(events: &BTreeSet<&Event>) -> Result<(), NotificationError> {
     let recipients = retrieve_events_incoming_addresses()?;
-    let recipients: Vec<&str> = recipients.iter().map(String::as_ref).collect();
+    let recipients: Vec<&str> = recipients
+        .iter()
+        .map(|s| s.as_str().trim())
+        .filter(|s| !s.is_empty())
+        .collect();
     let tera = create_tera_renderer()?;
     for event in events {
         notify_for_incoming_event(&recipients, &tera, event).await?;
