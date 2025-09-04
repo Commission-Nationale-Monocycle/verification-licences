@@ -282,8 +282,8 @@ mod tests {
         use crate::tools::env_args::with_env_args;
         use rocket::futures::executor::block_on;
 
-        #[async_test]
-        async fn success() {
+        #[test]
+        fn success() {
             with_env_args(get_args(), || {
                 block_on(retrieve_events()).unwrap();
             });
@@ -318,8 +318,8 @@ mod tests {
         use crate::tools::env_args::with_env_args;
         use rocket::futures::executor::block_on;
 
-        #[async_test]
-        async fn success() {
+        #[test]
+        fn success() {
             let title = "event title".to_string();
             let link = "https://event.link".to_string();
             let event_year = 2025;
