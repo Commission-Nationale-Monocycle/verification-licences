@@ -93,6 +93,6 @@ jobs:
       - name: Install wasm-bindgen-cli
         run: cargo install -f wasm-bindgen-cli --version 0.2.101 || true
       - name: Install wasm-pack
-        run: cargo install wasm-bindgen-cli || true
+        run: cargo install wasm-pack || true
       - name: Run tests
         run: wasm-pack test --headless --firefox
