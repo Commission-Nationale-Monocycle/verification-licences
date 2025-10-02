@@ -33,9 +33,10 @@ use uuid::Uuid;
 pub async fn login(
     credentials_storage: &State<Mutex<CredentialsStorage<UdaCredentials>>>,
     cookie_jar: &CookieJar<'_>,
-    credentials: Json<UdaCredentials>,
+    credentials: Json<uda_connector::credentials::UdaCredentials>,
 ) -> Result<Status, Status> {
     let client = build_client().map_err(log_error_and_return(Status::InternalServerError))?;
+    let credentials = UdaCredentials::from(credentials.into_inner());
     authenticate(&client, &credentials).await?;
     let mut mutex = credentials_storage
         .lock()
@@ -45,7 +46,7 @@ pub async fn login(
         .max_age(Duration::days(365))
         .build();
     cookie_jar.add_private(cookie);
-    (*mutex).store(uuid.clone(), credentials.into_inner());
+    (*mutex).store(uuid.clone(), credentials);
     Ok(Status::Ok)
 }
 
