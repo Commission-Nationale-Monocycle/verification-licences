@@ -192,12 +192,13 @@ mod tests {
             let mock_server = MockServer::start().await;
             setup_authentication(&mock_server).await;
 
-            let credentials: UdaCredentials = uda_connector::credentials::UdaCredentials::new(
-                mock_server.uri(),
-                "login".to_owned(),
-                "password".to_owned(),
-            )
-            .into();
+            let credentials: uda_connector::credentials::UdaCredentials =
+                uda_connector::credentials::UdaCredentials::new(
+                    mock_server.uri(),
+                    "login".to_owned(),
+                    "password".to_owned(),
+                )
+                .into();
             let credentials_storage_mutex =
                 Mutex::new(CredentialsStorage::<UdaCredentials>::default());
 
@@ -235,12 +236,13 @@ mod tests {
                 .mount(&mock_server)
                 .await;
 
-            let credentials: UdaCredentials = uda_connector::credentials::UdaCredentials::new(
-                mock_server.uri(),
-                "login".to_owned(),
-                "password".to_owned(),
-            )
-            .into();
+            let credentials: uda_connector::credentials::UdaCredentials =
+                uda_connector::credentials::UdaCredentials::new(
+                    mock_server.uri(),
+                    "login".to_owned(),
+                    "password".to_owned(),
+                )
+                .into();
             let credentials_storage_mutex =
                 Mutex::new(CredentialsStorage::<UdaCredentials>::default());
 
@@ -291,12 +293,13 @@ mod tests {
                 .mount(&mock_server)
                 .await;
 
-            let credentials: UdaCredentials = uda_connector::credentials::UdaCredentials::new(
-                mock_server.uri(),
-                "login".to_owned(),
-                "password".to_owned(),
-            )
-            .into();
+            let credentials: uda_connector::credentials::UdaCredentials =
+                uda_connector::credentials::UdaCredentials::new(
+                    mock_server.uri(),
+                    "login".to_owned(),
+                    "password".to_owned(),
+                )
+                .into();
             let credentials_storage_mutex =
                 Mutex::new(CredentialsStorage::<UdaCredentials>::default());
 
