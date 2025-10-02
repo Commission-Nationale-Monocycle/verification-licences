@@ -1,7 +1,7 @@
 FROM rust:1.85.0 AS wasm-builder
 WORKDIR /build
 
-RUN cargo install wasm-bindgen-cli
+RUN cargo install -f wasm-bindgen-cli --version 0.2.101
 RUN rustup target add wasm32-unknown-unknown
 
 COPY ./wasm ./wasm

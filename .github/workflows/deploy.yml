@@ -42,7 +42,7 @@ jobs:
       - name: Install wasm32 target
         run: rustup target add wasm32-unknown-unknown
       - name: Install wasm-bindgen-cli
-        run: cargo install wasm-bindgen-cli || true
+        run: cargo install -f wasm-bindgen-cli --version 0.2.101 || true
       - name: Build
         run: cargo build -r --target=wasm32-unknown-unknown --verbose
       - name: Generate bindings

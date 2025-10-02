@@ -34,7 +34,7 @@ jobs:
       - name: Install wasm32 target
         run: rustup target add wasm32-unknown-unknown
       - name: Install wasm-bindgen-cli
-        run: cargo install wasm-bindgen-cli || true
+        run: cargo install -f wasm-bindgen-cli --version 0.2.101 || true
       - name: Build
         run: cargo build --target=wasm32-unknown-unknown --verbose
       - name: Generate bindings
@@ -90,7 +90,9 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-      - name: Install wasm-bindgen-cli & wasm-pack
-        run: cargo install wasm-bindgen-cli wasm-pack || true
+      - name: Install wasm-bindgen-cli
+        run: cargo install -f wasm-bindgen-cli --version 0.2.101 || true
+      - name: Install wasm-pack
+        run: cargo install wasm-pack || true
       - name: Run tests
         run: wasm-pack test --headless --firefox

@@ -1,7 +1,6 @@
 pub(crate) mod check;
 pub(crate) mod config;
 pub(crate) mod look_up;
-pub(crate) mod memberships;
 
 #[cfg(test)]
 pub(crate) mod tests {
