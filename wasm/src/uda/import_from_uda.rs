@@ -12,6 +12,7 @@ use crate::utils::{
 };
 use crate::web::fetch;
 use dto::uda_member::UdaMember;
+use serde::Serialize;
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::{Document, Element, HtmlElement, HtmlSelectElement};
 
@@ -45,7 +46,13 @@ async fn login(document: &Document) -> Result<bool> {
     let login = get_value_from_element(&login_input);
     let password = get_value_from_element(&password_input);
 
-    let credentials = UdaCredentials::new(instance, login, password);
+    #[derive(Serialize)]
+    struct Credentials {
+        credentials: UdaCredentials,
+    }
+    let credentials = Credentials {
+        credentials: UdaCredentials::new(instance, login, password),
+    };
     let body = json::to_string(&credentials);
 
     let response = fetch(
