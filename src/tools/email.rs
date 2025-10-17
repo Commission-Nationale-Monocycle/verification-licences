@@ -58,6 +58,8 @@ fn create_message<'a>(
     let sender_address = retrieve_email_sender_address()?;
     let reply_to_address = retrieve_reply_to().unwrap_or_else(|| sender_address.clone());
 
+    let html_body = text_body.replace("\n", "<br/>");
+
     Ok(MessageBuilder::new()
         .from((sender_name, sender_address))
         .reply_to(reply_to_address.clone())
@@ -65,7 +67,7 @@ fn create_message<'a>(
         .bcc(Vec::from(recipients))
         .subject(subject)
         .text_body(text_body)
-        .html_body(text_body))
+        .html_body(html_body))
 }
 
 // region Retrieve args
