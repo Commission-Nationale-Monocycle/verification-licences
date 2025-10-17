@@ -11,7 +11,7 @@ use dto::csv_member::CsvMember;
 use dto::member_to_check::MemberToCheck;
 use dto::membership_status::MemberStatus;
 use std::collections::BTreeSet;
-use web_sys::{Document, Element, HtmlElement, HtmlInputElement};
+use web_sys::{Document, Element, HtmlElement, HtmlInputElement, HtmlTextAreaElement};
 
 // region Handle "members to check" file
 pub fn render_lines(
@@ -193,7 +193,8 @@ pub fn get_email_subject(document: &Document) -> Result<String> {
 }
 
 pub fn get_email_body(document: &Document) -> Result<String> {
-    get_element_by_id(document, "email-body").map(|element| element.inner_html())
+    get_element_by_id_dyn::<HtmlTextAreaElement>(document, "email-body")
+        .map(|element| element.value())
 }
 // endregion
 
