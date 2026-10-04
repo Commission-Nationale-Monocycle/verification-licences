@@ -69,7 +69,7 @@ pub async fn handle_email_sending() {
             create_alert(
                 &format!(
                     "L'email a bien été envoyé à {} adresse{}.",
-                    &addresses_count,
+                    addresses_count,
                     if addresses_count > 1 { "s" } else { "" }
                 ),
                 AlertLevel::Info,
