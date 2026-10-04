@@ -111,8 +111,7 @@ fn create_membership_card(
                     query_selector_single_element(&card, "a.membership-email-address")?
                         .dyn_into::<HtmlAnchorElement>()?;
                 email_address_container.set_inner_html(membership.email_address());
-                email_address_container
-                    .set_href(&format!("mailto:{}", &membership.email_address()));
+                email_address_container.set_href(&format!("mailto:{}", membership.email_address()));
             }
 
             if matches!(check_result, CheckResult::PartialMatch(_)) {
@@ -146,7 +145,7 @@ pub fn create_known_membership_card(
         query_selector_single_element(&card, "a.membership-email-address")?
             .dyn_into::<HtmlAnchorElement>()?;
     email_address_container.set_inner_html(membership.email_address());
-    email_address_container.set_href(&format!("mailto:{}", &membership.email_address()));
+    email_address_container.set_href(&format!("mailto:{}", membership.email_address()));
 
     let today = Utc::now().date_naive();
     if membership.start_date() <= &today && &today <= membership.end_date() {

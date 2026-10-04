@@ -20,7 +20,7 @@ pub async fn retrieve_uda_instances(
     .await?;
 
     let mut connection = pool.get().map_err(DatabaseError::from)?;
-    database::dao::uda_instance::replace_all(&mut connection, &instances)?;
+    database::dao::uda_instance::replace_all(&mut connection, instances.as_slice())?;
 
     Ok(instances)
 }
