@@ -10,7 +10,7 @@ demo = ["dep:wiremock"]
 [dependencies]
 # Internal
 dto = { path = "dto" }
-uda-connector = "0.1.6"
+uda-connector = "0.1"
 
 # Logs
 log = "0.4.26"
@@ -47,7 +47,7 @@ quick-xml = { version = "0.38.3", features = ["serde", "serialize"] }
 [dev-dependencies]
 # Internal
 dto = { path = "dto", features = ["test"] }
-uda-connector = { version = "0.1.6", features = ["test"] }
+uda-connector = { version = "0.1", features = ["test"] }
 
 # Utils
 parameterized = "2.0.0"
