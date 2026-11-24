@@ -1,3 +1,6 @@
+use crate::database::dao::last_update::UpdatableElement::EventsNotification;
+use crate::database::dao::last_update::{get_last_update, set_last_update};
+use crate::database::error::DatabaseError;
 #[cfg(not(test))]
 use crate::error::ApplicationError;
 use crate::error::Result;
@@ -12,7 +15,9 @@ use crate::tools::log_message_and_return;
 use crate::tools::web::build_client;
 #[cfg(not(test))]
 use crate::web::error::WebError::ConnectionFailed;
-use chrono::{Days, NaiveDate};
+use chrono::{Days, NaiveDate, NaiveDateTime};
+use diesel::SqliteConnection;
+use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use serde::Deserialize;
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
@@ -27,6 +32,8 @@ const EVENTS_INCOMING_ADDRESSES: &str = "--events-incoming-addresses";
 const DELAY_BETWEEN_EXECUTIONS_IN_DAYS: u8 = 7; // TODO: pass in the config
 const NUMBER_OF_EXECUTIONS_TO_EVENTS: u8 = 2; // TODO: pass in the config
 const DAYS_BEFORE_EVENTS: u8 = DELAY_BETWEEN_EXECUTIONS_IN_DAYS * NUMBER_OF_EXECUTIONS_TO_EVENTS;
+
+pub type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 
 #[derive(Debug, Deserialize)]
 struct RssFeed {
@@ -72,14 +79,85 @@ impl Ord for Event {
     }
 }
 
-#[allow(unused)]
-pub async fn retrieve_events() -> Result<()> {
+/// Range of event dates to notify about: `after` is excluded, `up_to` is included.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+struct NotificationWindow {
+    after: NaiveDate,
+    up_to: NaiveDate,
+}
+
+impl NotificationWindow {
+    fn contains(&self, date: NaiveDate) -> bool {
+        self.after < date && date <= self.up_to
+    }
+}
+
+/// Notify about incoming events if the previous notification is old enough.
+///
+/// The date of the last notification is persisted, so that restarting the app neither skips
+/// events nor sends the same notification twice.
+/// Returns whether notifications have been sent.
+pub async fn notify_incoming_events_if_due(pool: &DbPool) -> Result<bool> {
+    let now = get_now();
+    let last_notification = {
+        let mut connection = get_connection(pool)?;
+        get_last_update(&mut connection, &EventsNotification)?
+    };
+    let Some(window) =
+        compute_notification_window(last_notification.map(|date| date.date()), now.date())
+    else {
+        debug!("Incoming events notification is not due yet");
+        return Ok(false);
+    };
+
+    info!(
+        "Notifying about events after {} and up to {}",
+        window.after, window.up_to
+    );
     let feed = get_events_feed().await?;
     let feed = deserialize_feed(&feed)?;
-    let incoming_events = retrieve_only_events_in_range(&feed.channel.item);
+    let incoming_events = retrieve_only_events_in_window(&feed.channel.item, &window);
     notify_for_incoming_events(&incoming_events).await?;
 
-    Ok(())
+    let mut connection = get_connection(pool)?;
+    set_last_update(&mut connection, &EventsNotification, now)?;
+
+    Ok(true)
+}
+
+fn get_connection(
+    pool: &DbPool,
+) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>, DatabaseError> {
+    pool.get()
+        .map_err(|error| DatabaseError::R2d2(error.to_string()))
+}
+
+/// Compute which events should be notified about, or `None` if the last notification is too recent.
+///
+/// Each notification covers the events right after the ones covered by the previous notification,
+/// so that a late execution (e.g., the app was down) doesn't skip any event.
+fn compute_notification_window(
+    last_notification: Option<NaiveDate>,
+    today: NaiveDate,
+) -> Option<NotificationWindow> {
+    let up_to = add_days(today, DAYS_BEFORE_EVENTS);
+    let after = match last_notification {
+        Some(last_notification) => {
+            if today < add_days(last_notification, DELAY_BETWEEN_EXECUTIONS_IN_DAYS) {
+                return None;
+            }
+            // Events already passed are not worth notifying about.
+            add_days(last_notification, DAYS_BEFORE_EVENTS).max(today)
+        }
+        None => add_days(today, DAYS_BEFORE_EVENTS - DELAY_BETWEEN_EXECUTIONS_IN_DAYS),
+    };
+
+    Some(NotificationWindow { after, up_to })
+}
+
+fn add_days(date: NaiveDate, days: u8) -> NaiveDate {
+    date.checked_add_days(Days::new(days as u64))
+        .unwrap_or_else(|| panic!("Date {days} days after {date} should exist..."))
 }
 
 #[cfg(not(test))]
@@ -111,10 +189,13 @@ fn deserialize_feed(feed_text: &str) -> Result<RssFeed, NotificationError> {
     Ok(quick_xml::de::from_str(feed_text)?)
 }
 
-fn retrieve_only_events_in_range(events: &[Event]) -> BTreeSet<&Event> {
+fn retrieve_only_events_in_window<'a>(
+    events: &'a [Event],
+    window: &NotificationWindow,
+) -> BTreeSet<&'a Event> {
     events
         .iter()
-        .filter(|event| is_event_in_range(event))
+        .filter(|event| is_event_in_window(event, window))
         .collect()
 }
 
@@ -148,31 +229,13 @@ async fn notify_for_incoming_event(
     Ok(())
 }
 
-fn is_event_in_range(event: &Event) -> bool {
-    if let Some(event_date) = event.get_date() {
-        let now = get_now();
-        let date_in_n_executions = now
-            .checked_add_days(Days::new((DAYS_BEFORE_EVENTS) as u64))
-            .unwrap_or_else(|| panic!("Date in {DAYS_BEFORE_EVENTS} days should exist..."));
-        let date_in_n_minus_1_executions = now
-            .checked_add_days(Days::new(
-                (DAYS_BEFORE_EVENTS - DELAY_BETWEEN_EXECUTIONS_IN_DAYS) as u64,
-            ))
-            .unwrap_or_else(|| {
-                panic!(
-                    "Date in {} days should exist...",
-                    DAYS_BEFORE_EVENTS - DELAY_BETWEEN_EXECUTIONS_IN_DAYS
-                )
-            });
-        return date_in_n_minus_1_executions < event_date && event_date <= date_in_n_executions;
-    }
-
-    false
+fn is_event_in_window(event: &Event, window: &NotificationWindow) -> bool {
+    event.get_date().is_some_and(|date| window.contains(date))
 }
 
 #[cfg(not(test))]
-fn get_now() -> NaiveDate {
-    chrono::offset::Utc::now().date_naive()
+fn get_now() -> NaiveDateTime {
+    chrono::offset::Utc::now().naive_utc()
 }
 
 fn create_email_body(tera: &Tera, event: &Event) -> Result<String, NotificationError> {
@@ -199,8 +262,10 @@ fn retrieve_events_incoming_addresses() -> Result<Vec<String>, NotificationError
 }
 
 #[cfg(test)]
-fn get_now() -> NaiveDate {
-    NaiveDate::from_ymd_opt(2025, 1, 1).expect("Should be great for testing")
+fn get_now() -> NaiveDateTime {
+    NaiveDate::from_ymd_opt(2025, 1, 1)
+        .and_then(|date| date.and_hms_opt(8, 0, 0))
+        .expect("Should be great for testing")
 }
 
 #[cfg(test)]
@@ -221,77 +286,152 @@ mod tests {
         )]
     }
 
-    fn get_event_in_range_last_day() -> Event {
-        let title = "event title".to_string();
-        let link = "https://event.link".to_string();
-        let event_year = 2025;
-        let event_month = 1;
-        let event_day = 1 + DAYS_BEFORE_EVENTS;
+    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(year, month, day).unwrap()
+    }
+
+    fn event_on(date: NaiveDate) -> Event {
         Event {
-            title,
-            link,
-            event_year,
-            event_month,
-            event_day,
+            title: "event title".to_string(),
+            link: "https://event.link".to_string(),
+            event_year: date.year() as u16,
+            event_month: date.month() as u8,
+            event_day: date.day() as u8,
         }
     }
 
-    fn get_event_in_range_first_day() -> Event {
-        let title = "event title".to_string();
-        let link = "https://event.link".to_string();
-        let event_year = 2025;
-        let event_month = 1;
-        let event_day = 1 + DAYS_BEFORE_EVENTS - DELAY_BETWEEN_EXECUTIONS_IN_DAYS + 1;
-        Event {
-            title,
-            link,
-            event_year,
-            event_month,
-            event_day,
+    fn get_window() -> NotificationWindow {
+        NotificationWindow {
+            after: date(2025, 1, 8),
+            up_to: date(2025, 1, 15),
         }
     }
 
-    fn get_event_too_late() -> Event {
-        let title = "event title".to_string();
-        let link = "https://event.link".to_string();
-        let event_year = 2025;
-        let event_month = 1;
-        let event_day = 1 + DAYS_BEFORE_EVENTS + 1;
-        Event {
-            title,
-            link,
-            event_year,
-            event_month,
-            event_day,
-        }
-    }
+    use chrono::Datelike;
 
-    fn get_event_too_soon() -> Event {
-        let title = "event title".to_string();
-        let link = "https://event.link".to_string();
-        let event_year = 2025;
-        let event_month = 1;
-        let event_day = 1 + DAYS_BEFORE_EVENTS - DELAY_BETWEEN_EXECUTIONS_IN_DAYS - 1;
-        Event {
-            title,
-            link,
-            event_year,
-            event_month,
-            event_day,
-        }
-    }
-
-    mod retrieve_events {
-        use crate::notification::retrieve_events::retrieve_events;
-        use crate::notification::retrieve_events::tests::get_args;
+    mod notify_incoming_events_if_due {
+        use super::*;
+        use crate::database::with_temp_database;
         use crate::tools::env_args::with_env_args;
         use rocket::futures::executor::block_on;
 
         #[test]
-        fn success() {
-            with_env_args(get_args(), || {
-                block_on(retrieve_events()).unwrap();
+        fn notify_when_never_notified() {
+            with_temp_database(|pool| {
+                with_env_args(get_args(), || {
+                    assert!(block_on(notify_incoming_events_if_due(&pool)).unwrap());
+
+                    let mut connection = pool.get().unwrap();
+                    assert_eq!(
+                        Some(get_now()),
+                        get_last_update(&mut connection, &EventsNotification).unwrap()
+                    );
+                })
             });
+        }
+
+        #[test]
+        fn do_not_notify_twice() {
+            with_temp_database(|pool| {
+                with_env_args(get_args(), || {
+                    assert!(block_on(notify_incoming_events_if_due(&pool)).unwrap());
+                    assert!(!block_on(notify_incoming_events_if_due(&pool)).unwrap());
+                })
+            });
+        }
+
+        #[test]
+        fn notify_when_last_notification_is_old_enough() {
+            with_temp_database(|pool| {
+                with_env_args(get_args(), || {
+                    let last_notification = get_now()
+                        .checked_sub_days(Days::new(DELAY_BETWEEN_EXECUTIONS_IN_DAYS as u64))
+                        .unwrap();
+                    let mut connection = pool.get().unwrap();
+                    set_last_update(&mut connection, &EventsNotification, last_notification)
+                        .unwrap();
+                    drop(connection);
+
+                    assert!(block_on(notify_incoming_events_if_due(&pool)).unwrap());
+                })
+            });
+        }
+
+        #[test]
+        fn fail_without_addresses_and_do_not_record_notification() {
+            with_temp_database(|pool| {
+                assert!(block_on(notify_incoming_events_if_due(&pool)).is_err());
+
+                let mut connection = pool.get().unwrap();
+                assert_eq!(
+                    None,
+                    get_last_update(&mut connection, &EventsNotification).unwrap()
+                );
+            });
+        }
+    }
+
+    mod compute_notification_window {
+        use super::*;
+
+        #[test]
+        fn first_notification() {
+            assert_eq!(
+                Some(NotificationWindow {
+                    after: date(2025, 1, 8),
+                    up_to: date(2025, 1, 15),
+                }),
+                compute_notification_window(None, date(2025, 1, 1))
+            );
+        }
+
+        #[test]
+        fn not_due_yet() {
+            assert_eq!(
+                None,
+                compute_notification_window(Some(date(2025, 1, 1)), date(2025, 1, 7))
+            );
+        }
+
+        #[test]
+        fn not_due_same_day() {
+            assert_eq!(
+                None,
+                compute_notification_window(Some(date(2025, 1, 1)), date(2025, 1, 1))
+            );
+        }
+
+        #[test]
+        fn due_on_time() {
+            assert_eq!(
+                Some(NotificationWindow {
+                    after: date(2025, 1, 15),
+                    up_to: date(2025, 1, 22),
+                }),
+                compute_notification_window(Some(date(2025, 1, 1)), date(2025, 1, 8))
+            );
+        }
+
+        #[test]
+        fn late_notification_covers_skipped_days() {
+            assert_eq!(
+                Some(NotificationWindow {
+                    after: date(2025, 1, 15),
+                    up_to: date(2025, 1, 25),
+                }),
+                compute_notification_window(Some(date(2025, 1, 1)), date(2025, 1, 11))
+            );
+        }
+
+        #[test]
+        fn very_late_notification_ignores_past_events() {
+            assert_eq!(
+                Some(NotificationWindow {
+                    after: date(2025, 3, 1),
+                    up_to: date(2025, 3, 15),
+                }),
+                compute_notification_window(Some(date(2025, 1, 1)), date(2025, 3, 1))
+            );
         }
     }
 
@@ -306,15 +446,22 @@ mod tests {
         }
     }
 
-    mod retrieve_only_events_in_range {
+    mod retrieve_only_events_in_window {
         use super::*;
 
         #[test]
         fn success() {
-            let event_in_range_first_day = get_event_in_range_first_day();
-            let events = vec![event_in_range_first_day.clone(), get_event_too_soon()];
-            let expected_events = BTreeSet::from([&event_in_range_first_day]);
-            assert_eq!(expected_events, retrieve_only_events_in_range(&events));
+            let event_in_window = event_on(date(2025, 1, 10));
+            let events = vec![
+                event_in_window.clone(),
+                event_on(date(2025, 1, 8)),
+                event_on(date(2025, 1, 16)),
+            ];
+            let expected_events = BTreeSet::from([&event_in_window]);
+            assert_eq!(
+                expected_events,
+                retrieve_only_events_in_window(&events, &get_window())
+            );
         }
     }
 
@@ -325,18 +472,7 @@ mod tests {
 
         #[test]
         fn success() {
-            let title = "event title".to_string();
-            let link = "https://event.link".to_string();
-            let event_year = 2025;
-            let event_month = 1;
-            let event_day = 1 + DAYS_BEFORE_EVENTS;
-            let event = Event {
-                title,
-                link,
-                event_year,
-                event_month,
-                event_day,
-            };
+            let event = event_on(date(2025, 1, 15));
             let events = BTreeSet::from_iter(vec![&event]);
             with_env_args(get_args(), || {
                 block_on(notify_for_incoming_events(&events)).unwrap();
@@ -344,31 +480,46 @@ mod tests {
         }
     }
 
-    mod is_event_in_range {
+    mod is_event_in_window {
         use super::*;
 
         #[test]
-        fn should_be_in_range_last_day() {
-            let event = get_event_in_range_last_day();
-            assert!(is_event_in_range(&event));
+        fn should_be_in_window_last_day() {
+            assert!(is_event_in_window(
+                &event_on(date(2025, 1, 15)),
+                &get_window()
+            ));
         }
 
         #[test]
-        fn should_be_in_range_first_day() {
-            let event = get_event_in_range_first_day();
-            assert!(is_event_in_range(&event));
+        fn should_be_in_window_first_day() {
+            assert!(is_event_in_window(
+                &event_on(date(2025, 1, 9)),
+                &get_window()
+            ));
         }
 
         #[test]
-        fn should_not_be_in_range_too_soon() {
-            let event = get_event_too_soon();
-            assert!(!is_event_in_range(&event));
+        fn should_not_be_in_window_too_soon() {
+            assert!(!is_event_in_window(
+                &event_on(date(2025, 1, 8)),
+                &get_window()
+            ));
         }
 
         #[test]
-        fn should_not_be_in_range_too_late() {
-            let event = get_event_too_late();
-            assert!(!is_event_in_range(&event));
+        fn should_not_be_in_window_too_late() {
+            assert!(!is_event_in_window(
+                &event_on(date(2025, 1, 16)),
+                &get_window()
+            ));
+        }
+
+        #[test]
+        fn should_not_be_in_window_invalid_date() {
+            let mut event = event_on(date(2025, 1, 10));
+            event.event_month = 13;
+            assert!(!is_event_in_window(&event, &get_window()));
         }
     }
 
@@ -378,18 +529,7 @@ mod tests {
         #[test]
         fn success() {
             let tera = create_tera_renderer().unwrap();
-            let title = "event title".to_string();
-            let link = "https://event.link".to_string();
-            let event_year = 2025;
-            let event_month = 11;
-            let event_day = 1;
-            let event = Event {
-                title,
-                link,
-                event_year,
-                event_month,
-                event_day,
-            };
+            let event = event_on(date(2025, 11, 1));
             create_email_body(&tera, &event).unwrap();
         }
     }
