@@ -11,6 +11,7 @@ use std::fmt::{Display, Formatter};
 pub enum UpdatableElement {
     Memberships,
     UdaInstances,
+    EventsNotification,
 }
 
 impl Display for UpdatableElement {
@@ -40,7 +41,16 @@ pub(super) fn update(
     connection: &mut SqliteConnection,
     updatable_element: &UpdatableElement,
 ) -> Result<NaiveDateTime> {
-    let update_date = Utc::now().naive_local();
+    let update_date = Utc::now().naive_utc();
+    set_last_update(connection, updatable_element, update_date)?;
+    Ok(update_date)
+}
+
+pub(crate) fn set_last_update(
+    connection: &mut SqliteConnection,
+    updatable_element: &UpdatableElement,
+    update_date: NaiveDateTime,
+) -> Result<()> {
     let result = diesel::update(last_update.filter(element.eq(updatable_element.to_string())))
         .set(date.eq(update_date.to_string()))
         .execute(connection)?;
@@ -62,7 +72,7 @@ pub(super) fn update(
         debug!("Inserted {updatable_element} at {update_date}")
     }
 
-    Ok(update_date)
+    Ok(())
 }
 
 #[cfg(test)]
@@ -160,6 +170,42 @@ mod tests {
                 test_update_element(&mut connection, &UpdatableElement::Memberships);
                 test_update_element(&mut connection, &UpdatableElement::UdaInstances);
                 test_update_element(&mut connection, &UpdatableElement::UdaInstances);
+            })
+        }
+    }
+
+    mod set_last_update {
+        use crate::database::dao::last_update::{
+            UpdatableElement, get_last_update, set_last_update,
+        };
+        use crate::database::with_temp_database;
+        use chrono::NaiveDate;
+
+        #[test]
+        fn success() {
+            with_temp_database(|pool| {
+                let mut connection = pool.get().unwrap();
+                let element = UpdatableElement::EventsNotification;
+                let first_date = NaiveDate::from_ymd_opt(2025, 1, 1)
+                    .unwrap()
+                    .and_hms_opt(8, 0, 0)
+                    .unwrap();
+                let second_date = NaiveDate::from_ymd_opt(2025, 1, 8)
+                    .unwrap()
+                    .and_hms_opt(8, 0, 0)
+                    .unwrap();
+
+                set_last_update(&mut connection, &element, first_date).unwrap();
+                assert_eq!(
+                    Some(first_date),
+                    get_last_update(&mut connection, &element).unwrap()
+                );
+
+                set_last_update(&mut connection, &element, second_date).unwrap();
+                assert_eq!(
+                    Some(second_date),
+                    get_last_update(&mut connection, &element).unwrap()
+                );
             })
         }
     }
