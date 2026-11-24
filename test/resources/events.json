@@ -1,0 +1,72 @@
+[
+  {
+    "title": "Brum@mono 2026 : Tournoi de monobasket de Brumath",
+    "link": "https://monocycle.info/events/brummono-2026-tournoi-de-monobasket-de-brumath/",
+    "start": "2026-11-28 00:00:00",
+    "end": "2026-11-29 23:59:59",
+    "all_day": true
+  },
+  {
+    "title": "Tournoi de monobasket d’Ingré",
+    "link": "https://monocycle.info/events/tournoi-de-monobasket-dingre-2/",
+    "start": "2027-02-20 08:00:00",
+    "end": "2027-02-21 17:00:00",
+    "all_day": false
+  },
+  {
+    "title": "Roule Ton Caillou 2027",
+    "link": "https://monocycle.info/events/roule-ton-caillou-2027/",
+    "start": "2027-04-03 00:00:00",
+    "end": "2027-04-04 23:59:59",
+    "all_day": true
+  },
+  {
+    "title": "Tournoi de Mono-Basket de Grenoble 2027",
+    "link": "https://monocycle.info/events/tournoi-de-mono-basket-de-grenoble-2027/",
+    "start": "2027-04-03 00:00:00",
+    "end": "2027-04-04 23:59:59",
+    "all_day": true
+  },
+  {
+    "title": "Tournoi de monohockey d’Ingré",
+    "link": "https://monocycle.info/events/tournoi-de-monohockey-dingre/",
+    "start": "2027-04-24 12:00:00",
+    "end": "2027-04-25 16:00:00",
+    "all_day": false
+  },
+  {
+    "title": "Tournoi de Mono-Hockey de Grenoble 2027",
+    "link": "https://monocycle.info/events/tournoi-de-mono-hockey-de-grenoble-2027/",
+    "start": "2027-05-22 00:00:00",
+    "end": "2027-05-23 23:59:59",
+    "all_day": true
+  },
+  {
+    "title": "Rencontre d’athlétisme – Ingré 2027",
+    "link": "https://monocycle.info/events/rencontre-dathletisme-ingre-2027/",
+    "start": "2027-05-29 00:00:00",
+    "end": "2027-05-29 23:59:59",
+    "all_day": true
+  },
+  {
+    "title": "rrriunti 2027",
+    "link": "https://monocycle.info/events/rrriunti-2027/",
+    "start": "2027-07-25 00:00:00",
+    "end": "2027-07-31 23:59:59",
+    "all_day": true
+  },
+  {
+    "title": "Grischa Muni Challenge 2027",
+    "link": "https://monocycle.info/events/grischa-muni-challenge-2027/",
+    "start": "2027-08-26 00:00:00",
+    "end": "2027-08-29 23:59:59",
+    "all_day": true
+  },
+  {
+    "title": "Coupe de France de Monocycle 2027",
+    "link": "https://monocycle.info/events/coupe-de-france-de-monocycle-2027/",
+    "start": "2027-10-30 00:00:00",
+    "end": "2027-11-06 23:59:59",
+    "all_day": true
+  }
+]

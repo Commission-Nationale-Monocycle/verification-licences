@@ -18,16 +18,15 @@ use crate::web::error::WebError::ConnectionFailed;
 use chrono::{Days, NaiveDate, NaiveDateTime};
 use diesel::SqliteConnection;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
-use serde::Deserialize;
-use std::cmp::Ordering;
+use serde::{Deserialize, Deserializer};
 use std::collections::BTreeSet;
 #[cfg(test)]
 use std::fs;
 use std::string::String;
 use tera::{Context, Tera};
 
-#[cfg(not(test))]
-const FEED_URL: &str = "https://monocycle.info/events/feed"; // TODO: pass in the config
+/// Custom endpoint added to monocycle.info, see `wordpress/monocycle-events-api.php`.
+const EVENTS_API_URL: &str = "https://monocycle.info/wp-json/monocycle/v1/events"; // TODO: pass in the config
 const EVENTS_INCOMING_ADDRESSES: &str = "--events-incoming-addresses";
 const DELAY_BETWEEN_EXECUTIONS_IN_DAYS: u8 = 7; // TODO: pass in the config
 const NUMBER_OF_EXECUTIONS_TO_EVENTS: u8 = 2; // TODO: pass in the config
@@ -35,48 +34,25 @@ const DAYS_BEFORE_EVENTS: u8 = DELAY_BETWEEN_EXECUTIONS_IN_DAYS * NUMBER_OF_EXEC
 
 pub type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 
-#[derive(Debug, Deserialize)]
-struct RssFeed {
-    channel: Channel,
-}
-
-#[derive(Debug, Deserialize)]
-struct Channel {
-    item: Vec<Event>,
-}
-
-#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
+/// An event, as returned by the events endpoint of monocycle.info.
+/// Fields are ordered so that events are sorted by date.
+#[derive(Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
 struct Event {
+    #[serde(deserialize_with = "deserialize_start_date")]
+    start: NaiveDate,
     title: String,
     link: String,
-    event_day: u8,
-    event_month: u8,
-    event_year: u16,
 }
 
-impl Event {
-    fn get_date(&self) -> Option<NaiveDate> {
-        NaiveDate::from_ymd_opt(
-            self.event_year as i32,
-            self.event_month as u32,
-            self.event_day as u32,
-        )
-    }
-}
-
-impl PartialOrd<Self> for Event {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Event {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.event_year
-            .cmp(&other.event_year)
-            .then(self.event_month.cmp(&other.event_month))
-            .then(self.event_day.cmp(&other.event_day))
-    }
+/// The endpoint returns dates like `2026-11-28 00:00:00`; only the day matters here.
+fn deserialize_start_date<'de, D>(deserializer: D) -> Result<NaiveDate, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+    NaiveDateTime::parse_from_str(&value, "%Y-%m-%d %H:%M:%S")
+        .map(|date_time| date_time.date())
+        .map_err(serde::de::Error::custom)
 }
 
 /// Range of event dates to notify about: `after` is excluded, `up_to` is included.
@@ -114,9 +90,9 @@ pub async fn notify_incoming_events_if_due(pool: &DbPool) -> Result<bool> {
         "Notifying about events after {} and up to {}",
         window.after, window.up_to
     );
-    let feed = get_events_feed().await?;
-    let feed = deserialize_feed(&feed)?;
-    let incoming_events = retrieve_only_events_in_window(&feed.channel.item, &window);
+    let events = get_events(&window).await?;
+    let events = deserialize_events(&events)?;
+    let incoming_events = retrieve_only_events_in_window(&events, &window);
     notify_for_incoming_events(&incoming_events).await?;
 
     let mut connection = get_connection(pool)?;
@@ -160,17 +136,28 @@ fn add_days(date: NaiveDate, days: u8) -> NaiveDate {
         .unwrap_or_else(|| panic!("Date {days} days after {date} should exist..."))
 }
 
+/// Build the URL to retrieve the events of the window.
+/// The endpoint includes both bounds, whereas the window excludes its start.
+fn build_events_url(window: &NotificationWindow) -> String {
+    format!(
+        "{EVENTS_API_URL}?after={}&before={}",
+        add_days(window.after, 1),
+        window.up_to
+    )
+}
+
 #[cfg(not(test))]
-async fn get_events_feed() -> Result<String> {
+async fn get_events(window: &NotificationWindow) -> Result<String> {
     let client = build_client()?;
-    let response = client
-        .get(FEED_URL)
-        .send()
-        .await
-        .map_err(log_message_and_return(
-            "Connection failed...",
-            ConnectionFailed,
-        ))?;
+    let response =
+        client
+            .get(build_events_url(window))
+            .send()
+            .await
+            .map_err(log_message_and_return(
+                "Connection failed...",
+                ConnectionFailed,
+            ))?;
     let status = response.status();
     if !status.is_success() {
         log::error!("Connection failed because of status {status}...");
@@ -185,8 +172,8 @@ async fn get_events_feed() -> Result<String> {
     Ok(text)
 }
 
-fn deserialize_feed(feed_text: &str) -> Result<RssFeed, NotificationError> {
-    Ok(quick_xml::de::from_str(feed_text)?)
+fn deserialize_events(events_text: &str) -> Result<Vec<Event>, NotificationError> {
+    Ok(serde_json::from_str(events_text)?)
 }
 
 fn retrieve_only_events_in_window<'a>(
@@ -230,7 +217,7 @@ async fn notify_for_incoming_event(
 }
 
 fn is_event_in_window(event: &Event, window: &NotificationWindow) -> bool {
-    event.get_date().is_some_and(|date| window.contains(date))
+    window.contains(event.start)
 }
 
 #[cfg(not(test))]
@@ -239,10 +226,7 @@ fn get_now() -> NaiveDateTime {
 }
 
 fn create_email_body(tera: &Tera, event: &Event) -> Result<String, NotificationError> {
-    let event_date = format!(
-        "{}/{}/{}",
-        event.event_day, event.event_month, event.event_year
-    );
+    let event_date = event.start.format("%d/%m/%Y").to_string();
 
     let mut context = Context::new();
     context.insert("event_name", &event.title);
@@ -269,8 +253,8 @@ fn get_now() -> NaiveDateTime {
 }
 
 #[cfg(test)]
-async fn get_events_feed() -> Result<String> {
-    Ok(fs::read_to_string("test/resources/events_feed.xml").unwrap())
+async fn get_events(_window: &NotificationWindow) -> Result<String> {
+    Ok(fs::read_to_string("test/resources/events.json").unwrap())
 }
 
 #[cfg(test)]
@@ -292,11 +276,9 @@ mod tests {
 
     fn event_on(date: NaiveDate) -> Event {
         Event {
+            start: date,
             title: "event title".to_string(),
             link: "https://event.link".to_string(),
-            event_year: date.year() as u16,
-            event_month: date.month() as u8,
-            event_day: date.day() as u8,
         }
     }
 
@@ -306,8 +288,6 @@ mod tests {
             up_to: date(2025, 1, 15),
         }
     }
-
-    use chrono::Datelike;
 
     mod notify_incoming_events_if_due {
         use super::*;
@@ -435,14 +415,53 @@ mod tests {
         }
     }
 
-    mod deserialize_feed {
-        use crate::notification::retrieve_events::{deserialize_feed, get_events_feed};
+    mod deserialize_events {
+        use super::*;
 
         #[async_test]
         async fn success() {
-            let events_feed = get_events_feed().await.unwrap();
-            let feed = deserialize_feed(&events_feed).unwrap();
-            assert_eq!(10, feed.channel.item.len())
+            let events = get_events(&get_window()).await.unwrap();
+            let events = deserialize_events(&events).unwrap();
+            assert_eq!(10, events.len());
+            assert_eq!(
+                Event {
+                    start: date(2026, 11, 28),
+                    title: "Brum@mono 2026\u{a0}: Tournoi de monobasket de Brumath".to_string(),
+                    link: "https://monocycle.info/events/brummono-2026-tournoi-de-monobasket-de-brumath/".to_string(),
+                },
+                events[0]
+            );
+        }
+
+        #[test]
+        fn success_with_leading_whitespace() {
+            let events = deserialize_events("  []").unwrap();
+            assert!(events.is_empty());
+        }
+
+        #[test]
+        fn fail_when_invalid_date() {
+            let events = r#"[{"title": "t", "link": "l", "start": "2026-13-01 00:00:00"}]"#;
+            assert!(deserialize_events(events).is_err());
+        }
+
+        #[test]
+        fn fail_when_error_response() {
+            let error =
+                r#"{"code": "rest_no_route", "message": "No route", "data": {"status": 404}}"#;
+            assert!(deserialize_events(error).is_err());
+        }
+    }
+
+    mod build_events_url {
+        use super::*;
+
+        #[test]
+        fn success() {
+            assert_eq!(
+                "https://monocycle.info/wp-json/monocycle/v1/events?after=2025-01-09&before=2025-01-15",
+                build_events_url(&get_window())
+            );
         }
     }
 
@@ -513,13 +532,6 @@ mod tests {
                 &event_on(date(2025, 1, 16)),
                 &get_window()
             ));
-        }
-
-        #[test]
-        fn should_not_be_in_window_invalid_date() {
-            let mut event = event_on(date(2025, 1, 10));
-            event.event_month = 13;
-            assert!(!is_event_in_window(&event, &get_window()));
         }
     }
 

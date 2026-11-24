@@ -1,11 +1,10 @@
 use crate::tools::email::Error;
-use quick_xml::DeError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum NotificationError {
     #[error(transparent)]
-    DeserializationError(#[from] DeError),
+    DeserializationError(#[from] serde_json::Error),
     #[error(transparent)]
     MailError(#[from] Error),
     #[error("Missing events incoming addresses")]
