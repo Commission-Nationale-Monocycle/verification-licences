@@ -67,16 +67,18 @@ Running the tests in the 3 packages is fairly simple:
 
 To run the app in production, you'll need to pass the following args while starting the app:
 
-| Name                   | Description                                                                                                                             | Type   | Required | Default                        |
-|------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|--------|----------|--------------------------------|
-| --email-sender-name    | The name email recipients should see                                                                                                    | String | Yes      | None                           |
-| --email-sender-address | The address that should be used to send the emails.<br/>⚠ If it doesn't fit with the SMTP login, the SMTP server may reject the emails. | String | Yes      | None                           |
-| --reply-to             | Which address the recipients should reply to                                                                                            | String | No       | `--email-sender-address` value |
-| --smtp-server          | The SMTP server to use to send emails                                                                                                   | String | No       | smtp.gmail.com                 |
-| --smtp-port            | The SMTP port the SMTP is listening on                                                                                                  | u16    | No       | 587                            |
-| --smtp-login           | The login used to access the SMTP server                                                                                                | String | Yes      | None                           |
-| --smtp-password        | The password used to access the SMTP server                                                                                             | String | Yes      | None                           |
-| --database-url         | The location of the database                                                                                                            | String | Yes      | None                           |
+| Name                        | Description                                                                                                                             | Type   | Required | Default                        |
+|-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|--------|----------|--------------------------------|
+| --email-sender-name         | The name email recipients should see                                                                                                    | String | Yes      | None                           |
+| --email-sender-address      | The address that should be used to send the emails.<br/>⚠ If it doesn't fit with the SMTP login, the SMTP server may reject the emails. | String | Yes      | None                           |
+| --reply-to                  | Which address the recipients should reply to                                                                                            | String | No       | `--email-sender-address` value |
+| --smtp-server               | The SMTP server to use to send emails                                                                                                   | String | No       | smtp.gmail.com                 |
+| --smtp-port                 | The SMTP port the SMTP is listening on                                                                                                  | u16    | No       | 587                            |
+| --smtp-login                | The login used to access the SMTP server                                                                                                | String | Yes      | None                           |
+| --smtp-password             | The password used to access the SMTP server                                                                                             | String | Yes      | None                           |
+| --database-url              | The location of the database                                                                                                            | String | Yes      | None                           |
+| --events-incoming-addresses | Comma-separated list of addresses to notify about incoming events. Checked daily.                                                       | String | Yes      | None                           |
+| --port                      | The port the app listens on                                                                                                             | i32    | No       | 8000                           |
 
 E.g.:
 
@@ -89,7 +91,9 @@ cargo run -- \
   --smtp-port=<smtp-port> \
   --smtp-login=<smtp-login> \
   --smtp-password=<smtp-password> \
-  --database-url=<database-url>
+  --database-url=<database-url> \
+  --events-incoming-addresses=<address-1>,<address-2> \
+  --port=<port>
 ```
 
 ## Env vars
